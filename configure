@@ -1,0 +1,112 @@
+#! /usr/bin/bash
+
+#
+#  Output variables
+#
+
+# Path parameters
+PREFIX="/usr"
+# Individual component selection
+BUILD_fxsdk=1
+BUILD_fxconv=1
+BUILD_fxg1a=1
+BUILD_fxos=1
+
+#
+#  Tool name checking
+#
+
+check()
+{
+	[[ $1 = "fxsdk"  ]] ||
+	[[ $1 = "fxconv" ]] ||
+	[[ $1 = "fxg1a"  ]] ||
+	[[ $1 = "fxos"   ]]
+}
+
+#
+#  Usage
+#
+
+help()
+{
+	cat << EOF
+Configuration options for the fxSDK (fx9860g and fxcg50 development tools).
+
+Tool selection:
+  <tool> may be one of the following:
+    "fxsdk"          Command-line options (you generally want this)
+    "fxconv"         Asset conversion for gint (or any 4-aligned-VRAM system)
+    "fxg1a"          G1A file wrapper, editor and analyzer
+    "fxos"           OS fiddling tool, including syscall disassembly
+
+  --enable-<tool>    Build and install the selected tool [default]
+  --disable-<tool>   Do not build or install the selected tool
+
+Install folders:
+  Executables will be installed in <prefix>/bin and runtime data in
+  <prefix>/share/fxsdk.
+
+  --prefix=<prefix>  Base install folder [default /usr]
+EOF
+	exit 0
+}
+
+#
+#  Argument parsing
+#
+
+for arg; do case "$arg" in
+	-h | -? | --help)
+		help;;
+
+	--prefix=*)
+		PREFIX=${arg#--prefix=};;
+
+	--enable-*)
+		tool="${arg#--enable-}"
+		if ! check $tool; then
+			echo "error: cannot enable $tool: unknown tool"
+			exit 1
+		fi
+
+		eval "BUILD_${tool}=1";;
+
+	--disable-*)
+		tool="${arg#--disable-}"
+		if ! check $tool; then
+			echo "error: cannot disable $tool: unknown tool"
+			exit 1
+		fi
+
+		eval "BUILD_${tool}=0";;
+
+	*)
+		echo "error: unrecognized option $arg"
+		exit 1;;
+esac; done
+
+#
+#  Makefile generation
+#
+
+gen()
+{
+	echo "PREFIX  = $PREFIX"
+	echo -n "TARGETS ="
+
+	[[ $BUILD_fxsdk  = 1 ]] && echo -n " fxsdk"
+	[[ $BUILD_fxconv = 1 ]] && echo -n " fxconv"
+	[[ $BUILD_fxg1a  = 1 ]] && echo -n " fxg1a"
+	[[ $BUILD_fxos   = 1 ]] && echo -n " fxos"
+
+	echo ""
+}
+
+echo "Configuration complete, the following has been saved in Makefile.cfg:"
+echo ""
+
+gen | tee Makefile.cfg
+
+echo ""
+echo "You can now 'make'."
