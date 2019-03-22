@@ -1,6 +1,7 @@
 #include <fxg1a.h>
 #include <stdio.h>
 #include <string.h>
+#include <endian.h>
 
 /* sign(): Sign header by filling fixed fields and checksums */
 void sign(struct g1a *g1a, size_t size)
