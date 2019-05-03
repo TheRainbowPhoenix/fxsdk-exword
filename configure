@@ -5,7 +5,7 @@
 #
 
 # Path parameters
-PREFIX="/usr"
+PREFIX="$HOME/.local"
 # Individual component selection
 BUILD_fxsdk=1
 BUILD_fxconv=1
@@ -47,7 +47,7 @@ Install folders:
   Executables will be installed in <prefix>/bin and runtime data in
   <prefix>/share/fxsdk.
 
-  --prefix=<prefix>  Base install folder [default /usr]
+  --prefix=<prefix>  Base install folder [default $HOME/.local]
 EOF
 	exit 0
 }

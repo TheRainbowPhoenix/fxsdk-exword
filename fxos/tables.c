@@ -1,59 +1,82 @@
-#include <stdlib.h>
 #include <fxos.h>
+#include <errors.h>
+#include <string.h>
 
-/* A linked list of pointers (either file names or tables) */
-struct element
+/* Up to 128 tables can be defined */
+#define MAX 128
+static struct table db[MAX] = { 0 };
+/* Number of tables currently used */
+static int db_size = 0;
+
+/* table_free(): Free a table and its contents
+   @t  Table pointer */
+static void table_free(struct table *t)
 {
-	void *data;
-	struct element *next;
-};
+	if(!t) return;
+	free(t->name);
 
-/* list_append(): Append a pointer to a linked list
-   Returns a pointer to the new node, NULL on error. */
-struct element *list_append(struct element **head, void *data)
-{
-	struct element *el = malloc(sizeof *el);
-	if(!el) return NULL;
-	el->data = data;
-	el->next = NULL;
-
-	while(*head) head = &((*head)->next);
-	*head = el;
-
-	return el;
-}
-
-/* list_free(): Free a linked list */
-void list_free(struct element *head, void (*destructor)(void *))
-{
-	struct element *next;
-	while(head)
+	if(t->items) for(int i = 0; i < t->count; i++)
 	{
-		destructor(head->data);
-		next = head->next;
-		free(head);
-		head = next;
+		t->free_item(t->items + i * t->size);
 	}
+	free(t->items);
 }
 
-/* Table of assembly instruction listings */
-static struct element *tasm = NULL;
-/* Table of system call information listings */
-static struct element *tcall = NULL;
-
-
-/*
-**  Public API
-*/
-
-/* tables_add_asm(): Append an instruction table to the table list */
-int tables_add_asm(const char *filename)
+/* table_quit(): Destroy all allocated tables and release memory */
+__attribute__((destructor))
+static void table_quit(void)
 {
-	return !list_append(&tasm, (void *)filename);
+	for(int i = 0; i < db_size; i++) table_free(&db[i]);
 }
 
-/* tables_add_syscall(): Append a syscall table to the table list */
-int tables_add_syscall(const char *filename)
+/* table_available(): Whether a table can be allocated */
+int table_available(void)
 {
-	return !list_append(&tcall, (void *)filename);
+	return db_size < MAX;
+}
+
+/* table_create(): Create a new table */
+void table_create(char const *type, char *name, void (*free_item)(void *),
+	int count, size_t size, void *items)
+{
+	if(!table_available()) return;
+	struct table *t = &db[db_size++];
+
+	t->type = type;
+	t->name = name;
+	t->free_item = free_item;
+	t->count = count;
+	t->size = size;
+	t->items = items;
+}
+
+/* table_find(): Find matching entries in the database tables */
+void *table_find(char const *type, int (*match)(void *), char const **name,
+	int next)
+{
+	static int table = 0;
+	static int index = 0;
+	if(!next) table = index = 0;
+
+	while(table < db_size)
+	{
+		struct table const *t = &db[table];
+
+		if(!strcmp(t->type, type))
+		while(index < t->count)
+		{
+			void *entry = t->items + index * t->size;
+			index++;
+			if(match(entry))
+			{
+				if(name) *name = t->name;
+				return entry;
+			}
+		}
+
+		table++;
+		index = 0;
+	}
+
+	return NULL;
 }

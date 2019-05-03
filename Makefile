@@ -6,12 +6,10 @@ include Makefile.cfg
 endif
 
 # Compiler flags
-cflags = -Wall -Wextra -std=c11 -O2 -I $(dir $<) -D_GNU_SOURCE \
+cflags = -Wall -Wextra -std=c11 -g -I $(dir $<) -D_GNU_SOURCE \
          -DFXSDK_PREFIX='"$(PREFIX)"' $(CFLAGS)
 # Linker flags
 lflags = -lpng
-# Bison generation flags
-# bflags = -L C --defines=$(@:.c=.h) --verbose
 # Dependency generation flags
 dflags = -MT $@ -MMD -MP -MF $(@:%.o=%.d)
 
@@ -28,15 +26,18 @@ src = $(wildcard $1/*.c)
 src-fxsdk  := $(call src,fxsdk)
 src-fxg1a  := $(call src,fxg1a)
 src-fxos   := $(call src,fxos)
+lex-fxos   := $(wildcard fxos/*.l)
 
-obj = $(src-$1:%=build/%.o)
-obj-fxsdk  := $(call obj,fxsdk)
-obj-fxg1a  := $(call obj,fxg1a)
-obj-fxos   := $(call obj,fxos)
+obj = $($1:%=build/%.o)
+lex = $($1:%.l=build/%.yy.c.o)
+obj-fxsdk  := $(call obj,src-fxsdk)
+obj-fxg1a  := $(call obj,src-fxg1a)
+obj-fxos   := $(call obj,src-fxos) $(call lex,lex-fxos)
 
 # Symbolic targets
 
 all: $(bin)
+	@echo $(lex-fxos)
 
 all-fxsdk: bin/fxsdk
 all-fxg1a: bin/fxg1a
@@ -62,17 +63,11 @@ build/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	gcc -c $< -o $@ $(cflags) $(dflags)
 
-# Flex lexers (unused since fxconv is written in Python)
-# build/%/lexer.yy.c: %/lexer.l build/%/parser.tab.c
-#	flex -o $@ -s $<
-# build/%/lexer.yy.c.o: build/%/lexer.yy.c
-#	gcc -c $< -o $@ $(cflags) -Wno-unused-function $(dflags) -I $*
-
-# Bison parsers (unused since fxconv is written in Python)
-# build/%/parser.tab.c: %/parser.y
-#	bison $< -o $@ $(bflags)
-# build/%/parser.tab.c.o: build/%/parser.tab.c
-#	gcc -c $< -o $@ $(cflags) $(dflags) -I $*
+# Flex lexers for the fxos database
+build/fxos/lexer-%.yy.c: fxos/lexer-%.l
+	flex -o $@ -s $<
+build/fxos/lexer-%.yy.c.o: build/fxos/lexer-%.yy.c
+	gcc -c $< -o $@ $(cflags) -Wno-unused-function $(dflags) -I fxos
 
 #
 #  Dependency system, misc.
@@ -95,9 +90,15 @@ Makefile.cfg:
 
 install: $(bin)
 	install -d $(PREFIX)/bin
+	install -d $(PREFIX)/share/fxsdk
 	install $(bin) -m 755 $(PREFIX)/bin
+	install fxos/*.txt -m 644 $(PREFIX)/share/fxsdk
 	install fxconv/fxconv-main.py -m 755 $(PREFIX)/bin/fxconv
 	install fxconv/fxconv.py -m 644 $(PREFIX)/bin
+
+uninstall:
+	rm -f $(PREFIX)/bin/{fxsdk,fxg1a,fxos,fxconv,fxconv.py}
+	rm -rf $(PREFIX)/share/fxsdk
 
 #
 #  Cleaning

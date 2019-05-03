@@ -1,0 +1,7 @@
+0x000  sys_init
+0x004  tlb_init
+       void tlb_init(void)
+0x025  t6k11_read_datareg
+       uint8_t t6k11_read_datareg(void)
+0x3fc  tlb_map
+       void tlb_map(int shifted_vpn, int way, uint32_t data_field)
