@@ -18,7 +18,7 @@ dflags = -MT $@ -MMD -MP -MF $(@:%.o=%.d)
 #  $TARGETS is provided by Makefile.cfg.
 #
 
-TARGETS := $(filter-out fxconv,$(TARGETS))
+TARGETS := $(filter-out fxconv fxsdk,$(TARGETS))
 bin = $(TARGETS:%=bin/%)
 
 # fxconv has no sources files because it's written in Python, and fxsdk has no
@@ -78,6 +78,8 @@ Makefile.cfg:
 	fi
 
 .PHONY: all clean distclean
+
+.PRECIOUS: build/fxos/lexer-%.yy.c
 
 #
 #  Installing
