@@ -165,11 +165,25 @@ fxsdk_build_fx() {
 }
 
 fxsdk_build_cg() {
-  startus "Making into build-cg"
+  status "Making into build-cg"
   make all-cg
 }
 
+fxsdk_install() {
+  if [[ -e "build-fx" && ! -e "build-cg" ]]; then
+    fxsdk_install_fx
+  fi
+
+  if [[ -e "build-cg" && ! -e "build-fx" ]]; then
+    fxsdk_install_cg
+  fi
+
+  echo "either no or several platforms are targeted, use 'fxsdk install-fx' or"
+  echo "fxsdk 'install-cg' to specify which calculator to install to."
+}
+
 fxsdk_install_fx() {
+  status "Installing for fx9860g using p7"
   make install-fx
 }
 
@@ -189,13 +203,18 @@ case $1 in
 
   # Project compilation
   "build")
-    fxsdk_build;;
+    fxsdk_build
+    [[ $1 == "-s" ]] && fxsdk_install;;
   "build-fx")
-    fxsdk_build_fx;;
+    fxsdk_build_fx
+    [[ $1 == "-s" ]] && fxsdk_install;;
   "build-cg")
-    fxsdk_build_cg;;
+    fxsdk_build_cg
+    [[ $1 == "-s" ]] && fxsdk_install;;
 
   # Install
+  "install")
+    fxsdk_install;;
   "install-fx")
     fxsdk_install_fx;;
   "install-cg")
