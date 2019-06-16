@@ -29,6 +29,12 @@ error() {
   echo "Try 'fxsdk --help' for more information." >&2
 }
 
+status() {
+    echo -ne "\n\e[34;1m::\e[39;1m "
+    echo -n "$@"
+    echo -e "\e[0m\n"
+}
+
 # TODO: Finish this interface
 fxsdk_new_project_cli() {
   internal=
@@ -108,15 +114,94 @@ EOF
 }
 
 fxsdk_build() {
-  true
+  built=
+
+  if [[ -e build-fx ]]; then
+    status "Making into build-fx"
+    make all-fx
+    built=1
+  fi
+
+  if [[ -e build-cg ]]; then
+    status "Making into build-cg"
+    make all-cg
+    built=1
+  fi
+
+  [[ $built ]] && return
+
+  echo "No build files currently exist. Which platform do I compile for?"
+  echo ""
+  echo '"fx": fx-9860G II, Graph 35+ USB/E/E II, Graph 75+'
+  echo '"cg": fx-CG 10/20/50, Graph 90+E'
+  echo ""
+  echo "Leave blank to cancel."
+
+  platform=
+  while true; do
+    echo -n '> '
+    read platform
+    [[ -z $platform ]] && return
+
+    if [[ $platform == "fx" ]]; then
+      status "Making into build-fx"
+      make all-fx
+      return
+    fi
+
+    if [[ $platform == "cg" ]]; then
+      status "Making into build-fx"
+      make all-cg
+      return
+    fi
+
+    echo -e 'Unknown platform (valid names are "fx" and "cg")\n'
+  done
+}
+
+fxsdk_build_fx() {
+  status "Making into build-fx"
+  make all-fx
+}
+
+fxsdk_build_cg() {
+  startus "Making into build-cg"
+  make all-cg
+}
+
+fxsdk_install_fx() {
+  make install-fx
+}
+
+fxsdk_install_cg() {
+  # TODO
+  echo "error: this is tricky and not implemented yet, sorry x_x"
 }
 
 # Parse command name
 
 case $1 in
-  new)
+
+  # Project creation
+  "new")
     shift
     fxsdk_new_project_interactive "$@";;
+
+  # Project compilation
+  "build")
+    fxsdk_build;;
+  "build-fx")
+    fxsdk_build_fx;;
+  "build-cg")
+    fxsdk_build_cg;;
+
+  # Install
+  "install-fx")
+    fxsdk_install_fx;;
+  "install-cg")
+    fxsdk_install_cg;;
+
+  # Misc
   -h|--help|-\?)
     usage 0;;
   ?*)
