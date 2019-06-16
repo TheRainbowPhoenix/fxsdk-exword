@@ -258,8 +258,8 @@ def _convert_font(input, output, params):
 	if charset is None:
 		raise FxconvError(f"unknown character set '{charset}'")
 	if charset.count > grid.size(img):
-		raise FxconvError(f"not enough elements in grid (got {grid.size()}, "+
-			f"need {charset.count} for '{charset.name}'")
+		raise FxconvError(f"not enough elements in grid (got {grid.size(img)}, "+
+			f"need {charset.count} for '{charset.name}')")
 
 	#--
 	# Proportionality and metadata
@@ -310,7 +310,6 @@ def _convert_font(input, output, params):
 
 		# Get glyph area
 		glyph = img.crop(region)
-		glyph.save(f"/tmp/img{number}.png")
 		if proportional:
 			glyph = _trim(glyph)
 			data_widths.append(glyph.width)
@@ -380,7 +379,6 @@ def quantize(img, dither=False):
 	for (i, c) in enumerate(colors):
 		palette.putpixel((i, 0), c)
 	palette = palette.convert("P")
-	palette.save("/tmp/palette.png")
 
 	# Save the alpha channel, and make it either full transparent or opaque
 	try:
@@ -397,7 +395,7 @@ def quantize(img, dither=False):
 	img.load()
 	palette.load()
 	im = img.im.convert("P", int(dither), palette.im)
-	img = img._new(im)
+	img = img._new(im).convert("RGB")
 
 	# Put back the alpha channel
 	img.putalpha(alpha_channel)
