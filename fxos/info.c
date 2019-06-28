@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <endian.h>
+#include <endianness.h>
 
 char const *info_str =
 "Header information:\n"

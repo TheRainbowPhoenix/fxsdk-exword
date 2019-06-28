@@ -1,5 +1,5 @@
 #include <string.h>
-#include <endian.h>
+#include <endianness.h>
 #include <fxg1a.h>
 
 /*
