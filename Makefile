@@ -85,17 +85,28 @@ Makefile.cfg:
 #  Installing
 #
 
+m644 := -m 644
+m755 := -m 755
+sed  := -i -e '/^PREFIX=\\$$/ a \$(PREFIX)'
+
+# Disable -m on Mac OS and use sed differently
+ifeq "$(shell uname)" "Darwin"
+m644 :=
+m755 :=
+sed  := -i '' -e "$$(printf '/^PREFIX=/ a \\\n$(PREFIX)')"
+endif
+
 install: $(bin)
 	install -d $(PREFIX)/bin
 	install -d $(PREFIX)/share/fxsdk
-	install $(bin) -m 755 $(PREFIX)/bin
-	install fxos/*.txt -m 644 $(PREFIX)/share/fxsdk
+	install $(bin) $(m755) $(PREFIX)/bin
+	install fxos/*.txt $(m644) $(PREFIX)/share/fxsdk
 	install -d $(PREFIX)/share/fxsdk/assets
-	install fxsdk/assets/* -m 644 $(PREFIX)/share/fxsdk/assets
-	install fxsdk/fxsdk.sh -m 755 $(PREFIX)/bin/fxsdk
-	sed -i '/^PREFIX=\\$$/ a $(PREFIX)' $(PREFIX)/bin/fxsdk
-	install fxconv/fxconv-main.py -m 755 $(PREFIX)/bin/fxconv
-	install fxconv/fxconv.py -m 644 $(PREFIX)/bin
+	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
+	install fxsdk/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
+	sed $(sed) $(PREFIX)/bin/fxsdk
+	install fxconv/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
+	install fxconv/fxconv.py $(m644) $(PREFIX)/bin
 
 uninstall:
 	rm -f $(PREFIX)/bin/{fxsdk,fxg1a,fxos,fxconv,fxconv.py}
