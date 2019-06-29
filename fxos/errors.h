@@ -58,6 +58,6 @@ void err_pop(void);
 void errf(int flags, char const *str, ...);
 
 /* err(): Short error function */
-#define err(str, ...) errf(0, str __VA_OPT__(,) __VA_ARGS__)
+#define err(str, ...) errf(0, str, ##__VA_ARGS__)
 
 #endif /* FXOS_ERRORS */
