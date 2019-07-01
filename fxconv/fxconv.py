@@ -232,6 +232,29 @@ def _charset_find(name):
 	gen = (cs for cs in FX_CHARSETS if cs.name == name)
 	return next(gen, None)
 
+def _trim(img):
+	def _blank(x):
+		return all(px[x,y] == FX_WHITE for y in range(img.height))
+
+	left = 0
+	right = img.width
+	px = img.load()
+
+	while left + 1 < right and _blank(left):
+		left += 1
+	while right - 1 > left and _blank(right - 1):
+		right -= 1
+
+	return img.crop((left, 0, right, img.height))
+
+def _align(seq, align):
+	n = (align - len(seq)) % align
+	return seq + bytearray(n)
+
+def _pad(seq, length):
+	n = max(0, length - len(seq))
+	return seq + bytearray(n)
+
 def _convert_font(input, output, params):
 
 	#--
@@ -299,13 +322,14 @@ def _convert_font(input, output, params):
 	#--
 
 	data_glyphs = []
+	total_glyphs = 0
 	data_widths = bytearray()
 	data_index  = bytearray()
 
 	for (number, region) in enumerate(grid.iter(img)):
 		# Upate index
 		if not (number % 8):
-			idx = len(data_glyphs) // 4
+			idx = total_glyphs // 4
 			data_index += encode16bit(idx)
 
 		# Get glyph area
@@ -326,6 +350,7 @@ def _convert_font(input, output, params):
 				offset += 1
 
 		data_glyphs.append(bits)
+		total_glyphs += length
 
 	data_glyphs = b''.join(data_glyphs)
 
@@ -334,6 +359,8 @@ def _convert_font(input, output, params):
 	#---
 
 	if proportional:
+		data_index = _pad(data_index, 32)
+		data_widths = _align(data_widths, 4)
 		data = header + data_index + data_widths + data_glyphs + title
 	else:
 		data = header + fixed_header + data_glyphs + title
