@@ -114,7 +114,9 @@ fxsdk_new_project_interactive() {
 }
 
 fxsdk_load_config() {
-  sed -E 's/^([A-Z_]+)\s*=\s*(.*)/\1="\2"' project.cfg | source /dev/stdin
+  grep -E '^ *[a-zA-Z0-9_]+ *=' project.cfg \
+  | sed -E 's/^([A-Z_]+)\s*=\s*(.*)/\1="\2"/' \
+  | source /dev/stdin
 }
 
 fxsdk_create_config() {

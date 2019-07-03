@@ -56,9 +56,11 @@ makes it a lot easier to climb back abstraction levels from the code.
 ## Build instructions
 
 The fxSDK is platform-agnostic; a single install will cover any target
-platforms. There's only one noticeable dependency:
+platforms. Here are the dependencies:
 
 * libpng ≥ 1.6
+* Python ≥ 3.7 (might work in 3.6)
+* The Pillow library for Python 3
 
 First configure; you can specify the install folder with `--prefix`, which
 defaults to your local home folder. You can also enable or disable tools.

@@ -39,24 +39,31 @@ target-cg := $(filename).g3a
 
 # Source files
 src       := $(wildcard src/*.c)
-img-fx    := $(wildcard assets-fx/img/**/*)
-fonts-fx  := $(wildcard assets-fx/fonts/**/*)
-img-cg    := $(wildcard assets-cg/img/**/*)
-fonts-cg  := $(wildcard assets-cg/fonts/**/*)
+assets-fx := $(wildcard assets-fx/**/*)
+assets-cg := $(wildcard assets-cg/**/*)
 
 # Object files
-obj-fx    := $(src:%.c=build-fx/%.o) $(res:assets-fx/%=build-fx/assets/%.o)
-obj-cg    := $(src:%.c=build-cg/%.o) $(res:assets-cg/%=build-cg/assets/%.o)
+obj-fx  := $(src:%.c=build-fx/%.o) $(assets-fx:assets-fx/%=build-fx/assets/%.o)
+obj-cg  := $(src:%.c=build-cg/%.o) $(assets-cg:assets-cg/%=build-cg/assets/%.o)
 
 # Additional dependencies
-deps-fx   := $(ICON_FX)
-deps-cg   := $(ICON_CG_UNS) $(ICON_CG_SEL)
+deps-fx := $(ICON_FX)
+deps-cg := $(ICON_CG_UNS) $(ICON_CG_SEL)
+
+# All targets
+all :=
+ifneq "$(wildcard build-fx)" ""
+all += all-fx
+endif
+ifneq "$(wildcard build-cg)" ""
+all += all-cg
+endif
 
 #
 #  Build rules
 #
 
-all: all-fx all-cg
+all: $(all)
 
 all-fx: $(target-fx)
 all-cg: $(target-cg)
@@ -84,22 +91,22 @@ build-cg/%.o: %.c
 # Images
 build-fx/assets/img/%.o: assets-fx/img/%
 	@ mkdir -p $(dir $@)
-	fxconv -i $< -o $@ name:$*
+	fxconv -i $< -o $@ name:img_$(basename $*)
 
 build-cg/assets/img/%.o: assets-cg/img/%
 	@ echo -ne "\e[31;1mWARNING: image conversion for fxcg50 is not "
 	@ echo -ne "supported yet\e[0m"
 	@ mkdir -p $(dir $@)
-	fxconv -i $< -o $@ name:$*
+	fxconv -i $< -o $@ name:img_$(basename $*)
 
 # Fonts
 build-fx/assets/fonts/%.o: assets-fx/fonts/%
 	@ mkdir -p $(dir $@)
-	fxconv -f $< -o $@ name:$*
+	fxconv -f $< -o $@ name:font_$(basename $*) $(FONT.$*)
 
 build-cg/assets/fonts/%.o: assets-cg/fonts/%
 	@ mkdir -p $(dir $@)
-	fxconv -f $< -o $@ name:$*
+	fxconv -f $< -o $@ name:font_$(basename $*) $(FONT.$*)
 
 #
 #  Cleaning and utilities

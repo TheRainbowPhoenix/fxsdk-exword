@@ -97,7 +97,7 @@ class _Grid:
 	# [grid] is a dictionary of parameters. Relevant keys:
 	#   "border", "padding", "width", "height", "size"
 	def __init__(self, grid):
-		self.border  = int(grid.get("border",  1))
+		self.border  = int(grid.get("border",  0))
 		self.padding = int(grid.get("padding", 0))
 
 		self.w = int(grid.get("width", "-1"))
