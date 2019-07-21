@@ -38,7 +38,7 @@ target-fx := $(filename).g1a
 target-cg := $(filename).g3a
 
 # Source files
-src       := $(wildcard src/*.c)
+src       := $(wildcard src/**/*.c)
 assets-fx := $(wildcard assets-fx/**/*)
 assets-cg := $(wildcard assets-cg/**/*)
 
