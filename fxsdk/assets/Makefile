@@ -38,9 +38,9 @@ target-fx := $(filename).g1a
 target-cg := $(filename).g3a
 
 # Source files
-src       := $(wildcard src/**/*.c)
-assets-fx := $(wildcard assets-fx/**/*)
-assets-cg := $(wildcard assets-cg/**/*)
+src       := $(shell find src -name '*.c')
+assets-fx := $(shell find assets-fx/*/)
+assets-cg := $(shell find assets-cg/*/)
 
 # Object files
 obj-fx  := $(src:%.c=build-fx/%.o) $(assets-fx:assets-fx/%=build-fx/assets/%.o)
