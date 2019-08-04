@@ -8,7 +8,7 @@ import fxconv
 help_string = """
 usage: fxconv [-s] <python script> [files...]
        fxconv  -b  <bin file> -o <object file> [parameters...]
-       fxconv  -i  <png file> -o <object file> [parameters...]
+       fxconv  -i  <png file> -o <object file> (--fx|--cg) [parameters...]
        fxconv  -f  <png file> -o <object file> [parameters...]
 
 fxconv converts data files such as images and fonts into gint formats
@@ -27,11 +27,14 @@ a Makefile, used to convert only a subset of the files in the script.
 The -b, -i and -f modes are shortcuts to convert single files without a script.
 They accept parameters with a "category.key:value" syntax, for example:
   fxconv -f myfont.png -o myfont.o charset:ascii grid.padding:1 height:7
+
+When converting images, use --fx (black-and-white calculators) or --cg (16-bit
+color calculators) to specify the target machine.
 """.strip()
 
 # Simple error-warnings system
 def err(msg):
-	print("error:", msg, file=sys.stderr)
+	print("\x1b[31;1merror:\x1b[0m", msg, file=sys.stderr)
 def warn(msg):
 	print("warning:", msg, file=sys.stderr)
 
@@ -40,6 +43,7 @@ def main():
 	modes = "script binary image font"
 	mode = "s"
 	output = None
+	target = None
 
 	# Parse command-line arguments
 
@@ -49,7 +53,7 @@ def main():
 
 	try:
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:",
-			("help output="+modes).split())
+			("help output= fx cg "+modes).split())
 	except getopt.GetoptError as error:
 		err(error)
 		sys.exit(1)
@@ -64,6 +68,8 @@ def main():
 			pass
 		elif name in [ "-o", "--output" ]:
 			output = value
+		elif name in [ "--fx", "--cg" ]:
+			target = name[2:]
 		# Other names are modes
 		else:
 			mode = name[1] if len(name)==2 else name[2]
@@ -107,6 +113,11 @@ def main():
 
 		params["type"] = { "b": "binary", "i": "image", "f": "font" }[mode]
 
-		fxconv.convert(input, params, output)
+		try:
+			fxconv.convert(input, params, output, target)
+		except fxconv.FxconvError as e:
+			err(e)
+			sys.exit(1)
 
-main()
+if __name__ == "__main__":
+	main()
