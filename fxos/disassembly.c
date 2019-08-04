@@ -153,7 +153,7 @@ static void arg_output(int type, char const *literal,
 static void instruction_output(uint16_t opcode, struct asm_match const *match)
 {
 	char const *mnemonic = match->insn->mnemonic;
-	printf("%6x:  %04x   %s", pc, opcode, mnemonic);
+	printf(" %5x:  %04x   %s", pc, opcode, mnemonic);
 
 	/* Find out operation size */
 
@@ -259,7 +259,7 @@ void disassembly_os(struct os const *src, struct disassembly const *opt)
 		uint16_t opcode = (data[pc] << 8) | data[pc + 1];
 		int count = matches(opcode);
 
-		if(count == 0) printf("%6x:  %04x\n", pc, opcode);
+		if(count == 0) printf(" %5x:  %04x\n", pc, opcode);
 		else if(count == 1) instruction_single(opcode);
 		else instruction_conflicts(opcode, count);
 

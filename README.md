@@ -3,7 +3,7 @@
 The fxSDK is a development kit for Casio graphing calculators of the family of
 the fx-9860G and fx-CG 50. It's a set of command-line compilation and project
 tools used to facilitate development with the
-[gint library](/Lephenixnoir/gint).
+[gint kernel](/Lephenixnoir/gint).
 
 This kit is free software; you may use it for any purpose, share it, and modify
 it as long as you share your changes. No credit required, but please let me
