@@ -16,8 +16,8 @@ cf-fx     := $(cf) -m3 -DFX9860G
 cf-cg     := $(cf) -m4-nofpu -DFXCG50
 
 # Linker flags
-lf-fx     := $(LDFLAGS) -Tfx9860g.ld -lgint-fx -lgcc -Wl,-Map=build-fx/map
-lf-cg     := $(LDFLAGS) -Tfxcg50.ld  -lgint-cg -lgcc -Wl,-Map=build-cg/map
+lf-fx     := -Tfx9860g.ld -lgint-fx $(LDFLAGS) -lgcc -Wl,-Map=build-fx/map
+lf-cg     := -Tfxcg50.ld  -lgint-cg $(LDFLAGS) -lgcc -Wl,-Map=build-cg/map
 
 dflags     = -MMD -MT $@ -MF $(@:.o=.d) -MP
 cpflags   := -R .bss -R .gint_bss
