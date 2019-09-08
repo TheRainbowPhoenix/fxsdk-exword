@@ -38,7 +38,8 @@ target-fx := $(filename).g1a
 target-cg := $(filename).g3a
 
 # Source files
-src       := $(wildcard src/*.c src/*/*.c src/*/*/*.c src/*/*/*/*.c)
+src       := $(wildcard src/*.[csS] src/*/*.[csS] src/*/*/*.[csS] \
+                        src/*/*/*/*.[csS])
 assets-fx := $(wildcard assets-fx/*/*)
 assets-cg := $(wildcard assets-cg/*/*)
 
@@ -87,6 +88,20 @@ build-fx/%.o: %.c
 build-cg/%.o: %.c
 	@ mkdir -p $(dir $@)
 	sh4eb-elf-gcc -c $< -o $@ $(cf-cg) $(dflags)
+
+# Assembler sources
+build-fx/%.o: %.s
+	@ mkdir -p $(dir $@)
+	sh3eb-elf-gcc -c $< -o $@
+build-fx/%.o: %.S
+	@ mkdir -p $(dir $@)
+	sh3eb-elf-gcc -c $< -o $@ $(sflags)
+build-cg/%.o: %.s
+	@ mkdir -p $(dir $@)
+	sh4eb-elf-gcc -c $< -o $@
+build-cg/%.o: %.S
+	@ mkdir -p $(dir $@)
+	sh4eb-elf-gcc -c $< -o $@ $(sflags)
 
 # Images
 build-fx/assets/img/%.o: assets-fx/img/%
