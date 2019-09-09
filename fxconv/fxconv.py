@@ -234,15 +234,15 @@ class Grid:
 # Binary conversion
 #
 
-def convert_binary(input, output, params):
+def convert_binary(input, output, params, target):
 	data = open(input, "rb").read()
-	elf(data, output, "_" + params["name"])
+	elf(data, output, "_" + params["name"], **target)
 
 #
 # Image conversion for fx-9860G
 #
 
-def convert_bopti_fx(input, output, params):
+def convert_bopti_fx(input, output, params, target):
 	img = Image.open(input)
 	if img.width >= 4096 or img.height >= 4096:
 		raise FxconvError(f"'{input}' is too large (max. 4095x4095)")
@@ -295,7 +295,7 @@ def convert_bopti_fx(input, output, params):
 
 	# Generate the object file
 
-	elf(header + data, output, "_" + params["name"])
+	elf(header + data, output, "_" + params["name"], **target)
 
 def _image_project(img, f):
 	# New width and height
@@ -317,7 +317,7 @@ def _image_project(img, f):
 # Image conversion for fx-CG 50
 #
 
-def convert_bopti_cg(input, output, params):
+def convert_bopti_cg(input, output, params, target):
 	img = Image.open(input)
 	if img.width >= 65536 or img.height >= 65536:
 		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
@@ -347,7 +347,7 @@ def convert_bopti_cg(input, output, params):
 			h >> 8, h & 0xff,		# Height
 		])
 
-		elf(header + encoded, output, "_" + params["name"])
+		elf(header + encoded, output, "_" + params["name"], **target)
 
 #
 # Font conversion
@@ -376,7 +376,7 @@ def _pad(seq, length):
 	n = max(0, length - len(seq))
 	return seq + bytearray(n)
 
-def convert_topti(input, output, params):
+def convert_topti(input, output, params, target):
 
 	#--
 	# Image area and grid
@@ -488,7 +488,7 @@ def convert_topti(input, output, params):
 	else:
 		data = header + fixed_header + data_glyphs + title
 
-	elf(data, output, "_" + params["name"])
+	elf(data, output, "_" + params["name"], **target)
 
 #
 # Exceptions
@@ -636,7 +636,7 @@ def r5g6b5(img):
 
 	return encoded, alpha
 
-def convert(input, params, output=None, target=None):
+def convert(input, params, target, output=None, model=None):
 	"""
 	Convert a data file into an object that exports the following symbols:
 	* _<varname>
@@ -647,8 +647,9 @@ def convert(input, params, output=None, target=None):
 	Arguments:
 	input   -- Input file path
 	params  -- Parameter dictionary
+	target  -- String dictionary keys 'toolchain', 'arch' and 'section'
 	output  -- Output file name [default: <input> with suffix '.o']
-	target  -- 'fx' or 'cg'  (some conversions require this) [default: None]
+	model   -- 'fx' or 'cg'  (some conversions require this) [default: None]
 
 	Produces an output file and returns nothing.
 	"""
@@ -662,15 +663,15 @@ def convert(input, params, output=None, target=None):
 	if "type" not in params:
 		raise FxconvError(f"missing type in conversion '{input}'")
 	elif params["type"] == "binary":
-		convert_binary(input, output, params)
-	elif params["type"] == "image" and target in [ "fx", None ]:
-		convert_bopti_fx(input, output, params)
-	elif params["type"] == "image" and target == "cg":
-		convert_bopti_cg(input, output, params)
+		convert_binary(input, output, params, target)
+	elif params["type"] == "image" and model in [ "fx", None ]:
+		convert_bopti_fx(input, output, params, target)
+	elif params["type"] == "image" and model == "cg":
+		convert_bopti_cg(input, output, params, target)
 	elif params["type"] == "font":
-		convert_topti(input, output, params)
+		convert_topti(input, output, params, target)
 
-def elf(data, output, symbol, section=None, arch="sh3"):
+def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 	"""
 	Call objcopy to create an object file from the specified data. The object
 	file will export three symbols:
@@ -690,18 +691,26 @@ def elf(data, output, symbol, section=None, arch="sh3"):
 	--binary-architecture flag of objcopy.
 
 	Arguments:
-	data     -- A bytes-like object with data to embed into the object file
-	output   -- Name of output file
-	symbol   -- Chosen symbol name
-	section  -- Target section [default: above variation of .rodata]
-	arch     -- Target architecture: "sh3" or "sh4" [default: "sh3"]
+	data       -- A bytes-like object with data to embed into the object file
+	output     -- Name of output file
+	symbol     -- Chosen symbol name
+	toolchain  -- Target triplet [default: "sh3eb-elf"]
+	arch       -- Target architecture [default: from toolchain, if trivial]
+	section    -- Target section [default: above variation of .rodata]
 
 	Produces an output file and returns nothing.
 	"""
 
-	toolchain = { "sh3": "sh3eb-elf", "sh4": "sh4eb-nofpu-elf" }[arch]
+	if toolchain is None:
+		toolchain = "sh3eb-elf"
 	if section is None:
 		section = ".rodata,contents,alloc,load,readonly,data"
+
+	if arch is None and toolchain in "sh3eb-elf sh4eb-elf sh4eb-nofpu-elf":
+		arch = toolchain.replace("eb-", "-")[:-4]
+	if arch is None:
+		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
+			"specified")
 
 	with tempfile.NamedTemporaryFile() as fp:
 		fp.write(data)

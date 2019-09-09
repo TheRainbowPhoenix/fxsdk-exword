@@ -43,7 +43,8 @@ def main():
 	modes = "script binary image font"
 	mode = "s"
 	output = None
-	target = None
+	model = None
+	target = { 'toolchain': None, 'arch': None, 'section': None }
 
 	# Parse command-line arguments
 
@@ -53,7 +54,7 @@ def main():
 
 	try:
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:",
-			("help output= fx cg "+modes).split())
+			("help output= fx cg toolchain= arch= section= "+modes).split())
 	except getopt.GetoptError as error:
 		err(error)
 		sys.exit(1)
@@ -69,7 +70,13 @@ def main():
 		elif name in [ "-o", "--output" ]:
 			output = value
 		elif name in [ "--fx", "--cg" ]:
-			target = name[2:]
+			model = name[2:]
+		elif name == "--toolchain":
+			target['toolchain'] = value
+		elif name == "--arch":
+			target['arch'] = value
+		elif name == "--section":
+			target['section'] = value
 		# Other names are modes
 		else:
 			mode = name[1] if len(name)==2 else name[2]
@@ -114,7 +121,7 @@ def main():
 		params["type"] = { "b": "binary", "i": "image", "f": "font" }[mode]
 
 		try:
-			fxconv.convert(input, params, output, target)
+			fxconv.convert(input, params, target, output, model)
 		except fxconv.FxconvError as e:
 			err(e)
 			sys.exit(1)
