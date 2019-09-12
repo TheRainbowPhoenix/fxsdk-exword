@@ -660,6 +660,9 @@ def convert(input, params, target, output=None, model=None):
 	if "name" not in params:
 		raise FxconvError(f"no name specified for conversion '{input}'")
 
+	if target["arch"] is None:
+		target["arch"] = model
+
 	if "type" not in params:
 		raise FxconvError(f"missing type in conversion '{input}'")
 	elif params["type"] == "binary":
@@ -682,20 +685,28 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 	The symbol name must have a leading underscore if it is to be declared and
 	used from a C program.
 
+    The toolchain can be any target triplet for which the compiler is
+    available. The architecture is deduced from some typical triplets;
+    otherwise it can be set, usually as "sh3" or "sh4-nofpu". This affects the
+	--binary-architecture flag of objcopy. If arch is set to "fx" or "cg", this
+	function tries to be smart and:
+
+	* Uses the name of the compiler if it contains a full architecture name
+	  such as "sh3", "sh4" or "sh4-nofpu";
+	* Uses "sh3" for fx9860g and "sh4-nofpu" for fxcg50 if the toolchain is
+	  "sh-elf", which is a custom set;
+	* Fails otherwise.
+
 	The section name can be specified, along with its flags. A typical example
 	would be section=".rodata,contents,alloc,load,readonly,data", which is the
 	default.
-
-	The architecture can be either "sh3" or "sh4". This affects the choice of
-	the toolchain (sh3eb-elf-objcopy versus sh4eb-nofpu-elf-objcopy) and the
-	--binary-architecture flag of objcopy.
 
 	Arguments:
 	data       -- A bytes-like object with data to embed into the object file
 	output     -- Name of output file
 	symbol     -- Chosen symbol name
 	toolchain  -- Target triplet [default: "sh3eb-elf"]
-	arch       -- Target architecture [default: from toolchain, if trivial]
+	arch       -- Target architecture [default: try to guess]
 	section    -- Target section [default: above variation of .rodata]
 
 	Produces an output file and returns nothing.
@@ -706,9 +717,16 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 	if section is None:
 		section = ".rodata,contents,alloc,load,readonly,data"
 
-	if arch is None and toolchain in "sh3eb-elf sh4eb-elf sh4eb-nofpu-elf":
+	if arch in ["fx", "cg", None] and toolchain in ["sh3eb-elf", "sh4eb-elf",
+		"sh4eb-nofpu-elf"]:
 		arch = toolchain.replace("eb-", "-")[:-4]
-	if arch is None:
+
+	elif arch == "fx" and toolchain == "sh-elf":
+		arch = "sh3"
+	elif arch == "cg" and toolchain == "sh-elf":
+		arch = "sh4-nofpu"
+
+	elif arch in ["fx", "cg", None]:
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
 
