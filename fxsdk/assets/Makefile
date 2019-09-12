@@ -44,15 +44,22 @@ FXCONVCG := --cg --toolchain=$(TOOLCHAIN_CG)
 #  File listings
 #
 
-ifeq "$(TARGET)" ""
 NULL   :=
 TARGET := $(subst $(NULL) $(NULL),-,$(NAME))
+
+ifeq "$(TARGET_FX)" ""
+TARGET_FX := $(TARGET).g1a
 endif
 
-elf       = $(dir $<)$(TARGET).elf
-bin       = $(dir $<)$(TARGET).bin
-TARGETFX := $(TARGET).g1a
-TARGETCG := $(TARGET).g3a
+ifeq "$(TARGET_CG)" ""
+TARGET_CG := $(TARGET).g3a
+endif
+
+ELF_FX := build-fx/$(shell basename -s .g1a $(TARGET_FX)).elf
+BIN_FX := $(ELF_FX:.elf=.bin)
+
+ELF_CG := build-cg/$(shell basename -s .g3a $(TARGET_CG)).elf
+BIN_CG := $(ELF_CG:.elf=.bin)
 
 # Source files
 src       := $(wildcard src/*.[csS] \
@@ -87,18 +94,20 @@ endif
 
 all: $(all)
 
-all-fx: $(TARGETFX)
-all-cg: $(TARGETCG)
+all-fx: $(TARGET_FX)
+all-cg: $(TARGET_CG)
 
-$(TARGETFX): $(obj-fx) $(deps-fx)
-	$(TOOLCHAIN_FX)-gcc -o $(elf) $(obj-fx) $(CFLAGSFX) $(LDFLAGSFX)
-	$(TOOLCHAIN_FX)-objcopy -O binary $(BINFLAGS) $(elf) $(bin)
-	fxg1a $(bin) -o $@ $(G1AF)
+$(TARGET_FX): $(obj-fx) $(deps-fx)
+	@ mkdir -p $(dir $@)
+	$(TOOLCHAIN_FX)-gcc -o $(ELF_FX) $(obj-fx) $(CFLAGSFX) $(LDFLAGSFX)
+	$(TOOLCHAIN_FX)-objcopy -O binary $(BINFLAGS) $(ELF_FX) $(BIN_FX)
+	fxg1a $(BIN_FX) -o $@ $(G1AF)
 
-$(TARGETCG): $(obj-cg) $(deps-cg)
-	$(TOOLCHAIN_CG)-gcc -o $(elf) $(obj-cg) $(CFLAGSCG) $(LDFLAGSCG)
-	$(TOOLCHAIN_CG)-objcopy -O binary $(COPY) $(elf) $(bin)
-	mkg3a $(G3AF) $(bin) $@
+$(TARGET_CG): $(obj-cg) $(deps-cg)
+	@ mkdir -p $(dir $@)
+	$(TOOLCHAIN_CG)-gcc -o $(ELF_CG) $(obj-cg) $(CFLAGSCG) $(LDFLAGSCG)
+	$(TOOLCHAIN_CG)-objcopy -O binary $(BINFLAGS) $(ELF_CG) $(BIN_CG)
+	mkg3a $(G3AF) $(BIN_CG) $@
 
 # C sources
 build-fx/%.c.o: %.c
@@ -164,17 +173,17 @@ clean-cg:
 	@ rm -rf build-cg/
 
 distclean-fx: clean-fx
-	@ rm -f $(TARGETFX)
+	@ rm -f $(TARGET_FX)
 distclean-cg: clean-cg
-	@ rm -f $(TARGETCG)
+	@ rm -f $(TARGET_CG)
 
 clean: clean-fx clean-cg
 
 distclean: distclean-fx distclean-cg
 
-install-fx: $(TARGETFX)
+install-fx: $(TARGET_FX)
 	p7 send -f $<
-install-cg: $(TARGETCG)
+install-cg: $(TARGET_CG)
 	@ while [[ ! -h /dev/Prizm1 ]]; do sleep 0.25; done
 	@ while ! mount /dev/Prizm1; do sleep 0.25; done
 	@ rm -f /mnt/prizm/$<

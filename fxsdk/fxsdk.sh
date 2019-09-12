@@ -142,9 +142,10 @@ NAME := $NAME
 #          the main menu of the calculator!
 INTERNAL := $INTERNAL
 
-# Output file name, your add-in will be named <TARGET>.g1a (or g3a).
-# The default is to take <NAME> and replace spaces with dashes.
-TARGET :=
+# Output file name. The default is to take <NAME>, replace spaces with dashes,
+# and add .g1a (or .g3a). You can specify a different folder if you want.
+TARGET_FX :=
+TARGET_CG :=
 
 # fx-9860G icon location
 ICON_FX = assets-fx/icon-fx.png
