@@ -158,10 +158,10 @@ ICON_CG_SEL = assets-cg/icon-cg-sel.png
 #---
 
 # Toolchain for fx9860g. Please see also CFLAGS_FX below.
-TOOLCHAIN_FX := sh3eb-elf
+TOOLCHAIN_FX := sh-elf
 
 # Toolchain for fxcg50. Please see also CFLAGS_CG below.
-TOOLCHAIN_CG := sh4eb-elf
+TOOLCHAIN_CG := sh-elf
 
 #---
 # Compiler flags
