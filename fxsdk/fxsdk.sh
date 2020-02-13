@@ -2,7 +2,7 @@
 
 set -e
 
-# Note: this line is edited at install time to insert the install folder
+# Note: this line is edited at compile time to insert the install folder
 PREFIX=\
 
 usage_string=$(cat << EOF
@@ -210,9 +210,9 @@ LDFLAGS_CG += -Wl,-Map=build-cg/map
 
 # Here you can add fxconv options for each converted file, individually.
 # The syntax is "<type>.<file>". For example, to specify the parameters for a
-# font name "hexa.png", you might write:
+# font named "hexa.png", you might write:
 #
-#   FONT.hexa.png = charset:print grid:size:3x5 grid.padding:1
+#   FONT.hexa.png = charset:print grid.size:3x5 grid.padding:1
 EOF
 }
 

@@ -92,7 +92,9 @@ esac; done
 
 gen()
 {
-	echo "PREFIX  = $PREFIX"
+	# Allow an install script to change the destination at the last second
+        # to have all files in a separate root before packaging
+	echo "PREFIX  ?= $PREFIX"
 	echo -n "TARGETS ="
 
 	[[ $BUILD_fxsdk  = 1 ]] && echo -n " fxsdk"
