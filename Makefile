@@ -52,7 +52,7 @@ all-fxos: bin/fxos
 
 # Explicit targets
 
-bin/fxsdk.sh: fxsdk/fxsdk.sh
+bin/fxsdk.sh: fxsdk/fxsdk.sh | bin/
 	sed -e $(sed) $< > $@
 bin/fxg1a: $(obj-fxg1a) | bin/
 	gcc $^ -o $@ $(lflags)
