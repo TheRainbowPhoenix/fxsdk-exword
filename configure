@@ -10,7 +10,6 @@ PREFIX="$HOME/.local"
 BUILD_fxsdk=1
 BUILD_fxconv=1
 BUILD_fxg1a=1
-BUILD_fxos=1
 
 #
 #  Tool name checking
@@ -20,8 +19,7 @@ check()
 {
 	[[ $1 = "fxsdk"  ]] ||
 	[[ $1 = "fxconv" ]] ||
-	[[ $1 = "fxg1a"  ]] ||
-	[[ $1 = "fxos"   ]]
+	[[ $1 = "fxg1a"  ]]
 }
 
 #
@@ -38,7 +36,6 @@ Tool selection:
     "fxsdk"          Command-line options (you generally want this)
     "fxconv"         Asset conversion for gint (or any 4-aligned-VRAM system)
     "fxg1a"          G1A file wrapper, editor and analyzer
-    "fxos"           OS fiddling tool, including syscall disassembly
 
   --enable-<tool>    Build and install the selected tool [default]
   --disable-<tool>   Do not build or install the selected tool
@@ -100,7 +97,6 @@ gen()
 	[[ $BUILD_fxsdk  = 1 ]] && echo -n " fxsdk"
 	[[ $BUILD_fxconv = 1 ]] && echo -n " fxconv"
 	[[ $BUILD_fxg1a  = 1 ]] && echo -n " fxg1a"
-	[[ $BUILD_fxos   = 1 ]] && echo -n " fxos"
 
 	echo ""
 }

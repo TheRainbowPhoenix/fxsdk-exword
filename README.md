@@ -15,7 +15,10 @@ favorite operating system.
 
 ## Tool description
 
-### Project management (_fxsdk_)
+A tool called fxos used to live here and has now moved to [its own
+repository](/Lephenixnoir/fxos).
+
+**Project management (_fxsdk_)**
 
 `fxsdk` lets you set up projects almost instantly with a default folder
 structure and a working Makefile linking against gint for both fx-9860G and
@@ -28,7 +31,7 @@ with the role and description of each option.
 `fxsdk` only writes files at project creation time, so you keep control over
 your build system and configuration - it just helps you get started faster.
 
-### G1A file generation (_fxg1a_)
+**G1A file generation (_fxg1a_)**
 
 `fxg1a` is a versatile g1a file editor that creates, edits and dumps the header
 of fx-9860G add-ins files. It is used to build a g1a file out of a binary
@@ -37,21 +40,11 @@ program.
 It supports PNG icons, checking the validity and checksums of the header,
 repairing broken headers and dumping both the application data and icon.
 
-### Data conversion (_fxconv_)
+**Data conversion (_fxconv_)**
 
 `fxconv` is a tool that interacts specifically with gint. It converts data
 files such as images and fonts into gint-specific format and embeds the result
 into object files that expose a single variable.
-
-### OS disassembly and study (_fxos_)
-
-`fxos` is a powerful disassembler and OS fiddling tool. It knows the structure
-of OS files and can extract metadata, language information and syscalls through
-a simple command-line interface.
-
-Its key feature is the production of annotated assembler listings where
-syscalls invocations and peripheral registers are identified and named. This
-makes it a lot easier to climb back abstraction levels from the code.
 
 ## Build instructions
 
@@ -69,7 +62,6 @@ Broadly, you will need:
 * `fxsdk` if you want to benefit from the automated project setup
 * `fxg1a` if you want to compile add-ins for fx-9860G
 * `fxconv` if you want to compile gint or develop add-ins with it
-* `fxos` if you want to disassemble or study OS dumps
 
 Each tool can be enabled or disabled with `--enable-<tool>` and
 `--disable-<tool>`. For a default build you need no arguments:

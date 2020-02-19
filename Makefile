@@ -24,15 +24,8 @@ bin = $(TARGETS:%=bin/%)
 
 # fxconv has no sources files because it's written in Python, and fxsdk has no
 # source either because it's written in Bash.
-src = $(wildcard $1/*.c)
-src-fxg1a  := $(call src,fxg1a)
-src-fxos   := $(call src,fxos)
-lex-fxos   := $(wildcard fxos/*.l)
-
-obj = $($1:%=build/%.o)
-lex = $($1:%.l=build/%.yy.c.o)
-obj-fxg1a  := $(call obj,src-fxg1a)
-obj-fxos   := $(call obj,src-fxos) $(call lex,lex-fxos)
+src-fxg1a := $(wildcard fxg1a/*.c)
+obj-fxg1a := $(src-fxg1a:%=build/%.o)
 
 # Sed command to copy install path to fxsdk.sh. On Mac OS, BSD sed is used so
 # we need to do it a bit differently with a printf helper to insert a literal
@@ -48,15 +41,12 @@ all: $(bin)
 
 all-fxsdk: bin/fxsdk.sh
 all-fxg1a: bin/fxg1a
-all-fxos: bin/fxos
 
 # Explicit targets
 
 bin/fxsdk.sh: fxsdk/fxsdk.sh | bin/
 	sed -e $(sed) $< > $@
 bin/fxg1a: $(obj-fxg1a) | bin/
-	gcc $^ -o $@ $(lflags)
-bin/fxos: $(obj-fxos) | bin/
 	gcc $^ -o $@ $(lflags)
 
 bin/:
@@ -69,12 +59,6 @@ bin/:
 build/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	gcc -c $< -o $@ $(cflags) $(dflags)
-
-# Flex lexers for the fxos database
-build/fxos/lexer-%.yy.c: fxos/lexer-%.l
-	flex -o $@ -s $<
-build/fxos/lexer-%.yy.c.o: build/fxos/lexer-%.yy.c
-	gcc -c $< -o $@ $(cflags) -Wno-unused-function $(dflags) -I fxos
 
 #
 #  Dependency system, misc.
@@ -90,8 +74,6 @@ Makefile.cfg:
 	fi
 
 .PHONY: all clean distclean
-
-.PRECIOUS: build/fxos/lexer-%.yy.c
 
 #
 #  Installing
@@ -110,7 +92,6 @@ install: $(bin)
 	install -d $(PREFIX)/bin
 	install -d $(PREFIX)/share/fxsdk
 	install $(bin:bin/fxsdk.sh=) $(m755) $(PREFIX)/bin
-	install fxos/*.txt $(m644) $(PREFIX)/share/fxsdk
 	install -d $(PREFIX)/share/fxsdk/assets
 	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
 	install bin/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
@@ -118,7 +99,7 @@ install: $(bin)
 	install fxconv/fxconv.py $(m644) $(PREFIX)/bin
 
 uninstall:
-	rm -f $(PREFIX)/bin/{fxsdk,fxg1a,fxos,fxconv,fxconv.py}
+	rm -f $(PREFIX)/bin/{fxsdk,fxg1a,fxconv,fxconv.py}
 	rm -rf $(PREFIX)/share/fxsdk
 
 #
@@ -127,8 +108,6 @@ uninstall:
 
 clean-fxg1a:
 	@rm -rf build/fxg1a
-clean-fxos:
-	@rm -rf build/fxos
 
 clean:
 	@rm -rf build
