@@ -191,11 +191,12 @@ INCLUDE := -I include
 # Libraries. Add one -l option for each library you are using, and also
 # suitable -L options if you have library files in custom folders. To use
 # fxlib, add libfx.a to the project directory and use "-L . -lfx".
-LIBS :=
+LIBS_FX :=
+LIBS_CG :=
 
 # Base linker flags for the fxSDK, you usually want to keep these.
-LDFLAGS_FX := -T fx9860g.ld -lgint-fx \$(LIBS) -lgint-fx -lgcc
-LDFLAGS_CG := -T fxcg50.ld  -lgint-cg \$(LIBS) -lgint-cg -lgcc
+LDFLAGS_FX := -T fx9860g.ld -lgint-fx \$(LIBS_FX) -lgint-fx -lgcc
+LDFLAGS_CG := -T fxcg50.ld  -lgint-cg \$(LIBS_CG) -lgint-cg -lgcc
 
 # Additional linker flags, if you need any.
 LDFLAGS :=
