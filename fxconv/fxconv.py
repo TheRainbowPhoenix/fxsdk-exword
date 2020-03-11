@@ -504,6 +504,42 @@ def convert_topti(input, output, params, target):
 	elf(data, output, "_" + params["name"], **target)
 
 #
+# libimg conversion for fx-CG 50
+#
+
+def convert_libimg_cg(input, output, params, target):
+	img = Image.open(input)
+	if img.width >= 65536 or img.height >= 65536:
+		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
+
+	# Crop image to key "area"
+	area = Area(params.get("area", {}), img)
+	img = img.crop(area.tuple())
+
+	# Encode the image into 16-bit format and force the alpha to 0x0001
+	encoded, alpha = r5g6b5(img, alpha=(0x0001,0x0000))
+
+	w, h, s = img.width, img.height, img.width
+	FLAG_OWN = 1
+	FLAG_RO  = 2
+
+	assembly = f"""
+	.section .rodata
+	.global _{params["name"]}
+
+	_{params["name"]}:
+		.word	{img.width}
+		.word	{img.height}
+		.word	{img.width}
+		.byte	{FLAG_RO}
+		.byte	0
+		.long	_{params["name"]}_data
+	"""
+
+	dataname = "_{}_data".format(params["name"])
+	elf(encoded, output, dataname, assembly=assembly, **target)
+
+#
 # Exceptions
 #
 
@@ -575,7 +611,7 @@ def quantize(img, dither=False):
 
 	return img
 
-def r5g6b5(img, color_count=0):
+def r5g6b5(img, color_count=0, alpha=None):
 	"""
 	Convert a PIL.Image.Image into an R5G6B5 byte stream. If there are
 	transparent pixels, chooses a color to implement alpha and replaces them
@@ -588,6 +624,10 @@ def r5g6b5(img, color_count=0):
 	encoded with a palette of this size. Returns the converted image as a
 	bytearray, the palette as a bytearray, and the alpha value (None if there
 	were no transparent pixels).
+
+	If alpha is provided, it should be a pair (alpha value, replacement).
+	Trandarpent pixels will be encoded with the specified alpha value and
+	pixels with the value will be encoded with the replacement.
 	"""
 
 	def rgb24to16(r, g, b):
@@ -601,6 +641,7 @@ def r5g6b5(img, color_count=0):
 		alpha_channel = img.getchannel("A").convert("1", dither=Image.NONE)
 		alpha_levels = { t[1]: t[0] for t in alpha_channel.getcolors() }
 		has_alpha = 0 in alpha_levels
+		replacement = None
 
 		if has_alpha:
 			alpha_pixels = alpha_channel.load()
@@ -622,7 +663,10 @@ def r5g6b5(img, color_count=0):
 
 	# Choose an alpha color
 
-	if color_count > 0:
+	if alpha is not None:
+		alpha, replacement = alpha
+
+	elif color_count > 0:
 		# Transparency is mapped to the last palette element, if there are no
 		# transparent pixels then select an index out of bounds.
 		alpha = color_count - 1 if has_alpha else 0xffff
@@ -645,6 +689,15 @@ def r5g6b5(img, color_count=0):
 
 	else:
 		alpha = None
+
+	def alpha_encoding(color, a):
+		if a > 0:
+			if color == alpha:
+				return replacement
+			else:
+				return color
+		else:
+			return alpha
 
 	# Create a byte array with all encoded pixels
 
@@ -669,13 +722,13 @@ def r5g6b5(img, color_count=0):
 			a = alpha_pixels[x, y] if has_alpha else 0xff
 
 			if not color_count:
-				c = rgb24to16(*pixels[x, y]) if a > 0 else alpha
+				c = alpha_encoding(rgb24to16(*pixels[x, y]), a)
 				encoded[offset]   = c >> 8
 				encoded[offset+1] = c & 0xff
 				offset += 2
 
 			elif color_count == 16:
-				c = pixels[x, y] if a > 0 else alpha
+				c = alpha_encoding(pixels[x, y], a)
 
 				# Aligned pixels: left 4 bits = high 4 bits of current byte
 				if (entries % 2) == 0:
@@ -686,7 +739,7 @@ def r5g6b5(img, color_count=0):
 					offset += 1
 
 			elif color_count == 256:
-				c = pixels[x, y] if a > 0 else alpha
+				c = alpha_encoding(pixels[x, y], a)
 				encoded[offset] = c
 				offset += 1
 
@@ -739,14 +792,21 @@ def convert(input, params, target, output=None, model=None):
 		raise FxconvError(f"missing type in conversion '{input}'")
 	elif params["type"] == "binary":
 		convert_binary(input, output, params, target)
-	elif params["type"] == "image" and model in [ "fx", None ]:
+	elif params["type"] == "bopti-image" and model in [ "fx", None ]:
 		convert_bopti_fx(input, output, params, target)
-	elif params["type"] == "image" and model == "cg":
+	elif params["type"] == "bopti-image" and model == "cg":
 		convert_bopti_cg(input, output, params, target)
 	elif params["type"] == "font":
 		convert_topti(input, output, params, target)
+	elif params["type"] == "libimg-image" and model in [ "fx", None ]:
+		raise FxconvError(f"libimg not yet supported for fx-9860G o(x_x)o")
+	elif params["type"] == "libimg-image" and model == "cg":
+		convert_libimg_cg(input, output, params, target)
+	else:
+		raise FxconvError(f'unknown resource type \'{params["type"]}\'')
 
-def elf(data, output, symbol, toolchain=None, arch=None, section=None):
+def elf(data, output, symbol, toolchain=None, arch=None, section=None,
+	assembly=None):
 	"""
 	Call objcopy to create an object file from the specified data. The object
 	file will export three symbols:
@@ -773,6 +833,10 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 	would be section=".rodata,contents,alloc,load,readonly,data", which is the
 	default.
 
+	If assembly is set to a non-empty assembly program, this function also
+	generates a temporary ELF file by assembling this piece of code, and merges
+	it into the original one.
+
 	Arguments:
 	data       -- A bytes-like object with data to embed into the object file
 	output     -- Name of output file
@@ -780,6 +844,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 	toolchain  -- Target triplet [default: "sh3eb-elf"]
 	arch       -- Target architecture [default: try to guess]
 	section    -- Target section [default: above variation of .rodata]
+	assembly   -- Additional assembly code [default: None]
 
 	Produces an output file and returns nothing.
 	"""
@@ -802,21 +867,42 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None):
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
 
-	with tempfile.NamedTemporaryFile() as fp:
-		fp.write(data)
-		fp.flush()
+	fp_obj = tempfile.NamedTemporaryFile()
+	fp_obj.write(data)
+	fp_obj.flush()
 
-		sybl = "_binary_" + fp.name.replace("/", "_")
+	if assembly is not None:
+		fp_asm = tempfile.NamedTemporaryFile()
+		fp_asm.write(assembly.encode('utf-8'))
+		fp_asm.flush()
 
-		objcopy_args = [
-			f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
-			"--binary-architecture", arch, "--file-alignment", "4",
-			"--rename-section", f".data={section}",
-			"--redefine-sym", f"{sybl}_start={symbol}",
-			"--redefine-sym", f"{sybl}_end={symbol}_end",
-			"--redefine-sym", f"{sybl}_size={symbol}_size",
-			fp.name, output ]
-
-		proc = subprocess.run(objcopy_args)
+		proc = subprocess.run([
+			f"{toolchain}-as", "-c", fp_asm.name, "-o", fp_asm.name + ".o" ])
 		if proc.returncode != 0:
-			raise FxconvError(f"objcopy returned {proc.returncode}")
+			raise FxconvError(f"as returned {proc.returncode}")
+
+	sybl = "_binary_" + fp_obj.name.replace("/", "_")
+
+	objcopy_args = [
+		f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
+		"--binary-architecture", arch, "--file-alignment", "4",
+		"--rename-section", f".data={section}",
+		"--redefine-sym", f"{sybl}_start={symbol}",
+		"--redefine-sym", f"{sybl}_end={symbol}_end",
+		"--redefine-sym", f"{sybl}_size={symbol}_size",
+		fp_obj.name, output if assembly is None else fp_obj.name + "-tmp" ]
+
+	proc = subprocess.run(objcopy_args)
+	if proc.returncode != 0:
+		raise FxconvError(f"objcopy returned {proc.returncode}")
+
+	if assembly is not None:
+		proc = subprocess.run([
+			f"{toolchain}-ld", "-r", fp_obj.name + "-tmp", fp_asm.name + ".o",
+			"-o", output ])
+		if proc.returncode != 0:
+			raise FxconvError("ld returned {proc.returncode}")
+
+		fp_asm.close()
+
+	fp_obj.close()

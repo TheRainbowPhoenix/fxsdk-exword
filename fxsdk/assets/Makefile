@@ -136,10 +136,10 @@ build-cg/%.S.o: %.S
 # Images
 build-fx/assets/img/%.o: assets-fx/img/%
 	@ mkdir -p $(dir $@)
-	fxconv -i $< -o $@ $(FXCONVFX) name:img_$(basename $*) $(IMG.$*)
+	fxconv --bopti-image $< -o $@ $(FXCONVFX) name:img_$(basename $*) $(IMG.$*)
 build-cg/assets/img/%.o: assets-cg/img/%
 	@ mkdir -p $(dir $@)
-	fxconv -i $< -o $@ $(FXCONVCG) name:img_$(basename $*) $(IMG.$*)
+	fxconv --bopti-image $< -o $@ $(FXCONVCG) name:img_$(basename $*) $(IMG.$*)
 
 # Fonts
 build-fx/assets/fonts/%.o: assets-fx/fonts/%

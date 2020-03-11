@@ -15,17 +15,18 @@ fxconv converts data files such as images and fonts into gint formats
 optimized for fast execution, or into object files.
 
 Operating modes:
-  -s, --script   Expose the fxconv module and run this Python script
-  -b, --binary   Turn data into an object file, no conversion
-  -i, --image    Convert to gint's image format
-  -f, --font     Convert to gint's font format
+  -s, --script    Expose the fxconv module and run this Python script
+  -b, --binary    Turn data into an object file, no conversion
+  -i, --image     Convert to gint's bopti image format
+  -f, --font      Convert to gint's topti font format
+  --libimg-image  Convert to the libimg image format
 
 When using -s, additional arguments are stored in the [fxconv.args] variable of
 the module. This is intended to be a restricted list of file names specified by
 a Makefile, used to convert only a subset of the files in the script.
 
-The -b, -i and -f modes are shortcuts to convert single files without a script.
-They accept parameters with a "category.key:value" syntax, for example:
+The operating mode options are shortcuts to convert single files without a
+script. They accept parameters with a "category.key:value" syntax, for example:
   fxconv -f myfont.png -o myfont.o charset:ascii grid.padding:1 height:7
 
 When converting images, use --fx (black-and-white calculators) or --cg (16-bit
@@ -36,11 +37,11 @@ color calculators) to specify the target machine.
 def err(msg):
 	print("\x1b[31;1merror:\x1b[0m", msg, file=sys.stderr)
 def warn(msg):
-	print("warning:", msg, file=sys.stderr)
+	print("\x1b[33;1mwarning:\x1b[0m", msg, file=sys.stderr)
 
 def main():
 	# Default execution mode is to run a Python script for conversion
-	modes = "script binary image font"
+	modes = "script binary image font bopti-image libimg-image"
 	mode = "s"
 	output = None
 	model = None
@@ -79,7 +80,7 @@ def main():
 			target['section'] = value
 		# Other names are modes
 		else:
-			mode = name[1] if len(name)==2 else name[2]
+			mode = name[1] if len(name)==2 else name[2:]
 
 	# Remaining arguments
 	if args == []:
@@ -118,7 +119,17 @@ def main():
 		for (name, value) in args:
 			insert(params, name.split("."), value)
 
-		params["type"] = { "b": "binary", "i": "image", "f": "font" }[mode]
+		if "type" in params:
+			pass
+		elif(len(mode) == 1):
+			params["type"] = { "b": "binary", "i": "image", "f": "font" }[mode]
+		else:
+			params["type"] = mode
+
+		# Will be deprecated in the future
+		if params["type"] == "image":
+			warn("type 'image' is deprecated, use 'bopti-image' instead")
+			params["type"] = "bopti-image"
 
 		try:
 			fxconv.convert(input, params, target, output, model)
