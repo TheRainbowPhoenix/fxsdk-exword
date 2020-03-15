@@ -108,6 +108,10 @@ CG_PROFILES = [
 	CgProfile(0x3, "p4", True),
 ]
 
+# Libimg flags
+LIBIMG_FLAG_OWN = 1
+LIBIMG_FLAG_RO  = 2
+
 #
 #  Character sets
 #
@@ -504,6 +508,51 @@ def convert_topti(input, output, params, target):
 	elf(data, output, "_" + params["name"], **target)
 
 #
+# libimg conversion for fx-9860G
+#
+
+def convert_libimg_fx(input, output, params, target):
+	img = Image.open(input)
+	if img.width >= 65536 or img.height >= 65536:
+		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
+
+	# Crop image to area
+	area = Area(params.get("area", {}), img)
+	img = img.crop(area.tuple())
+
+	# Quantize the image. We don't need to check if there is gray; the VRAM
+	# rendering function for mono output will adjust at runetime
+	img = quantize(img, dither=False)
+	code = { FX_WHITE: 0, FX_LIGHT: 1, FX_DARK: 2, FX_BLACK: 3, FX_ALPHA: 4 }
+
+	# Encode image as a plain series of pixels
+	data = bytearray(img.width * img.height)
+	im = img.load()
+	i = 0
+
+	for y in range(img.height):
+		for x in range(img.width):
+			data[i] = code[im[x, y]]
+			i += 1
+
+	assembly = f"""
+	.section .rodata
+	.global _{params["name"]}
+
+	_{params["name"]}:
+		.word	{img.width}
+		.word	{img.height}
+		.word	{img.width}
+		.byte	{LIBIMG_FLAG_RO}
+		.byte	0
+		.long	_{params["name"]}_data
+	"""
+
+	dataname = "_{}_data".format(params["name"])
+	elf(data, output, dataname, assembly=assembly, **target)
+
+
+#
 # libimg conversion for fx-CG 50
 #
 
@@ -519,10 +568,6 @@ def convert_libimg_cg(input, output, params, target):
 	# Encode the image into 16-bit format and force the alpha to 0x0001
 	encoded, alpha = r5g6b5(img, alpha=(0x0001,0x0000))
 
-	w, h, s = img.width, img.height, img.width
-	FLAG_OWN = 1
-	FLAG_RO  = 2
-
 	assembly = f"""
 	.section .rodata
 	.global _{params["name"]}
@@ -531,7 +576,7 @@ def convert_libimg_cg(input, output, params, target):
 		.word	{img.width}
 		.word	{img.height}
 		.word	{img.width}
-		.byte	{FLAG_RO}
+		.byte	{LIBIMG_FLAG_RO}
 		.byte	0
 		.long	_{params["name"]}_data
 	"""
@@ -799,7 +844,7 @@ def convert(input, params, target, output=None, model=None):
 	elif params["type"] == "font":
 		convert_topti(input, output, params, target)
 	elif params["type"] == "libimg-image" and model in [ "fx", None ]:
-		raise FxconvError(f"libimg not yet supported for fx-9860G o(x_x)o")
+		convert_libimg_fx(input, output, params, target)
 	elif params["type"] == "libimg-image" and model == "cg":
 		convert_libimg_cg(input, output, params, target)
 	else:
