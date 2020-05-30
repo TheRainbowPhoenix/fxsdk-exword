@@ -4,8 +4,13 @@ import getopt
 import sys
 import os
 import fxconv
+import subprocess
 
-help_string = """
+# Note: this line is edited at compile time to insert the install folder
+PREFIX="""\
+""".strip()
+
+help_string = f"""
 usage: fxconv [-s] <python script> [files...]
        fxconv  -b  <bin file> -o <object file> [parameters...]
        fxconv  -i  <png file> -o <object file> (--fx|--cg) [parameters...]
@@ -31,6 +36,8 @@ script. They accept parameters with a "category.key:value" syntax, for example:
 
 When converting images, use --fx (black-and-white calculators) or --cg (16-bit
 color calculators) to specify the target machine.
+
+Install PREFIX is set to '{PREFIX}'.
 """.strip()
 
 # Simple error-warnings system
@@ -93,10 +100,20 @@ def main():
 	if mode == "s":
 		if output is not None:
 			warn("option --output is ignored in script mode")
-		args = None if args == [] else args
 
-		err("script mode not currently implemented (TODO) x_x")
-		sys.exit(1)
+		if PREFIX == "":
+			err("unknown or invalid install path x_x")
+			sys.exit(1)
+
+		env = os.environ.copy()
+		if "PYTHONPATH" in env:
+			env["PYTHONPATH"] += f":{PREFIX}/bin"
+		else:
+			env["PYTHONPATH"] = f"{PREFIX}/bin"
+
+		p = subprocess.run([ sys.executable, input ], env=env)
+		if p.returncode != 0:
+			sys.exit(1)
 
 	# In shortcut conversion modes, read parameters from the command-line
 

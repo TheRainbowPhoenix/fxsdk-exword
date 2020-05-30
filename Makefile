@@ -18,8 +18,8 @@ dflags = -MT $@ -MMD -MP -MF $(@:%.o=%.d)
 #  $TARGETS is provided by Makefile.cfg.
 #
 
-TARGETS := $(filter-out fxconv,$(TARGETS))
 TARGETS := $(TARGETS:fxsdk=fxsdk.sh)
+TARGETS := $(TARGETS:fxconv=fxconv-main.py)
 bin = $(TARGETS:%=bin/%)
 
 # fxconv has no sources files because it's written in Python, and fxsdk has no
@@ -30,9 +30,9 @@ obj-fxg1a := $(src-fxg1a:%=build/%.o)
 # Sed command to copy install path to fxsdk.sh. On Mac OS, BSD sed is used so
 # we need to do it a bit differently with a printf helper to insert a literal
 # newline into the command.
-sed  := '/^PREFIX=\\$$/ a \$(PREFIX)'
+sed  := -E -e '/^PREFIX=.?.?.?\\$$/ a \$(PREFIX)'
 ifeq "$(shell uname)" "Darwin"
-sed  := "$$(printf '/^PREFIX=/ a \\\n$(PREFIX)')"
+sed  := -e "$$(printf '/^PREFIX=.?.?.?/ a \\\n$(PREFIX)')"
 endif
 
 # Symbolic targets
@@ -41,11 +41,14 @@ all: $(bin)
 
 all-fxsdk: bin/fxsdk.sh
 all-fxg1a: bin/fxg1a
+all-fxconv: bin/fxconv-main.py
 
 # Explicit targets
 
 bin/fxsdk.sh: fxsdk/fxsdk.sh | bin/
-	sed -e $(sed) $< > $@
+	sed $(sed) $< > $@
+bin/fxconv-main.py: fxconv/fxconv-main.py | bin/
+	sed $(sed) $< > $@
 bin/fxg1a: $(obj-fxg1a) | bin/
 	gcc $^ -o $@ $(lflags)
 
@@ -91,11 +94,11 @@ endif
 install: $(bin)
 	install -d $(PREFIX)/bin
 	install -d $(PREFIX)/share/fxsdk
-	install $(bin:bin/fxsdk.sh=) $(m755) $(PREFIX)/bin
+	install $(filter bin/fxg1a,$(bin)) $(m755) $(PREFIX)/bin
 	install -d $(PREFIX)/share/fxsdk/assets
 	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
 	install bin/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
-	install fxconv/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
+	install bin/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
 	install fxconv/fxconv.py $(m644) $(PREFIX)/bin
 
 uninstall:
