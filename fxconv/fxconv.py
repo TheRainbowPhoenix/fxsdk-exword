@@ -247,7 +247,10 @@ def convert_binary(input, output, params, target):
 #
 
 def convert_bopti_fx(input, output, params, target):
-	img = Image.open(input)
+	if isinstance(input, Image.Image):
+		img = input.copy()
+	else:
+		img = Image.open(input)
 	if img.width >= 4096 or img.height >= 4096:
 		raise FxconvError(f"'{input}' is too large (max. 4095x4095)")
 
@@ -322,7 +325,10 @@ def _image_project(img, f):
 #
 
 def convert_bopti_cg(input, output, params, target):
-	img = Image.open(input)
+	if isinstance(input, Image.Image):
+		img = input.copy()
+	else:
+		img = Image.open(input)
 	if img.width >= 65536 or img.height >= 65536:
 		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
 
@@ -399,7 +405,10 @@ def convert_topti(input, output, params, target):
 	# Image area and grid
 	#--
 
-	img = Image.open(input)
+	if isinstance(input, Image.Image):
+		img = input.copy()
+	else:
+		img = Image.open(input)
 	area = Area(params.get("area", {}), img)
 	img = img.crop(area.tuple())
 
@@ -512,7 +521,10 @@ def convert_topti(input, output, params, target):
 #
 
 def convert_libimg_fx(input, output, params, target):
-	img = Image.open(input)
+	if isinstance(input, Image.Image):
+		img = input.copy()
+	else:
+		img = Image.open(input)
 	if img.width >= 65536 or img.height >= 65536:
 		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
 
@@ -557,7 +569,10 @@ def convert_libimg_fx(input, output, params, target):
 #
 
 def convert_libimg_cg(input, output, params, target):
-	img = Image.open(input)
+	if isinstance(input, Image.Image):
+		img = input.copy()
+	else:
+		img = Image.open(input)
 	if img.width >= 65536 or img.height >= 65536:
 		raise FxconvError(f"'{input}' is too large (max. 65535x65535)")
 
