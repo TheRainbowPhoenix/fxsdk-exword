@@ -13,6 +13,8 @@ __all__ = [
 	"FX_BLACK", "FX_DARK", "FX_LIGHT", "FX_WHITE", "FX_ALPHA",
 	# Functions
 	"quantize", "convert", "elf",
+	# Reusable classes
+	"Area", "Grid",
 ]
 
 #
@@ -150,16 +152,21 @@ FX_CHARSETS = [
 #
 
 class Area:
+	"""
+	A subrectangle of an image, typicall used for pre-conversion cropping.
+	"""
+
 	def __init__(self, area, img):
 		"""
 		Construct an Area object from a dict specification. The following keys
-		may be used:
+		may be used to specific the position and size of the rectangle:
 
 		* "x", "y"          (int strings, default to 0)
 		* "width", "height" (int strings, default to image dimensions)
 		* "size"            ("WxH" where W and H are the width and height)
 
-		The Area objects has attributes "x", "y", "w" and "h".
+		The Area objects has attributes "x", "y", "w" and "h". Both positions
+		default to 0 and both sizes to the corresponding image dimensions.
 		"""
 
 		self.x = int(area.get("x", 0))
@@ -171,7 +178,7 @@ class Area:
 			self.w, self.h = map(int, area["size"].split("x"))
 
 	def tuple(self):
-		"""Return the tuple representation (x,y,w,h)."""
+		"""Return the tuple representation (x,y,w,h), suitable for .crop(). """
 		return (self.x, self.y, self.w, self.h)
 
 #
@@ -179,17 +186,26 @@ class Area:
 #
 
 class Grid:
+	"""
+	A grid over an image, used to isolate glyphs in fonts and tiles in maps.
+	Supports several types of spacing. To apply an outer border, use crop
+	through an Area before using the Grid.
+	"""
+
 	def __init__(self, grid):
 		"""
 		Construct a Grid object from a dict specification. The following keys
-		may be used:
+		may be used to specify the dimension and spacing of the cells:
 
 		* "border"           (int string, defaults to 0)
 		* "padding"          (int string, defaults to 0)
 		* "width", "height"  (int strings, mandatory if "size" not set)
 		* "size"             ("WxH" where W and H are the cell width/height)
 
-		The Grid object has attributes "border", "padding", "w" and "h".
+		The Grid object has attributes "border", "padding", "w" and "h". Each
+		cell is of size "(w,h)" and has "padding" pixels of proper padding
+		around it. Additionally, cells are separated by a border of size
+		"border"; this includes an outer border.
 		"""
 
 		self.border = int(grid.get("border", 0))
@@ -218,7 +234,7 @@ class Grid:
 
 
 	def iter(self, img):
-		"""Build an iterator on all subrectangles of the grid."""
+		"""Yields subrectangles of the grid as tuples (x,y,w,h)."""
 		b, p, w, h =  self.border, self.padding, self.w, self.h
 
 		# Padding-extended parameters
