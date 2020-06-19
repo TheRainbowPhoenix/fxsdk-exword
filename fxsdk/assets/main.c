@@ -4,7 +4,7 @@
 int main(void)
 {
 	dclear(C_WHITE);
-	dtext(1, 1, "Sample fxSDK add-in.", C_BLACK, C_NONE);
+	dtext(1, 1, C_BLACK, "Sample fxSDK add-in.");
 	dupdate();
 
 	getkey();
