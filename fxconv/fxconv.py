@@ -976,6 +976,10 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		proc = subprocess.run([
 			f"{toolchain}-ld", "-r", fp_obj.name + "-tmp", fp_asm.name + ".o",
 			"-o", output ])
+
+		os.remove(fp_obj.name + "-tmp")
+		os.remove(fp_asm.name + ".o")
+
 		if proc.returncode != 0:
 			raise FxconvError("ld returned {proc.returncode}")
 
