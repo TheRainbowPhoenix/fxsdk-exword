@@ -119,10 +119,12 @@ LIBIMG_FLAG_RO  = 2
 #
 
 class Charset:
-	def __init__(self, id, name, count):
-		self.id = id
+	def __init__(self, name, blocks):
 		self.name = name
-		self.count = count
+		self.blocks = blocks
+
+	def count(self):
+		return sum(length for start, length in self.blocks)
 
 	@staticmethod
 	def find(name):
@@ -134,17 +136,17 @@ class Charset:
 
 FX_CHARSETS = [
 	# Digits 0...9
-	Charset(0x0, "numeric", 10),
+	Charset("numeric", [ (ord('0'), 10) ]),
 	# Uppercase letters A...Z
-	Charset(0x1, "upper", 26),
+	Charset("upper",   [ (ord('A'), 26) ]),
 	# Upper and lowercase letters A..Z, a..z
-	Charset(0x2, "alpha", 52),
+	Charset("alpha",   [ (ord('A'), 26), (ord('a'), 26) ]),
 	# Letters and digits A..Z, a..z, 0..9
-	Charset(0x3, "alnum", 62),
+	Charset("alnum",   [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ]),
 	# All printable characters from 0x20 to 0x7e
-	Charset(0x4, "print", 95),
+	Charset("print",   [ (0x20, 95) ]),
 	# All 128 ASII characters
-	Charset(0x5, "ascii", 128),
+	Charset("ascii",   [ (0x00, 128) ]),
 ]
 
 #
@@ -249,6 +251,15 @@ class Grid:
 				x = b + c * (W + b) + p
 				y = b + r * (H + b) + p
 				yield (x, y, x + w, y + h)
+
+#
+# Helpers
+#
+
+def _encode_word(x):
+	return bytes([ (x >> 8) & 255, x & 255 ])
+def _encode_long(x):
+	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 #
 # Binary conversion
@@ -407,14 +418,6 @@ def _trim(img):
 
 	return img.crop((left, 0, right, img.height))
 
-def _align(seq, align):
-	n = (align - len(seq)) % align
-	return seq + bytearray(n)
-
-def _pad(seq, length):
-	n = max(0, length - len(seq))
-	return seq + bytearray(n)
-
 def convert_topti(input, output, params, target):
 
 	#--
@@ -442,24 +445,22 @@ def convert_topti(input, output, params, target):
 	if "charset" not in params:
 		raise FxconvError("'charset' attribute is required and missing")
 
-	charset = Charset.find(params["charset"])
+	charset_name = params["charset"]
+	charset = Charset.find(charset_name)
 	if charset is None:
-		raise FxconvError(f"unknown character set '{charset}'")
-	if charset.count > grid.size(img):
+		raise FxconvError(f"unknown character set '{charset_name}'")
+	if charset.count() > grid.size(img):
 		raise FxconvError(f"not enough elements in grid (got {grid.size(img)}, "+
-			f"need {charset.count} for '{charset.name}')")
+			f"need {charset.count()} for '{charset.name}')")
+
+	blocks = charset.blocks
 
 	#--
 	# Proportionality and metadata
 	#--
 
 	proportional = (params.get("proportional", "false") == "true")
-
-	title = params.get("title", "")
-	if len(title) > 31:
-		raise FxconvError(f"font title {title} is too long (max. 31 bytes)")
-	# Pad title to 4 bytes
-	title = bytes(title, "utf-8") + bytes(((4 - len(title) % 4) % 4) * [0])
+	title = bytes(params.get("title", ""), "utf-8") + bytes([0])
 
 	flags = set(params.get("flags", "").split(","))
 	flags.remove("")
@@ -472,15 +473,21 @@ def convert_topti(input, output, params, target):
 	italic = int("italic" in flags)
 	serif  = int("serif" in flags)
 	mono   = int("mono" in flags)
-	header = bytes([
-		(len(title) << 3) | (bold << 2) | (italic << 1) | serif,
-		(mono << 7) | (int(proportional) << 6) | (charset.id & 0xf),
-		params.get("height", grid.h),
-		grid.h,
-	])
 
-	encode16bit = lambda x: bytes([ x >> 8, x & 255 ])
-	fixed_header = encode16bit(grid.w) + encode16bit((grid.w*grid.h + 31) >> 5)
+	flags = (bold << 7) | (italic << 6) | (serif << 5) | (mono << 4) \
+			| int(proportional)
+	# Default line height to glyph height
+	line_height = params.get("height", grid.h)
+
+	#--
+	# Encoding blocks
+	#---
+
+	def encode_block(b):
+		start, length = b
+		return _encode_long((start << 12) | length)
+
+	data_blocks = b''.join(encode_block(b) for b in blocks)
 
 	#--
 	# Encoding glyphs
@@ -488,20 +495,20 @@ def convert_topti(input, output, params, target):
 
 	data_glyphs = []
 	total_glyphs = 0
-	data_widths = bytearray()
+	data_width = bytearray()
 	data_index  = bytearray()
 
 	for (number, region) in enumerate(grid.iter(img)):
 		# Upate index
 		if not (number % 8):
 			idx = total_glyphs // 4
-			data_index += encode16bit(idx)
+			data_index += _encode_word(idx)
 
 		# Get glyph area
 		glyph = img.crop(region)
 		if proportional:
 			glyph = _trim(glyph)
-			data_widths.append(glyph.width)
+			data_width.append(glyph.width)
 
 		length = 4 * ((glyph.width * glyph.height + 31) >> 5)
 		bits = bytearray(length)
@@ -523,14 +530,55 @@ def convert_topti(input, output, params, target):
 	#  Object file generation
 	#---
 
+	# In the data section, first put the raw data and blocks (4-aligned), then
+	# the index (2-aligned), then the glyph size array and font name
+	# (1-aligned). This avoids any additional alingment/padding issues.
 	if proportional:
-		data_index = _pad(data_index, 32)
-		data_widths = _align(data_widths, 4)
-		data = header + data_index + data_widths + data_glyphs + title
-	else:
-		data = header + fixed_header + data_glyphs + title
+		data = data_glyphs + data_blocks + data_index + data_width + title
+		off_blocks = len(data_glyphs)
+		off_index  = off_blocks + len(data_blocks)
+		off_width  = off_index  + len(data_index)
+		off_title  = off_width  + len(data_width)
 
-	elf(data, output, "_" + params["name"], **target)
+		assembly2 = f"""
+			.long	_{params["name"]}_data + {off_index}
+			.long	_{params["name"]}_data + {off_width}
+		"""
+	# For fixed-width fonts, just put the glyph data and tht font title
+	else:
+		data = data_glyphs + data_blocks + title
+		off_blocks = len(data_glyphs)
+		off_title  = off_blocks + len(data_blocks)
+
+		assembly2 = f"""
+			.word	{grid.w}
+			.word	{(grid.w * grid.h + 31) >> 5}
+		"""
+
+	# Make the title pointer NUL if no title is specified
+	if len(title) > 1:
+		ref_title = f'_{params["name"]}_data + {off_title}'
+	else:
+		ref_title = '0'
+
+	# Header followed by the proportional of fixed subheader
+	assembly = f"""
+	.section .rodata
+	.global _{params["name"]}
+
+	_{params["name"]}:
+		.long	{ref_title}
+		.byte	{flags}
+		.byte	{line_height}
+		.byte	{grid.h}
+		.byte	{len(blocks)}
+		.long	{charset.count()}
+		.long	_{params["name"]}_data + {off_blocks}
+		.long	_{params["name"]}_data
+	""" + assembly2
+
+	dataname = "_{}_data".format(params["name"])
+	elf(data, output, dataname, assembly=assembly, **target)
 
 #
 # libimg conversion for fx-9860G
