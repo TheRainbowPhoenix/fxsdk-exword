@@ -5,6 +5,7 @@ Convert data files into gint formats or object files
 import os
 import tempfile
 import subprocess
+import re
 
 from PIL import Image
 
@@ -118,36 +119,22 @@ LIBIMG_FLAG_RO  = 2
 #  Character sets
 #
 
-class Charset:
-	def __init__(self, name, blocks):
-		self.name = name
-		self.blocks = blocks
-
-	def count(self):
-		return sum(length for start, length in self.blocks)
-
-	@staticmethod
-	def find(name):
-		"""Find a charset by name."""
-		for charset in FX_CHARSETS:
-			if charset.name == name:
-				return charset
-		return None
-
-FX_CHARSETS = [
+FX_CHARSETS = {
 	# Digits 0...9
-	Charset("numeric", [ (ord('0'), 10) ]),
+	"numeric": [ (ord('0'), 10) ],
 	# Uppercase letters A...Z
-	Charset("upper",   [ (ord('A'), 26) ]),
+	"upper":   [ (ord('A'), 26) ],
 	# Upper and lowercase letters A..Z, a..z
-	Charset("alpha",   [ (ord('A'), 26), (ord('a'), 26) ]),
+	"alpha":   [ (ord('A'), 26), (ord('a'), 26) ],
 	# Letters and digits A..Z, a..z, 0..9
-	Charset("alnum",   [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ]),
+	"alnum":   [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ],
 	# All printable characters from 0x20 to 0x7e
-	Charset("print",   [ (0x20, 95) ]),
+	"print":   [ (0x20, 95) ],
 	# All 128 ASII characters
-	Charset("ascii",   [ (0x00, 128) ]),
-]
+	"ascii":   [ (0x00, 128) ],
+	# Custom Unicode block intervals
+	"unicode": [],
+}
 
 #
 #  Area specifications
@@ -155,7 +142,7 @@ FX_CHARSETS = [
 
 class Area:
 	"""
-	A subrectangle of an image, typicall used for pre-conversion cropping.
+	A subrectangle of an image, typically used for pre-conversion cropping.
 	"""
 
 	def __init__(self, area, img):
@@ -418,25 +405,17 @@ def _trim(img):
 
 	return img.crop((left, 0, right, img.height))
 
+def _blockstart(name):
+	m = re.match(r'(?:U\+)?([0-9A-Fa-f]+)\.', name)
+
+	if m is None:
+		return None
+	try:
+		return int(m[1], base=16)
+	except Exception as e:
+		return None
+
 def convert_topti(input, output, params, target):
-
-	#--
-	# Image area and grid
-	#--
-
-	if isinstance(input, Image.Image):
-		img = input.copy()
-	else:
-		img = Image.open(input)
-	area = Area(params.get("area", {}), img)
-	img = img.crop(area.tuple())
-
-	grid = Grid(params.get("grid", {}))
-
-	# Quantize image. (Profile doesn't matter here; only black pixels will be
-	# encoded into glyphs. White pixels are used to separate entries and gray
-	# pixels can be used to forcefully insert spacing on the sides.)
-	img = quantize(img, dither=False)
 
 	#--
 	# Character set
@@ -445,15 +424,68 @@ def convert_topti(input, output, params, target):
 	if "charset" not in params:
 		raise FxconvError("'charset' attribute is required and missing")
 
-	charset_name = params["charset"]
-	charset = Charset.find(charset_name)
-	if charset is None:
-		raise FxconvError(f"unknown character set '{charset_name}'")
-	if charset.count() > grid.size(img):
-		raise FxconvError(f"not enough elements in grid (got {grid.size(img)}, "+
-			f"need {charset.count()} for '{charset.name}')")
+	charset = params["charset"]
+	blocks = FX_CHARSETS.get(charset, None)
+	if blocks is None:
+		raise FxconvError(f"unknown character set '{charset}'")
 
-	blocks = charset.blocks
+	# Will be recomputed later for Unicode fonts
+	glyph_count = sum(length for start, length in blocks)
+
+	#--
+	# Image input
+	#--
+
+	grid = Grid(params.get("grid", {}))
+
+	# When using predefined charsets with a single image, apply the area and
+	# check that the number of glyphs is correct
+	if charset != "unicode":
+		if isinstance(input, Image.Image):
+			img = input.copy()
+		else:
+			img = Image.open(input)
+		area = Area(params.get("area", {}), img)
+		img = img.crop(area.tuple())
+
+		# Quantize it (only black pixels will be encoded into glyphs)
+		img = quantize(img, dither=False)
+
+		if glyph_count > grid.size(img):
+			raise FxconvError(
+				f"not enough elements in grid (got {grid.size(img)}, "+
+				f"need {glyph_count} for '{charset}')")
+
+		inputs = [ img ]
+
+	# In Unicode mode, load images for the provided directory, but don't apply
+	# the area (this makes no sense since the sizes are different)
+	else:
+		try:
+			files = os.listdir(input)
+		except Exception as e:
+			raise FxconvError(
+				f"cannot scan directory '{input}' to discover blocks for the"+
+				f"unicode charset: {str(e)}")
+
+		# Keep only files with basenames like "<hexa>" or "U+<hexa>" and sort
+		# them by code point order (for consistency)
+		files = [e for e in files if _blockstart(e) is not None]
+		files = sorted(files, key=_blockstart)
+
+		# Open all images and guess the block size
+		inputs = []
+		for file in files:
+			img = Image.open(os.path.join(input, file))
+			img = quantize(img, dither=False)
+			inputs.append(img)
+
+		blocks = [(_blockstart(e), grid.size(img))
+		          for e, img in zip(files, inputs)]
+
+		# Recompute the total glyph count
+		glyph_count = sum(length for start, length in blocks)
+
 
 	#--
 	# Proportionality and metadata
@@ -498,31 +530,32 @@ def convert_topti(input, output, params, target):
 	data_width = bytearray()
 	data_index  = bytearray()
 
-	for (number, region) in enumerate(grid.iter(img)):
-		# Upate index
-		if not (number % 8):
-			idx = total_glyphs // 4
-			data_index += _encode_word(idx)
+	for img in inputs:
+		for (number, region) in enumerate(grid.iter(img)):
+			# Upate index
+			if not (number % 8):
+				idx = total_glyphs // 4
+				data_index += _encode_word(idx)
 
-		# Get glyph area
-		glyph = img.crop(region)
-		if proportional:
-			glyph = _trim(glyph)
-			data_width.append(glyph.width)
+			# Get glyph area
+			glyph = img.crop(region)
+			if proportional:
+				glyph = _trim(glyph)
+				data_width.append(glyph.width)
 
-		length = 4 * ((glyph.width * glyph.height + 31) >> 5)
-		bits = bytearray(length)
-		offset = 0
-		px = glyph.load()
+			length = 4 * ((glyph.width * glyph.height + 31) >> 5)
+			bits = bytearray(length)
+			offset = 0
+			px = glyph.load()
 
-		for y in range(glyph.size[1]):
-			for x in range(glyph.size[0]):
-				color = (px[x,y] == FX_BLACK)
-				bits[offset >> 3] |= ((color * 0x80) >> (offset & 7))
-				offset += 1
+			for y in range(glyph.size[1]):
+				for x in range(glyph.size[0]):
+					color = (px[x,y] == FX_BLACK)
+					bits[offset >> 3] |= ((color * 0x80) >> (offset & 7))
+					offset += 1
 
-		data_glyphs.append(bits)
-		total_glyphs += length
+			data_glyphs.append(bits)
+			total_glyphs += length
 
 	data_glyphs = b''.join(data_glyphs)
 
@@ -572,7 +605,7 @@ def convert_topti(input, output, params, target):
 		.byte	{line_height}
 		.byte	{grid.h}
 		.byte	{len(blocks)}
-		.long	{charset.count()}
+		.long	{glyph_count}
 		.long	_{params["name"]}_data + {off_blocks}
 		.long	_{params["name"]}_data
 	""" + assembly2
