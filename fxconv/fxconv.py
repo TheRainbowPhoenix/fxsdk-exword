@@ -737,6 +737,11 @@ def quantize(img, dither=False):
 		palette.putpixel((i, 0), c)
 	palette = palette.convert("P")
 
+	# Make the image RGBA in case it was indexed so that transparent pixels are
+	# represented in an alpha channel
+	if img.mode == "P":
+		img = img.convert("RGBA")
+
 	# Save the alpha channel, and make it either full transparent or opaque
 	try:
 		alpha_channel = img.getchannel("A").convert("1", dither=Image.NONE)
