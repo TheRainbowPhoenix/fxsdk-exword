@@ -182,7 +182,7 @@ CFLAGS_FX := -D FX9860G -m3
 CFLAGS_CG := -D FXCG50  -m4-nofpu
 
 # Additional compiler flags, change to your own taste!
-CFLAGS += -Wall -Wextra -Os
+CFLAGS += -Wall -Wextra -Wno-missing-field-initializers -Os
 
 # Include paths. Add one -I option for each folder from which you want to
 # be able to include files with #include<>.
