@@ -55,10 +55,10 @@ ifeq "$(TARGET_CG)" ""
 TARGET_CG := $(TARGET).g3a
 endif
 
-ELF_FX := build-fx/$(shell basename -s .g1a $(TARGET_FX)).elf
+ELF_FX := build-fx/$(shell basename "$(TARGET_FX)" .g1a).elf
 BIN_FX := $(ELF_FX:.elf=.bin)
 
-ELF_CG := build-cg/$(shell basename -s .g3a $(TARGET_CG)).elf
+ELF_CG := build-cg/$(shell basename "$(TARGET_CG)" .g3a).elf
 BIN_CG := $(ELF_CG:.elf=.bin)
 
 # Source files
