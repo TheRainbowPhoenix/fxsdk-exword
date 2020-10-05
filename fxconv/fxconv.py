@@ -511,6 +511,9 @@ def convert_topti(input, output, params, target):
 	# Default line height to glyph height
 	line_height = params.get("height", grid.h)
 
+	# Default character spacing to 1
+	char_spacing = params.get("char-spacing", 1)
+
 	#--
 	# Encoding blocks
 	#---
@@ -606,6 +609,8 @@ def convert_topti(input, output, params, target):
 		.byte	{grid.h}
 		.byte	{len(blocks)}
 		.long	{glyph_count}
+		.byte	{char_spacing}
+		.zero	3
 		.long	_{params["name"]}_data + {off_blocks}
 		.long	_{params["name"]}_data
 	""" + assembly2
