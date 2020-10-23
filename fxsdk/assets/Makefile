@@ -157,6 +157,14 @@ build-cg/assets/bin/%.o: assets-cg/bin/%
 	@ mkdir -p $(dir $@)
 	fxconv -b $< -o $@ $(FXCONVCG) name:bin_$(basename $*) $(BIN.$*)
 
+# Custom conversions
+build-fx/assets/%.o: assets-fx/%
+	@ mkdir -p $(dir $@)
+	fxconv --custom $< -o $@ $(FXCONVFX) type:$(subst /,,$(dir $*)) name:$(subst /,_,$(basename $*))
+build-cg/assets/%.o: assets-cg/%
+	@ mkdir -p $(dir $@)
+	fxconv --custom $< -o $@ $(FXCONVCG) type:$(subst /,,$(dir $*)) name:$(subst /,_,$(basename $*))
+
 #
 #  Cleaning and utilities
 #

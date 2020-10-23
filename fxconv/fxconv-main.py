@@ -46,6 +46,12 @@ def err(msg):
 def warn(msg):
 	print("\x1b[33;1mwarning:\x1b[0m", msg, file=sys.stderr)
 
+# "converters" module from the user project
+try:
+	import converters
+except ImportError:
+	converters = None
+
 def main():
 	# Default execution mode is to run a Python script for conversion
 	modes = "script binary image font bopti-image libimg-image"
@@ -53,6 +59,7 @@ def main():
 	output = None
 	model = None
 	target = { 'toolchain': None, 'arch': None, 'section': None }
+	use_custom = False
 
 	# Parse command-line arguments
 
@@ -61,8 +68,8 @@ def main():
 		sys.exit(1)
 
 	try:
-		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:",
-			("help output= fx cg toolchain= arch= section= "+modes).split())
+		longs = "help output= fx cg toolchain= arch= section= custom " + modes
+		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs.split())
 	except getopt.GetoptError as error:
 		err(error)
 		sys.exit(1)
@@ -85,6 +92,9 @@ def main():
 			target['arch'] = value
 		elif name == "--section":
 			target['section'] = value
+		elif name == "--custom":
+			use_custom = True
+			mode = "custom"
 		# Other names are modes
 		else:
 			mode = name[1] if len(name)==2 else name[2:]
@@ -148,8 +158,16 @@ def main():
 			warn("type 'image' is deprecated, use 'bopti-image' instead")
 			params["type"] = "bopti-image"
 
+		# Use the custom module
+		custom = None
+		if use_custom:
+			if converters is None:
+				err("--custom specified but no [converters] module in wd")
+				sys.exit(1)
+			custom = converters.convert
+
 		try:
-			fxconv.convert(input, params, target, output, model)
+			fxconv.convert(input, params, target, output, model, custom)
 		except fxconv.FxconvError as e:
 			err(e)
 			sys.exit(1)

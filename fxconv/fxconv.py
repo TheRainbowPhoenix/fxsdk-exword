@@ -928,7 +928,7 @@ def r5g6b5(img, color_count=0, alpha=None):
 
 	return encoded, encoded_palette, alpha
 
-def convert(input, params, target, output=None, model=None):
+def convert(input, params, target, output=None, model=None, custom=None):
 	"""
 	Convert a data file into an object that exports the following symbols:
 	* _<varname>
@@ -942,6 +942,7 @@ def convert(input, params, target, output=None, model=None):
 	target  -- String dictionary keys 'toolchain', 'arch' and 'section'
 	output  -- Output file name [default: <input> with suffix '.o']
 	model   -- 'fx' or 'cg'  (some conversions require this) [default: None]
+	custom  -- Custom conversion function
 
 	Produces an output file and returns nothing.
 	"""
@@ -969,6 +970,8 @@ def convert(input, params, target, output=None, model=None):
 		convert_libimg_fx(input, output, params, target)
 	elif params["type"] == "libimg-image" and model == "cg":
 		convert_libimg_cg(input, output, params, target)
+	elif custom is not None:
+		custom(input, output, params, target)
 	else:
 		raise FxconvError(f'unknown resource type \'{params["type"]}\'')
 
