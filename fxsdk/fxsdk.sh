@@ -185,8 +185,11 @@ CFLAGS_CG := -D FXCG50  -m4-nofpu
 CFLAGS += -Wall -Wextra -Wno-missing-field-initializers -Os
 
 # Include paths. Add one -I option for each folder from which you want to
-# be able to include files with #include<>.
-INCLUDE := -I include
+# be able to include files with #include<>. The Makefile provides a variable
+# GCC_INCLUDE_FX/GCC_INCLUDE_CG that represents the default include folder,
+# which is useful for some libraries such as OpenLibm.
+INCLUDE_FX = -I include
+INCLUDE_CG = -I include
 
 # Libraries. Add one -l option for each library you are using, and also
 # suitable -L options if you have library files in custom folders. To use

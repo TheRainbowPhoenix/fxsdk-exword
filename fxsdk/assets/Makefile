@@ -10,8 +10,8 @@
 include project.cfg
 
 # Compiler flags
-CFLAGSFX := $(CFLAGS) $(CFLAGS_FX) $(INCLUDE)
-CFLAGSCG := $(CFLAGS) $(CFLAGS_CG) $(INCLUDE)
+CFLAGSFX = $(CFLAGS) $(CFLAGS_FX) $(INCLUDE_FX)
+CFLAGSCG = $(CFLAGS) $(CFLAGS_CG) $(INCLUDE_CG)
 
 # Linker flags
 LDFLAGSFX := $(LDFLAGS) $(LDFLAGS_FX)
@@ -39,6 +39,12 @@ endif
 # fxconv flags
 FXCONVFX := --fx --toolchain=$(TOOLCHAIN_FX)
 FXCONVCG := --cg --toolchain=$(TOOLCHAIN_CG)
+
+# Determine the compiler install and include path
+GCC_BASE_FX := $(shell $(TOOLCHAIN_FX)-gcc --print-search-dirs | grep install | sed 's/install: //')
+GCC_BASE_CG := $(shell $(TOOLCHAIN_CG)-gcc --print-search-dirs | grep install | sed 's/install: //')
+GCC_INCLUDE_FX := $(GCC_BASE_FX)/include
+GCC_INCLUDE_CG := $(GCC_BASE_CG)/include
 
 #
 #  File listings
@@ -128,10 +134,10 @@ build-cg/%.s.o: %.s
 # Preprocessed assembler sources
 build-fx/%.S.o: %.S
 	@ mkdir -p $(dir $@)
-	$(TOOLCHAIN_FX)-gcc -c $< -o $@ $(INCLUDE)
+	$(TOOLCHAIN_FX)-gcc -c $< -o $@ $(INCLUDE_FX)
 build-cg/%.S.o: %.S
 	@ mkdir -p $(dir $@)
-	$(TOOLCHAIN_CG)-gcc -c $< -o $@ $(INCLUDE)
+	$(TOOLCHAIN_CG)-gcc -c $< -o $@ $(INCLUDE_CG)
 
 # Images
 build-fx/assets/img/%.o: assets-fx/img/%
