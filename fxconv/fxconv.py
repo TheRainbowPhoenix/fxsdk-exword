@@ -5,6 +5,7 @@ Convert data files into gint formats or object files
 import os
 import tempfile
 import subprocess
+import collections
 import re
 
 from PIL import Image
@@ -12,6 +13,8 @@ from PIL import Image
 __all__ = [
 	# Color names
 	"FX_BLACK", "FX_DARK", "FX_LIGHT", "FX_WHITE", "FX_ALPHA",
+	# Conversion mechanisms
+	"ObjectData", "u8", "u16", "u32", "ref",
 	# Functions
 	"quantize", "convert", "elf",
 	# Reusable classes
@@ -135,6 +138,68 @@ FX_CHARSETS = {
 	# Custom Unicode block intervals
 	"unicode": [],
 }
+
+#
+# Conversion mechanisms
+#
+
+def u8(x):
+    return bytes([ x & 255 ])
+def u16(x):
+    return bytes([ (x >> 8) & 255, x & 255 ])
+def u32(x):
+    return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+def ref(base, offset=None, padding=None):
+	if isinstance(base, bytearray):
+		base = bytes(base)
+
+	if isinstance(base, bytes):
+		assert offset is None
+		if padding and len(base) % padding != 0:
+			base += bytes(padding - len(base) % padding)
+		return Ref(base, "", 0)
+	elif isinstance(base, str):
+		assert padding is None
+		return Ref(b"", base, offset or 0)
+
+	raise FxconvException(f"invalid type {type(base)} for ref()")
+
+Ref = collections.namedtuple("Ref", ["data", "name", "offset"])
+
+class ObjectData:
+	"""
+	A sequence of bytes that can contain pointers to external variables or
+	other data generated along the output structure.
+	"""
+
+	def __init__(self):
+		"""Construct an empty ObjectData sequence."""
+		self.elements = []
+		self.static_data = bytes()
+
+	def __add__(self, other):
+		if isinstance(other, bytes):
+			self.elements.append(other)
+		elif isinstance(other, Ref) and other.name:
+			self.elements.append((other.name, other.offset))
+		elif isinstance(other, Ref) and other.data:
+			self.elements.append(("", len(self.static_data)))
+			self.static_data += other.data
+		return self
+
+	def data(self):
+		return self.static_data
+
+	def assembly(self, data_symbol):
+		assembly = ""
+		for el in self.elements:
+			if isinstance(el, bytes):
+				assembly += ".byte " + ",".join(hex(x) for x in el) + "\n"
+			else:
+				name, offset = el
+				name = "_" + name if name != "" else data_symbol
+				assembly += f".long {name} + {offset}\n"
+		return assembly
 
 #
 #  Area specifications
@@ -509,7 +574,7 @@ def convert_topti(input, output, params, target):
 	flags = (bold << 7) | (italic << 6) | (serif << 5) | (mono << 4) \
 			| int(proportional)
 	# Default line height to glyph height
-	line_height = params.get("height", grid.h)
+	line_height = int(params.get("height", grid.h))
 
 	# Default character spacing to 1
 	char_spacing = params.get("char-spacing", 1)
@@ -566,57 +631,33 @@ def convert_topti(input, output, params, target):
 	#  Object file generation
 	#---
 
-	# In the data section, first put the raw data and blocks (4-aligned), then
-	# the index (2-aligned), then the glyph size array and font name
-	# (1-aligned). This avoids any additional alingment/padding issues.
-	if proportional:
-		data = data_glyphs + data_blocks + data_index + data_width + title
-		off_blocks = len(data_glyphs)
-		off_index  = off_blocks + len(data_blocks)
-		off_width  = off_index  + len(data_index)
-		off_title  = off_width  + len(data_width)
+	# Base data: always put the raw data and blocks first since they are
+	# 4-aligned, to preserve alignment on the rest of the references.
+	o = ObjectData()
 
-		assembly2 = f"""
-			.long	_{params["name"]}_data + {off_index}
-			.long	_{params["name"]}_data + {off_width}
-		"""
-	# For fixed-width fonts, just put the glyph data and tht font title
-	else:
-		data = data_glyphs + data_blocks + title
-		off_blocks = len(data_glyphs)
-		off_title  = off_blocks + len(data_blocks)
-
-		assembly2 = f"""
-			.word	{grid.w}
-			.word	{(grid.w * grid.h + 31) >> 5}
-		"""
-
-	# Make the title pointer NUL if no title is specified
+	# Make the title pointer NULL if no title is specified
 	if len(title) > 1:
-		ref_title = f'_{params["name"]}_data + {off_title}'
+		o += ref(title, padding=4)
 	else:
-		ref_title = '0'
+		o += u32(0)
 
-	# Header followed by the proportional of fixed subheader
-	assembly = f"""
-	.section .rodata
-	.global _{params["name"]}
+	o += u8(flags) + u8(line_height) + u8(grid.h) + u8(len(blocks))
+	o += u32(glyph_count)
+	o += u8(char_spacing) + bytes(3)
+	o += ref(data_blocks)
+	o += ref(data_glyphs)
 
-	_{params["name"]}:
-		.long	{ref_title}
-		.byte	{flags}
-		.byte	{line_height}
-		.byte	{grid.h}
-		.byte	{len(blocks)}
-		.long	{glyph_count}
-		.byte	{char_spacing}
-		.zero	3
-		.long	_{params["name"]}_data + {off_blocks}
-		.long	_{params["name"]}_data
-	""" + assembly2
+	# For proportional fonts, add the index (2-aligned) then the glyph size
+	# array (1-aligned).
+	if proportional:
+		o += ref(data_index)
+		o += ref(data_width)
+	# For fixed-width fonts, add more metrics
+	else:
+		o += u16(grid.w)
+		o += u16((grid.w * grid.h + 31) >> 5)
 
-	dataname = "_{}_data".format(params["name"])
-	elf(data, output, dataname, assembly=assembly, **target)
+	elf(o, output, "_" + params["name"], **target)
 
 #
 # libimg conversion for fx-9860G
@@ -649,21 +690,12 @@ def convert_libimg_fx(input, output, params, target):
 			data[i] = code[im[x, y]]
 			i += 1
 
-	assembly = f"""
-	.section .rodata
-	.global _{params["name"]}
+	o = ObjectData()
+	o += u16(img.width) + u16(img.height)
+	o += u16(img.width) + u8(LIBIMG_FLAG_RO) + bytes(1)
+	o += ref(data)
 
-	_{params["name"]}:
-		.word	{img.width}
-		.word	{img.height}
-		.word	{img.width}
-		.byte	{LIBIMG_FLAG_RO}
-		.byte	0
-		.long	_{params["name"]}_data
-	"""
-
-	dataname = "_{}_data".format(params["name"])
-	elf(data, output, dataname, assembly=assembly, **target)
+	elf(o, output, "_" + params["name"], **target)
 
 
 #
@@ -685,21 +717,12 @@ def convert_libimg_cg(input, output, params, target):
 	# Encode the image into 16-bit format and force the alpha to 0x0001
 	encoded, alpha = r5g6b5(img, alpha=(0x0001,0x0000))
 
-	assembly = f"""
-	.section .rodata
-	.global _{params["name"]}
+	o = ObjectData()
+	o += u16(img.width) + u16(img.height)
+	o += u16(img.width) + u8(LIBIMG_FLAG_RO) + bytes(1)
+	o += ref(encoded)
 
-	_{params["name"]}:
-		.word	{img.width}
-		.word	{img.height}
-		.word	{img.width}
-		.byte	{LIBIMG_FLAG_RO}
-		.byte	0
-		.long	_{params["name"]}_data
-	"""
-
-	dataname = "_{}_data".format(params["name"])
-	elf(encoded, output, dataname, assembly=assembly, **target)
+	elf(o, output, "_" + params["name"], **target)
 
 #
 # Exceptions
@@ -1008,7 +1031,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	it into the original one.
 
 	Arguments:
-	data       -- A bytes-like object with data to embed into the object file
+	data       -- A bytes-like or ObjectData object to embed into the output
 	output     -- Name of output file
 	symbol     -- Chosen symbol name
 	toolchain  -- Target triplet [default: "sh3eb-elf"]
@@ -1018,6 +1041,17 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	Produces an output file and returns nothing.
 	"""
+
+	# Unfold ObjectData into data and assembly
+	if isinstance(data, ObjectData):
+		assembly = (assembly or "") + f"""
+			.section .rodata
+			.global {symbol}
+			{symbol}:
+		""" + data.assembly(symbol + "_staticdata")
+
+		symbol = symbol + "_staticdata"
+		data = data.data()
 
 	if toolchain is None:
 		toolchain = "sh3eb-elf"
