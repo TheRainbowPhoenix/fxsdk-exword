@@ -1,0 +1,9 @@
+# Build files
+/build-fx
+/build-cg
+/*.g1a
+/*.g3a
+
+# Common IDE files
+*.sublime-project
+*.sublime-workspace

@@ -115,6 +115,7 @@ fxsdk_new_project_interactive() {
 
   assets="$PREFIX/share/fxsdk/assets"
   cp "$assets"/Makefile "$1"
+  cp "$assets"/gitignore "$1"/.gitignore
   cp "$assets"/main.c "$1"/src
   cp "$assets"/icon-fx.png "$1"/assets-fx
   cp "$assets"/icon-cg-uns.png "$1"/assets-cg
