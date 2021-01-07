@@ -323,13 +323,19 @@ case $1 in
   # Project compilation
   "build"|"b")
     fxsdk_build
-    [[ $1 == "-s" ]] && fxsdk_send;;
+    if [[ "$2" == "-s" ]]; then
+      fxsdk_send
+    fi;;
   "build-fx"|"bf"|"bfx")
     fxsdk_build_fx
-    [[ $1 == "-s" ]] && fxsdk_send_fx;;
+    if [[ "$2" == "-s" ]]; then
+      fxsdk_send_fx
+    fi;;
   "build-cg"|"bc"|"bcg")
     fxsdk_build_cg
-    [[ $1 == "-s" ]] && fxsdk_send_cg;;
+    if [[ "$2" == "-s" ]]; then
+      fxsdk_send_cg
+    fi;;
 
   # Install
   "send"|"s")
