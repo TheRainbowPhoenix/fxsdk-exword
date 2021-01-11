@@ -162,7 +162,7 @@ def ref(base, offset=None, padding=None):
 		assert padding is None
 		return Ref(b"", base, offset or 0)
 
-	raise FxconvException(f"invalid type {type(base)} for ref()")
+	raise FxconvError(f"invalid type {type(base)} for ref()")
 
 Ref = collections.namedtuple("Ref", ["data", "name", "offset"])
 

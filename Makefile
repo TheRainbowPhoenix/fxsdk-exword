@@ -41,13 +41,11 @@ all: $(bin)
 
 all-fxsdk: bin/fxsdk.sh
 all-fxg1a: bin/fxg1a
-all-fxconv: bin/fxconv-main.py
+all-fxconv:
 
 # Explicit targets
 
 bin/fxsdk.sh: fxsdk/fxsdk.sh | bin/
-	sed $(sed) $< > $@
-bin/fxconv-main.py: fxconv/fxconv-main.py | bin/
 	sed $(sed) $< > $@
 bin/fxg1a: $(obj-fxg1a) | bin/
 	gcc $^ -o $@ $(lflags)
@@ -98,7 +96,7 @@ install: $(bin)
 	install -d $(PREFIX)/share/fxsdk/assets
 	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
 	install bin/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
-	install bin/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
+	install fxconv/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
 	install fxconv/fxconv.py $(m644) $(PREFIX)/bin
 
 uninstall:
