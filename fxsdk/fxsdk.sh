@@ -80,18 +80,21 @@ fxsdk_new_project_interactive() {
   read INTERNAL
 
   mkdir -p "$1"/{,src,assets-fx,assets-cg}
-  fxsdk_create_config > "$1/project.cfg"
-
-  echo -e "\nYour project '$NAME' has been created.\n"
-  echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program."
 
   assets="$PREFIX/share/fxsdk/assets"
+
+  sed -e "s/@NAME@/$NAME/g" -e "s/@INTERNAL@/$INTERNAL/g" \
+    "$assets/project.cfg" > "$1/project.cfg"
+
   cp "$assets"/Makefile "$1"
   cp "$assets"/gitignore "$1"/.gitignore
   cp "$assets"/main.c "$1"/src
   cp "$assets"/icon-fx.png "$1"/assets-fx
   cp "$assets"/icon-cg-uns.png "$1"/assets-cg
   cp "$assets"/icon-cg-sel.png "$1"/assets-cg
+
+  echo -e "\nYour project '$NAME' has been created.\n"
+  echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program."
 }
 
 fxsdk_load_config() {
@@ -100,98 +103,6 @@ fxsdk_load_config() {
   | source /dev/stdin
 }
 
-fxsdk_create_config() {
-  cat << EOF
-#---
-# fxSDK project configuration file for $NAME
-#---
-
-# Project name, should be at most 8 bytes long.
-# (You can also specify NAME_G1A or NAME_G3A to override individually.)
-NAME := $NAME
-
-# Internal name, should be '@' followed by at most 7 uppercase letters.
-# WARNING: If this convention is not followed, the add-in might not appear in
-#          the main menu of the calculator!
-INTERNAL := $INTERNAL
-
-# Output file name. The default is to take <NAME>, replace spaces with dashes,
-# and add .g1a (or .g3a). You can specify a different folder if you want.
-TARGET_FX :=
-TARGET_CG :=
-
-# fx-9860G icon location
-ICON_FX = assets-fx/icon-fx.png
-# fx-CG 50 icon locations
-ICON_CG_UNS = assets-cg/icon-cg-uns.png
-ICON_CG_SEL = assets-cg/icon-cg-sel.png
-
-#---
-# Toolchain selection
-#---
-
-# Toolchain for fx9860g. Please see also CFLAGS_FX below.
-TOOLCHAIN_FX := sh-elf
-
-# Toolchain for fxcg50. Please see also CFLAGS_CG below.
-TOOLCHAIN_CG := sh-elf
-
-#---
-# Compiler flags
-#---
-
-# Base compiler flags for the fxSDK, you usually want to keep these.
-CFLAGS := -mb -ffreestanding -nostdlib -fstrict-volatile-bitfields
-
-# Platform-specific compiler flags.
-# <> If you are using sh3eb-elf, use -m3. (You can do this on both FX and CG.)
-# <> If you are using sh4eb-elf, use -m4-nofpu. (Not ideal on FX but works.)
-# <> If you are using sh4eb-nofpu-elf, then your compiler will likely use the
-#    FPU and cause problems on the calculator. Consider another configuration.
-# <> If you are using an sh-elf with several targets, specify whichever you
-#    support. I recommend -m3 on FX and -m4-nofpu on CG.
-# Please see also TOOLCHAIN_FX and TOOLCHAIN_CG above.
-CFLAGS_FX := -D FX9860G -m3
-CFLAGS_CG := -D FXCG50  -m4-nofpu
-
-# Additional compiler flags, change to your own taste!
-CFLAGS += -Wall -Wextra -Wno-missing-field-initializers -Os
-
-# Include paths. Add one -I option for each folder from which you want to
-# be able to include files with #include<>. The Makefile provides a variable
-# GCC_INCLUDE_FX/GCC_INCLUDE_CG that represents the default include folder,
-# which is useful for some libraries such as OpenLibm.
-INCLUDE_FX = -I include
-INCLUDE_CG = -I include
-
-# Libraries. Add one -l option for each library you are using, and also
-# suitable -L options if you have library files in custom folders. To use
-# fxlib, add libfx.a to the project directory and use "-L . -lfx".
-LIBS_FX :=
-LIBS_CG :=
-
-# Base linker flags for the fxSDK, you usually want to keep these.
-LDFLAGS_FX := -T fx9860g.ld -lgint-fx \$(LIBS_FX) -lgint-fx -lgcc
-LDFLAGS_CG := -T fxcg50.ld  -lgint-cg \$(LIBS_CG) -lgint-cg -lgcc
-
-# Additional linker flags, if you need any.
-LDFLAGS :=
-
-# Additional platform-specific linker flags.
-LDFLAGS_FX += -Wl,-Map=build-fx/map
-LDFLAGS_CG += -Wl,-Map=build-cg/map
-
-#---
-# File conversion parameters
-#---
-
-# Here you can add fxconv options for each converted file, individually.
-# The syntax is "<type>.<file>". For example, to specify the parameters for a
-# font named "hexa.png", you might write:
-#
-#   FONT.hexa.png = charset:print grid.size:3x5 grid.padding:1
-EOF
-}
 
 fxsdk_build() {
   built=
