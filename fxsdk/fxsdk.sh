@@ -49,10 +49,6 @@ Project update:
 EOF
 )
 
-# Project creation flags
-#  -n <name>, --name=<name>        Project name
-#  -@ <name>, --internal=<name>    Internal project name
-
 usage() {
   echo "$usage_string"
   exit ${1:-1}
@@ -68,30 +64,6 @@ status() {
     echo -ne "\n\e[34;1m::\e[39;1m "
     echo -n "$@"
     echo -e "\e[0m\n"
-}
-
-# TODO: Finish this interface
-fxsdk_new_project_cli() {
-  internal=
-
-  while [[ "$@" ]]; do
-    case "$1" in
-      -h|--help|-\?)
-        usage 0;;
-
-      -@|--internal)
-        [[ -z "$2" ]] && error "$1 requires an argument" && return 1
-        internal="$2"
-        shift;;
-
-      --internal=*)
-        internal="${1#*=}";;
-    esac
-
-    shift
-  done
-
-  echo "internal=$internal"
 }
 
 fxsdk_new_project_interactive() {
