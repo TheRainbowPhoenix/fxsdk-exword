@@ -107,8 +107,7 @@ def main():
 		sys.exit(1)
 
 	try:
-		models = "fx cg fx9860G fxCG50"
-		longs = f"help output= toolchain= arch= section= {models} {types}"
+		longs = f"help output= toolchain= arch= section= fx cg {types}"
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs.split())
 	except getopt.GetoptError as error:
 		return err(error)
@@ -122,10 +121,6 @@ def main():
 			output = value
 		elif name in [ "--fx", "--cg" ]:
 			model = name[2:]
-		elif name == "--fx9860G":
-			model = "fx"
-		elif name == "--fxCG50":
-			model = "cg"
 		elif name == "--toolchain":
 			target['toolchain'] = value
 		elif name == "--arch":
