@@ -18,9 +18,8 @@ dflags = -MT $@ -MMD -MP -MF $(@:%.o=%.d)
 #  $TARGETS is provided by Makefile.cfg.
 #
 
-TARGETS := $(TARGETS:fxsdk=fxsdk.sh)
-TARGETS := $(TARGETS:fxconv=fxconv-main.py)
-bin = $(TARGETS:%=bin/%)
+INSTALL := $(TARGETS:%=install-%)
+TARGETS := $(TARGETS:%=all-%)
 
 # fxconv has no sources files because it's written in Python, and fxsdk has no
 # source either because it's written in Bash.
@@ -37,7 +36,7 @@ endif
 
 # Symbolic targets
 
-all: $(bin)
+all: $(TARGETS)
 
 all-fxsdk: bin/fxsdk.sh
 all-fxg1a: bin/fxg1a
@@ -49,7 +48,6 @@ bin/fxsdk.sh: fxsdk/fxsdk.sh | bin/
 	sed $(sed) $< > $@
 bin/fxg1a: $(obj-fxg1a) | bin/
 	gcc $^ -o $@ $(lflags)
-
 bin/:
 	mkdir -p $@
 
@@ -58,7 +56,7 @@ bin/:
 #
 
 build/%.c.o: %.c
-	@mkdir -p $(dir $@)
+	@ mkdir -p $(dir $@)
 	gcc -c $< -o $@ $(cflags) $(dflags)
 
 #
@@ -89,19 +87,30 @@ m644 :=
 m755 :=
 endif
 
-install: $(bin)
+install: $(INSTALL)
+
+install-fxsdk: all-fxsdk
 	install -d $(PREFIX)/bin
-	install -d $(PREFIX)/share/fxsdk
-	install $(filter bin/fxg1a,$(bin)) $(m755) $(PREFIX)/bin
+	install bin/fxsdk.sh $(PREFIX)/bin/fxsdk
 	install -d $(PREFIX)/share/fxsdk/assets
 	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
 	install bin/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
+	install -d $(PREFIX)/lib/cmake/fxsdk
+	install fxsdk/cmake/* $(m644) $(PREFIX)/lib/cmake/fxsdk
+
+install-fxg1a: all-fxg1a
+	install -d $(PREFIX)/bin
+	install bin/fxg1a $(m755) $(PREFIX)/bin
+
+install-fxconv: all-fxconv
+	install -d $(PREFIX)/bin
 	install fxconv/fxconv-main.py $(m755) $(PREFIX)/bin/fxconv
 	install fxconv/fxconv.py $(m644) $(PREFIX)/bin
 
 uninstall:
 	rm -f $(PREFIX)/bin/{fxsdk,fxg1a,fxconv,fxconv.py}
 	rm -rf $(PREFIX)/share/fxsdk
+	rm -rf $(PREFIX)/lib/cmake/fxsdk
 
 #
 #  Cleaning
