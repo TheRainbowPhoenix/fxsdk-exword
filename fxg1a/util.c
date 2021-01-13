@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 #include <endianness.h>
 #include <fxg1a.h>
 
@@ -45,4 +46,18 @@ void default_output(const char *name, const char *suffix, char *output)
 		memcpy(output, name, end);
 		strcpy(output + end, suffix);
 	}
+}
+
+/* default_internal(): Calculate default internal name */
+void default_internal(const char *name, char *output)
+{
+	output[0] = '@';
+	int i=1;
+
+	for(int j=0; name[j] && i < 8; j++)
+	{
+		if(isalpha(name[j])) output[i++] = toupper(name[j]);
+	}
+
+	output[i] = 0;
 }

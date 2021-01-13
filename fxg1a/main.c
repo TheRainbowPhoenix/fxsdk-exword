@@ -174,6 +174,12 @@ int main(int argc, char **argv)
 		strftime(date, 15, "%Y.%m%d.%H%M", now);
 		edit_date(g1a, date);
 
+		/* Start with an uppercase name as internal name */
+		char internal[9];
+		default_internal(fields.name ? fields.name : g1a->header.name,
+			internal);
+		edit_internal(g1a, internal);
+
 		/* Edit the fields with user-customized values */
 		fields_edit(g1a, &fields);
 

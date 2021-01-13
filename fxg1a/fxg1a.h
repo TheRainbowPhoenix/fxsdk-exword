@@ -75,6 +75,14 @@ uint16_t checksum(struct g1a const *g1a, size_t size);
    @output  Output file name */
 void default_output(const char *name, const char *suffix, char *output);
 
+/* default_internal(): Calculate default internal name
+   This function determines a default internal name, which is '@' followed by
+   at most 7 uppercase letters taken from the application name.
+
+   @name    Application name
+   @output  Internal name string (9 bytes) */
+void default_internal(const char *name, char *output);
+
 
 /*
 **  File manipulation (file.c)
