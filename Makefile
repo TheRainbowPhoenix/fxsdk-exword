@@ -93,7 +93,7 @@ install-fxsdk: all-fxsdk
 	install -d $(PREFIX)/bin
 	install bin/fxsdk.sh $(PREFIX)/bin/fxsdk
 	install -d $(PREFIX)/share/fxsdk/assets
-	install fxsdk/assets/* $(m644) $(PREFIX)/share/fxsdk/assets
+	cp -ra fxsdk/assets $(PREFIX)/share/fxsdk/
 	install bin/fxsdk.sh $(m755) $(PREFIX)/bin/fxsdk
 	install -d $(PREFIX)/lib/cmake/fxsdk
 	install fxsdk/cmake/* $(m644) $(PREFIX)/lib/cmake/fxsdk
