@@ -36,11 +36,6 @@ ${R}fxsdk send-cg${n}
   Sends the target file to the calculator. Uses p7 (which must be installed
   externally) for fx-9860G. Currently not implemented for fx-CG 50, as it
   requires detecting and mounting the calculator (same for the Graph 35+E II).
-
-${R}fxsdk update${n}
-  Copies the latest version of the Makefile to your project. *This will
-  discard any changes made to your Makefile.* If you have edited your
-  Makefile, make a backup and merge the changes after updating.
 EOF
 )
 
@@ -223,17 +218,6 @@ fxsdk_send_cg() {
   echo "error: this is tricky and not implemented yet, sorry x_x"
 }
 
-fxsdk_update() {
-  if [[ ! -e "project.cfg" ]]; then
-    echo "No file 'project.cfg' was found. This does not look like an fxSDK"
-    echo "project folder. (Nothing done.)"
-  fi
-
-  assets="$PREFIX/share/fxsdk/assets"
-  cp "$assets"/Makefile .
-  echo "Succesfully copied $assets/Makefile to the current directory."
-}
-
 # Parse command name
 
 case "$1" in
@@ -265,10 +249,6 @@ case "$1" in
     fxsdk_send_fx;;
   "send-cg"|"sc"|"scg")
     fxsdk_send_cg;;
-
-  # Project update
-  "update")
-    fxsdk_update;;
 
   # Misc
   -h|--help|-\?)
