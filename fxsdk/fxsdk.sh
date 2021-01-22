@@ -168,7 +168,7 @@ fxsdk_build() {
 fxsdk_build_fx() {
   # CMake version; automatically configure
   if [[ -e "CMakeLists.txt" ]]; then
-    if [[ ! -e "build-fx" ]]; then
+    if [[ ! -e "build-fx/Makefile" ]]; then
       cmake -B build-fx \
         -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
         -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/FX9860G.cmake"
@@ -183,7 +183,7 @@ fxsdk_build_fx() {
 fxsdk_build_cg() {
   # CMake version; automatically configure
   if [[ -e "CMakeLists.txt" ]]; then
-    if [[ ! -e "build-cg" ]]; then
+    if [[ ! -e "build-cg/Makefile" ]]; then
       cmake -B build-cg \
         -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
         -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/FXCG50.cmake"
