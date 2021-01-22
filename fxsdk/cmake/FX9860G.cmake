@@ -11,7 +11,7 @@ set(FXSDK_PLATFORM_LONG fx9860G)
 set(CMAKE_C_COMPILER sh-elf-gcc)
 set(CMAKE_CXX_COMPILER sh-elf-g++)
 
-add_compile_options(-m3 -mb -ffreestanding -nostdlib)
+add_compile_options(-mb -ffreestanding -nostdlib)
 add_link_options(-nostdlib)
 link_libraries(-lgcc)
 add_compile_definitions(TARGET_FX9860G)
