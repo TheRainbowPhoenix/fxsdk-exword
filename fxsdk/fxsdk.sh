@@ -90,9 +90,16 @@ fxsdk_new_project() {
     "Makefile")
       sed -e "s/@NAME@/$NAME/g" -e "s/@INTERNAL@/$INTERNAL/g" \
         "$assets/project.cfg" > "$1/project.cfg"
-      cp "$assets/Makefile" "$1";;
+      cp "$assets/Makefile" "$1"
+
+      mkdir -p "$1"/{assets-fx,assets-cg}/img
+      cp -r "$assets"/assets-fx/* "$1"/assets-fx/img/
+      cp -r "$assets"/assets-cg/* "$1"/assets-cg/img/;;
+
     "CMake")
-      cp "$assets/CMakeLists.txt" "$1";;
+      cp "$assets/CMakeLists.txt" "$1"
+      cp -r "$assets"/assets-fx "$1"/
+      cp -r "$assets"/assets-cg "$1"/;;
   esac
 
   cp "$assets"/gitignore "$1"/.gitignore
@@ -100,8 +107,6 @@ fxsdk_new_project() {
   cp "$assets"/icon-fx.png "$1"/assets-fx/icon.png
   cp "$assets"/icon-cg-uns.png "$1"/assets-cg/icon-uns.png
   cp "$assets"/icon-cg-sel.png "$1"/assets-cg/icon-sel.png
-  cp -r "$assets"/assets-fx "$1"/
-  cp -r "$assets"/assets-cg "$1"/
 
   echo "Created a new project $NAME (build system: $generator)."
   echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program."

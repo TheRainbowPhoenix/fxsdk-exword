@@ -68,18 +68,15 @@ ELF_CG := build-cg/$(shell basename "$(TARGET_CG)" .g3a).elf
 BIN_CG := $(ELF_CG:.elf=.bin)
 
 # Source files
-src       := $(wildcard src/*.[csS] \
-                        src/*/*.[csS] \
-                        src/*/*/*.[csS] \
-                        src/*/*/*/*.[csS])
-assets-fx := $(wildcard assets-fx/*/*)
-assets-cg := $(wildcard assets-cg/*/*)
+src       := $(shell find src/ -name '*.[csS]')
+assets-fx := $(shell find assets-fx/*/ -type f -not -name 'fxconv-metadata.txt')
+assets-cg := $(shell find assets-cg/*/ -type f -not -name 'fxconv-metadata.txt')
+meta-fx   := $(shell find assets-fx -name 'fxconv-metadata.txt')
+meta-cg   := $(shell find assets-cg -name 'fxconv-metadata.txt')
 
 # Object files
-obj-fx  := $(src:%=build-fx/%.o) \
-           $(assets-fx:assets-fx/%=build-fx/assets/%.o)
-obj-cg  := $(src:%=build-cg/%.o) \
-           $(assets-cg:assets-cg/%=build-cg/assets/%.o)
+obj-fx  := $(src:%=build-fx/%.o) $(assets-fx:assets-fx/%=build-fx/assets/%.o)
+obj-cg  := $(src:%=build-cg/%.o) $(assets-cg:assets-cg/%=build-cg/assets/%.o)
 
 # Additional dependencies
 deps-fx := $(ICON_FX)
@@ -139,37 +136,13 @@ build-cg/%.S.o: %.S
 	@ mkdir -p $(dir $@)
 	$(TOOLCHAIN_CG)-gcc -c $< -o $@ $(INCLUDE_CG)
 
-# Images
-build-fx/assets/img/%.o: assets-fx/img/%
+# Assets
+build-fx/assets/%.o: assets-fx/% $(meta-fx)
 	@ mkdir -p $(dir $@)
-	fxconv --bopti-image $< -o $@ $(FXCONVFX) name:img_$(basename $*) $(IMG.$*)
-build-cg/assets/img/%.o: assets-cg/img/%
+	fxconv $< -o $@ $(FXCONVFX)
+build-cg/assets/%.o: assets-cg/% $(meta-cg)
 	@ mkdir -p $(dir $@)
-	fxconv --bopti-image $< -o $@ $(FXCONVCG) name:img_$(basename $*) $(IMG.$*)
-
-# Fonts
-build-fx/assets/fonts/%.o: assets-fx/fonts/%
-	@ mkdir -p $(dir $@)
-	fxconv -f $< -o $@ $(FXCONVFX) name:font_$(basename $*) $(FONT.$*)
-build-cg/assets/fonts/%.o: assets-cg/fonts/%
-	@ mkdir -p $(dir $@)
-	fxconv -f $< -o $@ $(FXCONVCG) name:font_$(basename $*) $(FONT.$*)
-
-# Binaries
-build-fx/assets/bin/%.o: assets-fx/bin/%
-	@ mkdir -p $(dir $@)
-	fxconv -b $< -o $@ $(FXCONVFX) name:bin_$(basename $*) $(BIN.$*)
-build-cg/assets/bin/%.o: assets-cg/bin/%
-	@ mkdir -p $(dir $@)
-	fxconv -b $< -o $@ $(FXCONVCG) name:bin_$(basename $*) $(BIN.$*)
-
-# Custom conversions
-build-fx/assets/%.o: assets-fx/%
-	@ mkdir -p $(dir $@)
-	fxconv --custom $< -o $@ $(FXCONVFX) type:$(subst /,,$(dir $*)) name:$(subst /,_,$(basename $*))
-build-cg/assets/%.o: assets-cg/%
-	@ mkdir -p $(dir $@)
-	fxconv --custom $< -o $@ $(FXCONVCG) type:$(subst /,,$(dir $*)) name:$(subst /,_,$(basename $*))
+	fxconv $< -o $@ $(FXCONVCG)
 
 #
 #  Cleaning and utilities
