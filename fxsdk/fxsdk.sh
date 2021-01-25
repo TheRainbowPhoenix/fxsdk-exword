@@ -1,13 +1,12 @@
 #! /usr/bin/env bash
 
-set -e
-
 # Note: this line is edited at compile time to insert the install folder
 PREFIX=\
 
 R=$(printf "\e[31;1m")
 g=$(printf "\e[32m\e[3m")
 n=$(printf "\e[0m")
+TAG=$(printf "\e[36m<fxSDK>\e[0m")
 
 usage_string=$(cat << EOF
 usage: ${R}fxsdk${n} (${R}new${n}|${R}build${n}|${R}build-fx${n}|${R}build-\
@@ -21,18 +20,18 @@ ${R}fxsdk new${n} ${g}<FOLDER>${n} [${R}--makefile${n}|${R}--cmake${n}] \
   Create a new project in the specified folder. The default build system is
   CMake. Project name can be specified now or in the project files later.
 
-${R}fxsdk build${n} [${g}-s${n}]
-${R}fxsdk build-fx${n} [${g}-s${n}]
-${R}fxsdk build-cg${n} [${g}-s${n}]
-  Build the current project for fx-9860G (.g1a target) or fx-CG 50 (.g3a
-  target). With 'fxsdk build', compiles every existing build folder, and ask
-  interactively if none is found.
+${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}) [${R}-c${n}] \
+[${R}-s${n}] [${R}--${n}] [${g}<ARGS>${n}...]
+  Build the current project for fx-9860G (usually for .g1a add-ins) or fx-CG 50
+  (usually for .g3a add-ins). The first form compiles in every existing build
+  folder, and configures for both if none exists.
 
-  With '-s', also sends the resulting program to the calculator.
+  With -c, reconfigure but don't build (CMake only).
+  With -s, also sends the resulting program to the calculator.
+  Other arguments are passed to CMake (if using -c) or make (otherwise). You
+  can pass -c or -s to CMake/make by specifying --.
 
-${R}fxsdk send${n}
-${R}fxsdk send-fx${n}
-${R}fxsdk send-cg${n}
+${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n})
   Sends the target file to the calculator. Uses p7 (which must be installed
   externally) for fx-9860G. Currently not implemented for fx-CG 50, as it
   requires detecting and mounting the calculator (same for the Graph 35+E II).
@@ -47,12 +46,6 @@ usage() {
 error() {
   echo "error:" "$@" >&2
   exit 1
-}
-
-status() {
-    echo -ne "\n\e[34;1m::\e[39;1m "
-    echo -n "$@"
-    echo -e "\e[0m\n"
 }
 
 fxsdk_new_project() {
@@ -122,76 +115,69 @@ fxsdk_load_config() {
 
 
 fxsdk_build() {
-  built=
+  [[ ! -e build-fx && ! -e build-cg ]]
+  none_exists=$?
 
-  if [[ -e build-fx ]]; then
-    status "Making into build-fx"
-    make all-fx
-    built=1
+  if [[ -e build-fx || $none_exists == 0 ]]; then
+    echo "$TAG Making into build-fx"
+    fxsdk_build_fx "$@"
   fi
 
-  if [[ -e build-cg ]]; then
-    status "Making into build-cg"
-    make all-cg
-    built=1
+  if [[ -e build-cg || $none_exists == 0 ]]; then
+    echo "$TAG Making into build-cg"
+    fxsdk_build_cg "$@"
   fi
-
-  [[ $built ]] && return
-
-  echo "No build files currently exist. Which platform do I compile for?"
-  echo ""
-  echo '"fx": fx-9860G II, Graph 35+ USB/E/E II, Graph 75+'
-  echo '"cg": fx-CG 10/20/50, Graph 90+E'
-  echo ""
-  echo "Leave blank to cancel."
-
-  platform=
-  while true; do
-    echo -n '> '
-    read platform
-    [[ -z $platform ]] && return
-
-    if [[ $platform == "fx" ]]; then
-      fxsdk_build_fx
-      return
-    fi
-
-    if [[ $platform == "cg" ]]; then
-      fxsdk_build_ch
-      return
-    fi
-
-    echo -e 'Unknown platform (valid names are "fx" and "cg")!'
-  done
 }
 
 fxsdk_build_fx() {
-  # CMake version; automatically configure
-  if [[ -e "CMakeLists.txt" ]]; then
-    if [[ ! -e "build-fx/Makefile" ]]; then
-      cmake -B build-fx \
-        -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
-        -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/FX9860G.cmake"
-    fi
-    make --no-print-directory -C build-fx
-  # Makefile version
-  else
-    make all-fx
-  fi
+  fxsdk_build_in "fx" "FX9860G" "$@"
+}
+fxsdk_build_cg() {
+  fxsdk_build_in "cg" "FXCG50" "$@"
 }
 
-fxsdk_build_cg() {
+fxsdk_build_in() {
+  platform="$1"
+  toolchain="$2"
+  shift 2
+
+  # Read -s, -c and -- to isolate arguments to CMake and make
+  while true; do
+    case "$1" in
+      "-s") send=1;;
+      "-c") configure=1;;
+      "--") shift; break;;
+      *) break;;
+    esac
+    shift
+  done
+
   # CMake version; automatically configure
   if [[ -e "CMakeLists.txt" ]]; then
-    if [[ ! -e "build-cg/Makefile" ]]; then
-      cmake -B build-cg \
-        -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
-        -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/FXCG50.cmake"
+    cmake_extra_args=()
+    make_extra_args=()
+    if [[ ! -z "$configure" ]]; then
+      cmake_extra_args=( "$@" )
+    else
+      make_extra_args=( "$@" )
     fi
-    make --no-print-directory -C build-cg
+
+    if [[ ! -e "build-$platform/Makefile" || ! -z "$configure" ]]; then
+      cmake -B "build-$platform" \
+        -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
+        -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/$toolchain.cmake" \
+        "${cmake_extra_args[@]}"
+    fi
+    if [[ -z "$configure" ]]; then
+      make --no-print-directory -C "build-$platform" "${make_extra_args[@]}"
+    fi
   # Makefile version
   else
-    make all-cg
+    make "all-$platform" "$@"
+  fi
+
+  if [[ ! -z "$send" ]]; then
+    fxsdk_send_$platform
   fi
 }
 
@@ -209,7 +195,7 @@ fxsdk_send() {
 }
 
 fxsdk_send_fx() {
-  status "Installing for fx9860g using p7"
+  echo "$TAG Installing for fx9860g using p7"
   make install-fx
 }
 
@@ -227,20 +213,11 @@ case "$1" in
 
   # Project compilation
   "build"|"b")
-    fxsdk_build
-    if [[ "$2" == "-s" ]]; then
-      fxsdk_send
-    fi;;
+    fxsdk_build "${@:2}";;
   "build-fx"|"bf"|"bfx")
-    fxsdk_build_fx
-    if [[ "$2" == "-s" ]]; then
-      fxsdk_send_fx
-    fi;;
+    fxsdk_build_fx "${@:2}";;
   "build-cg"|"bc"|"bcg")
-    fxsdk_build_cg
-    if [[ "$2" == "-s" ]]; then
-      fxsdk_send_cg
-    fi;;
+    fxsdk_build_cg "${@:2}";;
 
   # Install
   "send"|"s")
