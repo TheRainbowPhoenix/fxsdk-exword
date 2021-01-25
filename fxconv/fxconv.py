@@ -305,15 +305,6 @@ class Grid:
 				yield (x, y, x + w, y + h)
 
 #
-# Helpers
-#
-
-def _encode_word(x):
-	return bytes([ (x >> 8) & 255, x & 255 ])
-def _encode_long(x):
-	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
-
-#
 # Binary conversion
 #
 
@@ -585,7 +576,7 @@ def convert_topti(input, output, params, target):
 
 	def encode_block(b):
 		start, length = b
-		return _encode_long((start << 12) | length)
+		return u32((start << 12) | length)
 
 	data_blocks = b''.join(encode_block(b) for b in blocks)
 
@@ -603,7 +594,7 @@ def convert_topti(input, output, params, target):
 			# Upate index
 			if not (number % 8):
 				idx = total_glyphs // 4
-				data_index += _encode_word(idx)
+				data_index += u16(idx)
 
 			# Get glyph area
 			glyph = img.crop(region)
