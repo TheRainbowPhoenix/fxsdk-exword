@@ -26,15 +26,7 @@ set(ASSETS_cg
   # ...
 )
 
-set_source_files_properties(${ASSETS} PROPERTIES
-  OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/fxconv-metadata.txt")
-set_source_files_properties(${ASSETS_fx} PROPERTIES
-  OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets-fx/fxconv-metadata.txt")
-set_source_files_properties(${ASSETS_cg} PROPERTIES
-  OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets-cg/fxconv-metadata.txt")
-
-set_source_files_properties(${ASSETS} ${ASSETS_fx} ${ASSETS_cg}
-  PROPERTIES LANGUAGE FXCONV)
+fxconv_declare_assets(${ASSETS} ${ASSETS_fx} ${ASSETS_cg} WITH_METADATA)
 
 add_executable(myaddin ${SOURCES} ${ASSETS} ${ASSETS_${FXSDK_PLATFORM}})
 target_link_libraries(myaddin Gint::Gint)
