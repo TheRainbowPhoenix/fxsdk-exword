@@ -173,6 +173,9 @@ fxsdk_build_in() {
         -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/$toolchain.cmake" \
         -DFXSDK_CMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
         "${cmake_extra_args[@]}"
+      if [[ $? != 0 ]]; then
+        return 1
+      fi
     fi
     if [[ -z "$configure" ]]; then
       make --no-print-directory -C "build-$platform" "${make_extra_args[@]}"
