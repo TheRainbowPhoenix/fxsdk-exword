@@ -1100,7 +1100,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		os.remove(fp_asm.name + ".o")
 
 		if proc.returncode != 0:
-			raise FxconvError("ld returned {proc.returncode}")
+			raise FxconvError(f"ld returned {proc.returncode}")
 
 		fp_asm.close()
 

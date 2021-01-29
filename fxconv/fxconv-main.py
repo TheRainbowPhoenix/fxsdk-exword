@@ -30,8 +30,8 @@ syntax (names can contain dots). For example:
   fxconv -f myfont.png -o myfont.o charset:ascii grid.padding:1 height:7
 
 Some formats differ between platforms so you should specify it when possible:
-  --fx, --fx9860G  Casio fx-9860G family (black-and-white calculators)
-  --cg, --fxCG50   Casio fx-CG 50 family (16-bit color calculators)
+  --fx   Casio fx-9860G family (black-and-white calculators)
+  --cg   Casio fx-CG 50 family (16-bit color calculators)
 """.strip()
 
 # Simple error-warnings system
