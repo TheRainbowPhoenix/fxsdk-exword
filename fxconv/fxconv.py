@@ -964,7 +964,11 @@ def convert(input, params, target, output=None, model=None, custom=None):
 	if output is None:
 		output = os.path.splitext(input)[0] + ".o"
 
-	if "name" not in params:
+	if "name" in params:
+		pass
+	elif "name_regex" in params:
+		params["name"] = re.sub(*params["name_regex"], os.path.basename(input))
+	else:
 		raise FxconvError(f"no name specified for conversion '{input}'")
 
 	if target["arch"] is None:

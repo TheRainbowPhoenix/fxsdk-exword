@@ -66,7 +66,10 @@ def parse_parameters(params):
 			raise FxconvError(f"invalid parameter {decl}, ignoring")
 		else:
 			name, value = decl.split(":", 1)
-			insert(d, name.split("."), value.strip())
+			value = value.strip()
+			if name == "name_regex":
+				value = value.split(" ", 1)
+			insert(d, name.split("."), value)
 
 	return d
 
