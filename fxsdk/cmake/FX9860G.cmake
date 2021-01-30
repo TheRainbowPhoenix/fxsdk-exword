@@ -26,8 +26,8 @@ set(FXSDK_CMAKE_MODULE_PATH "${FXSDK_CMAKE_MODULE_PATH}")
 # Determine compiler install path
 execute_process(
   COMMAND ${CMAKE_C_COMPILER} --print-search-dirs
-  COMMAND grep install
-  COMMAND sed "s/install: //"
+  COMMAND head -n 1
+  COMMAND sed -E "s/^[^:]+: //"
   OUTPUT_VARIABLE FXSDK_COMPILER_INSTALL
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
