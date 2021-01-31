@@ -179,10 +179,16 @@ fxsdk_build_in() {
     fi
     if [[ -z "$configure" ]]; then
       make --no-print-directory -C "build-$platform" "${make_extra_args[@]}"
+      rc=$?
     fi
   # Makefile version
   else
     make "all-$platform" "$@"
+    rc=$?
+  fi
+
+  if [[ $rc != 0 ]]; then
+    return $rc
   fi
 
   if [[ ! -z "$send" ]]; then
