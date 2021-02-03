@@ -4,12 +4,16 @@
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
+set(CMAKE_SYSTEM_PROCESSOR sh)
 
 set(FXSDK_PLATFORM fx)
 set(FXSDK_PLATFORM_LONG fx9860G)
 
 set(CMAKE_C_COMPILER sh-elf-gcc)
 set(CMAKE_CXX_COMPILER sh-elf-g++)
+
+set(CMAKE_C_FLAGS_INIT "")
+set(CMAKE_CXX_FLAGS_INIT "")
 
 add_compile_options(-mb -ffreestanding -nostdlib -Wa,--dsp)
 add_link_options(-nostdlib)
