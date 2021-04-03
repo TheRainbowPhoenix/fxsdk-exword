@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # Note: this line is edited at compile time to insert the install folder
-PREFIX=\
+PREFIX=@FXSDK_PREFIX@
 
 R=$(printf "\e[31;1m")
 g=$(printf "\e[32m\e[3m")

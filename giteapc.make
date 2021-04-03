@@ -9,15 +9,17 @@ PREFIX ?= $(GITEAPC_PREFIX)
 -include giteapc-config.make
 
 configure:
-	@ ./configure --prefix=$(PREFIX) $(FXSDK_CONFIGURE)
+	@ cmake -B build -DCMAKE_INSTALL_PREFIX="$(PREFIX)" $(FXSDK_CONFIGURE)
 
 build:
-	@ make all
+	@ make -C build
 
 install:
-	@ make install
+	@ make -C build install
 
 uninstall:
-	@ make uninstall
+	@ if [ -e build/install_manifest.txt ]; then \
+	     xargs rm -f < build/install_manifest.txt; \
+          fi
 
 .PHONY: configure build install uninstall

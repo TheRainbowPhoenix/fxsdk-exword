@@ -1,14 +1,5 @@
-# Configuration file
-Makefile.cfg
-
 # Build directory
 build/
-
-# Binaries
-bin/
-
-# Test icons
-icons/
 
 # Documentation drafts
 doc/
