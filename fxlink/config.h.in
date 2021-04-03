@@ -1,0 +1,11 @@
+//---
+// fxlink:config - Compile-time configuration
+//---
+
+#ifndef FXLINK_CONFIG_H
+#define FXLINK_CONFIG_H
+
+/* Disables UDisks2 interfaces for systems that don't use it. */
+#cmakedefine FXLINK_DISABLE_UDISKS2
+
+#endif /* FXLINK_CONFIG_H */
