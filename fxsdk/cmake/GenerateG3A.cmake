@@ -51,7 +51,7 @@ function(generate_g3a)
   add_custom_command(
     TARGET "${G3A_TARGET}" POST_BUILD
     COMMAND "${OBJCOPY}" -O binary -R .bss -R .gint_bss "${G3A_TARGET}" "${G3A_TARGET}.bin"
-    COMMAND mkg3a "${G3A_TARGET}.bin" ${MKG3A_ARGS} "${G3A_OUTPUT}"
+    COMMAND mkg3a ${MKG3A_ARGS} "${G3A_TARGET}.bin" "${G3A_OUTPUT}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G3A_ICONS)

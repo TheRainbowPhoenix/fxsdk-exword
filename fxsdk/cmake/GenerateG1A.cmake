@@ -40,7 +40,7 @@ function(generate_g1a)
   add_custom_command(
     TARGET "${G1A_TARGET}" POST_BUILD
     COMMAND "${OBJCOPY}" -O binary -R .bss -R .gint_bss "${G1A_TARGET}" "${G1A_TARGET}.bin"
-    COMMAND fxg1a "${G1A_TARGET}.bin" ${FXG1A_ARGS} -o "${G1A_OUTPUT}"
+    COMMAND fxg1a ${FXG1A_ARGS} -o "${G1A_OUTPUT}" "${G1A_TARGET}.bin"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G1A_ICON)
