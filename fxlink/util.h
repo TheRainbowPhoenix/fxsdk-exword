@@ -11,22 +11,22 @@
 /* Literal error message printed to stderr, evaluates to 1 for a combined
    return/exit() call */
 #define err(fmt, ...) ({ \
-	fprintf(stderr, "error: " fmt "\n" __VA_OPT__(,) __VA_ARGS__); \
+	fprintf(stderr, "error: " fmt "\n", ##__VA_ARGS__); \
 	1; \
 })
 /* Fatal error that includes a libusb error message */
 #define libusb_err(rc, fmt, ...) ({ \
-	fprintf(stderr, "error: " fmt ": %s\n" __VA_OPT__(,) __VA_ARGS__, \
+	fprintf(stderr, "error: " fmt ": %s\n", ##__VA_ARGS__, \
 		libusb_strerror(rc)); \
 	1; \
 })
 /* Warning message */
 #define wrn(fmt, ...) \
-	fprintf(stderr, "warning: " fmt "\n" __VA_OPT__(,) __VA_ARGS__)
+	fprintf(stderr, "warning: " fmt "\n", ##__VA_ARGS__)
 
 /* Warning that includes a libusb error message */
 #define libusb_wrn(rc, fmt, ...) \
-	fprintf(stderr, "error: " fmt ": %s\n" __VA_OPT__(,) __VA_ARGS__, \
+	fprintf(stderr, "error: " fmt ": %s\n", ##__VA_ARGS__, \
 		libusb_strerror(rc))
 
 //---
