@@ -6,7 +6,7 @@ project(fxSDK VERSION 2.3.1 LANGUAGES C)
 option(FXLINK_DISABLE_UDISKS2 "Do not build the UDisks2-based features of fxlink")
 
 find_package(PkgConfig REQUIRED)
-find_package(PNG REQUIRED)
+pkg_check_modules(libpng REQUIRED libpng16 IMPORTED_TARGET)
 pkg_check_modules(libusb REQUIRED libusb-1.0 IMPORTED_TARGET)
 # pkg_check_modules(libudev libudev IMPORTED_TARGET)
 if(NOT FXLINK_DISABLE_UDISKS2)
@@ -23,7 +23,7 @@ add_compile_options(-Wall -Wextra -std=c11 -Og -g -D_GNU_SOURCE)
 add_executable(fxg1a fxg1a/dump.c fxg1a/edit.c fxg1a/file.c fxg1a/icon.c
   fxg1a/main.c fxg1a/util.c)
 target_include_directories(fxg1a PUBLIC fxg1a/)
-target_link_libraries(fxg1a PNG::PNG)
+target_link_libraries(fxg1a PkgConfig::libpng)
 
 # fxsdk
 add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
