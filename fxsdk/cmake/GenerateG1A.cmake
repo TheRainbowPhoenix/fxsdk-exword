@@ -35,7 +35,7 @@ function(generate_g1a)
     list(APPEND FXG1A_ARGS "-i" "${G1A_ICON}")
   endif()
 
-  string(REPLACE "gcc" "objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
+  string(REGEX REPLACE "sh-elf-gcc$" "sh-elf-objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
 
   add_custom_command(
     TARGET "${G1A_TARGET}" POST_BUILD
