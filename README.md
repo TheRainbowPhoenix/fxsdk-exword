@@ -24,13 +24,14 @@ repositories from Planète Casio's Gitea forge.
 
 The fxSDK depends on the [`sh-elf-gcc` compiler](/Lephenixnoir/sh-elf-gcc) so
 GiteaPC might build it too as a dependency. You will also need the PIL library
-for Python:
+for Python, as well as libusb and optionally UDisks2 for fxlink. Use the
+GiteaPC configuration `:noudisks2` to disable UDisks2-based features.
 
 ```bash
 # On Debian, Ubuntu, WSL and the like:
-% sudo apt install python3-pil
+% sudo apt install python3-pil libusb-dev # (Optionally) udisks2
 # On Arch Linux, Manjaro and the like:
-% sudo apt install python-pillow
+% sudo apt install python-pillow libusb # (Optionally) udisks2
 ```
 
 Use the `fxsdk` command to manage projects. You can create an empty add-in
@@ -101,29 +102,48 @@ implemented in Python within the project.
 `fxconv` can be used directly on the command-line but normally you specify
 parameters in `fxconv-metadata.txt` and let the build system do the magic.
 
+**USB communication** with `fxlink`
+
+`fxlink` is a USB communication tool that can be used to send files to
+calculators as well as to communicate with gint's USB driver from an add-in.
+Currently, the tool is a work-in-progress, and most of the work has been spent
+in properly detecting, characterizing and filtering connected calculators.
+
+The main backend is libusb. With libusb, `fxlink` can detect CASIO calculators
+connected through USB and has a test mode used to prototype interactions with
+gint.
+
+`fxlink` also supports a UDisks2 backend for systems that have UDisks2; with
+this backend, `fxlink` can detect Mass Storage calculators (essentially the
+fx-CG series and the G-III series) connected through USB, mount them without
+root access, and transfer some files all from the command-line.
+
 ## Manual build instructions
 
 The fxSDK is platform-agnostic; a single install will cover any target
 platforms. Here are the dependencies:
 
+* CMake
 * libpng ≥ 1.6
 * Python ≥ 3.7 (might work in 3.6)
 * The Pillow library for Python 3
+* libusb 1.0
+* The UDisks2 library, unless disabled
 
-First configure; you can specify the install folder with `--prefix`, which
-defaults to your local home folder. You can also enable or disable tools,
-although normally all of them are needed for add-in development. See
-`./configure --help` for details.
+First configure; usual options are:
+
+* `-DCMAKE_INSTALL_PREFIX` to change the install folder;
+* `-DFXLINK_DISABLE_UDISKS2=1` to disable UDisks2 support in `fxlink`.
 
 ```sh
-% ./configure
+% cmake -B build
 ```
 
 Then make and install as usual.
 
 ```sh
-% make
-% make install
+% make -C build
+% make -C build install
 ```
 
 If you selected an install folder for which you don't have write access (which
