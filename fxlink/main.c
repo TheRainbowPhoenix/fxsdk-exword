@@ -25,7 +25,7 @@ static const char *help_string =
 "fxlink interacts with CASIO calculators of the fx-9860G and fx-CG 50 series\n"
 "over the USB port, through mass storage and custom USB protocols. Depending\n"
 "on the mode, fxlink uses libusb (for discovery and USB communication)or\n"
-"the UDisks2 library (to mount and use Mass Storage devics).\n"
+"the UDisks2 library (to mount and use Mass Storage devices).\n"
 "\n"
 "Operating modes:\n"
 "  -l, --list          List detected calculators on the USB ports (libusb)\n"
@@ -252,24 +252,28 @@ int main_test(libusb_device *dev, libusb_context *context)
 	if((rc = libusb_open(dev, &dh)))
 		return libusb_err(rc, "cannot open device %s", usb_id(dev));
 
-	printf("driver active: %d\n", libusb_kernel_driver_active(dh, 0));
+	/* When possible detach any existing driver */
+	libusb_set_auto_detach_kernel_driver(dh, true);
 
 	if((rc = libusb_claim_interface(dh, 0))) {
 		libusb_close(dh);
 		return libusb_err(rc, "cannot claim interface on %s", usb_id(dev));
 	}
 
-	uint8_t buffer[512];
-	int transferred;
+	uint8_t buffer[2048];
+	int transferred = -1;
 
-	rc = libusb_bulk_transfer(dh, 0x81, buffer, 512, &transferred, 2000);
+	while(1)
+	{
+		rc = libusb_bulk_transfer(dh, 0x81, buffer, 2048, &transferred, 500);
 
-	if(rc)
-		rc = libusb_err(rc, "cannot perform bulk transfer on %s", usb_id(dev));
-	else {
-		printf("Got some data!\n");
-		fwrite(buffer, 1, transferred, stdout);
-		rc = 0;
+		if((rc == 0 || rc == LIBUSB_ERROR_TIMEOUT) && transferred > 0)
+			fwrite(buffer, 1, transferred, stdout);
+		if(rc)
+			rc=libusb_err(rc,"cannot perform bulk transfer on %s",usb_id(dev));
+
+		fprintf(stderr, "Transferred: %d\n", transferred);
+		if(rc || transferred == 0) break;
 	}
 
 	libusb_release_interface(dh, 0);
