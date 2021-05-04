@@ -6,6 +6,7 @@ import os
 import re
 import fnmatch
 import fxconv
+import importlib
 
 help_string = f"""
 usage: fxconv [<TYPE>] <INPUT> -o <OUTPUT> [--fx|--cg] [<PARAMETERS>...]
@@ -22,8 +23,10 @@ When TYPE is specified (one-shot conversion), it should be one of:
   -f, --font      Convert to gint's topti font format
   --bopti-image   Convert to gint's bopti image format
   --libimg-image  Convert to the libimg image format
-  --custom        Use converters.py; you might want to specify an explicit type
-                  by adding a parameter type:your_custom_type (see below)
+  --custom        Use a custom converter; you might want to specify an explicit
+                  type by adding "custom-type:your_custom_type" (see below)
+  --converters    Semicolon-separated list of custom converters (converters.py
+                  in the current directory is detected as one per legacy)
 
 During one-shot conversions, parameters can be specified with a "NAME:VALUE"
 syntax (names can contain dots). For example:
@@ -43,11 +46,13 @@ def err(msg):
 def warn(msg):
 	print("\x1b[33;1mwarning:\x1b[0m", msg, file=sys.stderr)
 
-# "converters" module from the user project... if it exists
+# "converters" module from the user project... if it exists. This
+# auto-detection is legacy, you should use --converters instead.
 try:
-	import converters
+	import converters as conv
+	converters = [conv.convert]
 except ImportError:
-	converters = None
+	converters = []
 
 def parse_parameters(params):
 	"""Parse parameters of the form "NAME:VALUE" into a dictionary."""
@@ -102,6 +107,7 @@ def main():
 	model = None
 	target = { 'toolchain': None, 'arch': None, 'section': None }
 	use_custom = False
+	converter_paths = []
 
 	# Parse command-line arguments
 
@@ -110,8 +116,9 @@ def main():
 		sys.exit(1)
 
 	try:
-		longs = f"help output= toolchain= arch= section= fx cg {types}"
-		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs.split())
+		longs = ["help", "output=", "toolchain=", "arch=", "section=", "fx",
+			     "cg", "converters="] + types.split()
+		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs)
 	except getopt.GetoptError as error:
 		return err(error)
 
@@ -133,6 +140,8 @@ def main():
 		elif name == "--custom":
 			use_custom = True
 			mode = "custom"
+		elif name == "--converters":
+			converter_paths = [path for path in value.split(";") if path]
 		# Other names are modes
 		else:
 			mode = name[1] if len(name)==2 else name[2:]
@@ -175,14 +184,14 @@ def main():
 			warn("type 'image' is deprecated, use 'bopti-image' instead")
 			params["type"] = "bopti-image"
 
-	# Use the custom module
-	custom = None
-	if use_custom:
-		if converters is None:
-			return err("--custom specified but no [converters] module")
-		custom = converters.convert
+	# Load custom converters:
+	for path in converter_paths:
+		spec = importlib.util.spec_from_file_location("converters", path)
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+		converters.append(module.convert)
 
-	fxconv.convert(input, params, target, output, model, custom)
+	fxconv.convert(input, params, target, output, model, converters)
 
 if __name__ == "__main__":
 	try:

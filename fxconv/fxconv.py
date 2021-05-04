@@ -974,24 +974,34 @@ def convert(input, params, target, output=None, model=None, custom=None):
 	if target["arch"] is None:
 		target["arch"] = model
 
-	if "type" not in params:
+	if "custom-type" in params:
+		t = params["custom-type"]
+		# Also copy it in "type" for older converters (this is legacy)
+		params["type"] = t
+	elif "type" in params:
+		t = params["type"]
+	else:
 		raise FxconvError(f"missing type in conversion '{input}'")
-	elif params["type"] == "binary":
+
+	if t == "binary":
 		convert_binary(input, output, params, target)
-	elif params["type"] == "bopti-image" and model in [ "fx", None ]:
+	elif t == "bopti-image" and model in [ "fx", None ]:
 		convert_bopti_fx(input, output, params, target)
-	elif params["type"] == "bopti-image" and model == "cg":
+	elif t == "bopti-image" and model == "cg":
 		convert_bopti_cg(input, output, params, target)
-	elif params["type"] == "font":
+	elif t == "font":
 		convert_topti(input, output, params, target)
-	elif params["type"] == "libimg-image" and model in [ "fx", None ]:
+	elif t == "libimg-image" and model in [ "fx", None ]:
 		convert_libimg_fx(input, output, params, target)
-	elif params["type"] == "libimg-image" and model == "cg":
+	elif t == "libimg-image" and model == "cg":
 		convert_libimg_cg(input, output, params, target)
 	elif custom is not None:
-		custom(input, output, params, target)
+		for converter in custom:
+			if converter(input, output, params, target) == 0:
+				return
+		raise FxconvError(f'unknown custom resource type \'{t}\'')
 	else:
-		raise FxconvError(f'unknown resource type \'{params["type"]}\'')
+		raise FxconvError(f'unknown resource type \'{t}\'')
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None):

@@ -18,3 +18,18 @@ function(fxconv_declare_assets)
     endif()
   endforeach()
 endfunction()
+
+function(fxconv_declare_converters)
+  # Get the absolute path for each converter
+  foreach(CONVERTER IN LISTS ARGN)
+    get_filename_component(CONVERTER_PATH "${CONVERTER}" ABSOLUTE)
+    list(APPEND FXCONV_CONVERTERS "${CONVERTER_PATH}")
+  endforeach()
+
+  # Record the names in the list
+  set(FXCONV_CONVERTERS "${FXCONV_CONVERTERS}" PARENT_SCOPE)
+
+  # Update the compile command
+  set(CMAKE_FXCONV_COMPILE_OBJECT
+    "fxconv <SOURCE> -o <OBJECT> --toolchain=sh-elf --${FXSDK_PLATFORM} --converters=${FXCONV_CONVERTERS}" PARENT_SCOPE)
+endfunction()
