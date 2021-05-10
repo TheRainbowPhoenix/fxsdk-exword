@@ -1,6 +1,6 @@
 # Build system for the fxSDK
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.15)
 project(fxSDK VERSION 2.4.0 LANGUAGES C)
 
 option(FXLINK_DISABLE_UDISKS2 "Do not build the UDisks2-based features of fxlink")
