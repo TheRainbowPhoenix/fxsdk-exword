@@ -31,7 +31,7 @@ GiteaPC configuration `:noudisks2` to disable UDisks2-based features.
 # On Debian, Ubuntu, WSL and the like:
 % sudo apt install python3-pil libusb-dev # (Optionally) udisks2
 # On Arch Linux, Manjaro and the like:
-% sudo apt install python-pillow libusb # (Optionally) udisks2
+% sudo pacman -S python-pillow libusb # (Optionally) udisks2
 ```
 
 Use the `fxsdk` command to manage projects. You can create an empty add-in
