@@ -35,10 +35,10 @@ GiteaPC configuration `:noudisks2` to disable UDisks2-based features.
 ```
 
 Use the `fxsdk` command to manage projects. You can create an empty add-in
-project with `fxsdk create` and a name for a new folder:
+project with `fxsdk new` and a name for a new folder:
 
 ```bash
-% fxsdk create MyAddin
+% fxsdk new MyAddin
 ```
 
 From that folder, you can build the add-in with the build commands:
