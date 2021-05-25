@@ -27,11 +27,16 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(FXSDK_CMAKE_MODULE_PATH "${FXSDK_CMAKE_MODULE_PATH}")
 
+# Add the fxSDK prefix path to the search
+set(FXSDK_PREFIX "$ENV{FXSDK_PREFIX}")
+foreach(DIR IN LISTS FXSDK_PREFIX)
+  include_directories("${DIR}/include")
+  link_directories("${DIR}/lib")
+endforeach()
+
 # Determine compiler install path
 execute_process(
-  COMMAND ${CMAKE_C_COMPILER} --print-search-dirs
-  COMMAND head -n 1
-  COMMAND sed -E "s/^[^:]+: //"
+  COMMAND ${CMAKE_C_COMPILER} --print-file-name=.
   OUTPUT_VARIABLE FXSDK_COMPILER_INSTALL
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
