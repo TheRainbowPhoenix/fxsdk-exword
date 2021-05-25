@@ -34,9 +34,10 @@ add_custom_target(fxsdk ALL DEPENDS "${BIN}/fxsdk.sh")
 
 # fxlink
 configure_file(fxlink/config.h.in "${BIN}/include/fxlink/config.h")
-add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/main.c
-  fxlink/properties.c fxlink/ud2.c fxlink/util.c)
-target_link_libraries(fxlink PkgConfig::libusb) # PkgConfig::libudev
+add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/interactive.c
+  fxlink/main.c fxlink/png.c fxlink/properties.c fxlink/ud2.c fxlink/util.c
+  fxlink/protocol.c)
+target_link_libraries(fxlink PkgConfig::libpng PkgConfig::libusb) # PkgConfig::libudev
 target_include_directories(fxlink PRIVATE "${BIN}/include/fxlink")
 if(NOT FXLINK_DISABLE_UDISKS2)
   target_link_libraries(fxlink PkgConfig::udisks2)

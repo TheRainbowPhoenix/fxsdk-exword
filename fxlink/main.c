@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <errno.h>
 
-/* Main functions for each mdoe */
-int main_list(filter_t *filter, delay_t *delay, libusb_context *context);
 int main_test(libusb_device *device, libusb_context *context);
 
 static const char *help_string =
@@ -31,7 +29,7 @@ static const char *help_string =
 "  -l, --list          List detected calculators on the USB ports (libusb)\n"
 "  -b, --blocks        List detected Mass Storage filesystems (udisks2)\n"
 "  -s, --send          Send a file to a Mass Storage calculator (udisks2)\n"
-"  --test              Communication tests by Lephe (libusb) [WIP!]\n"
+"  -i, --interactive   Interactive messaging with a gint add-in (libusb)\n"
 "\n"
 "General options:\n"
 "  -w DELAY            Wait up to this many seconds for a calculator to\n"
@@ -67,18 +65,18 @@ int main(int argc, char **argv)
 	// Command-line argument parsing
 	//---
 
-	enum { TEST=1, LIBUSB_LOG };
+	enum { LIBUSB_LOG=1 };
 	const struct option longs[] = {
-		{ "help",       no_argument,       NULL,       'h' },
-		{ "list",       no_argument,       NULL,       'l' },
-		{ "blocks",     no_argument,       NULL,       'b' },
-		{ "send",       no_argument,       NULL,       's' },
-		{ "test",       no_argument,       NULL,      TEST },
-		{ "libusb-log", required_argument, NULL, LIBUSB_LOG },
+		{ "help",        no_argument,       NULL,       'h' },
+		{ "list",        no_argument,       NULL,       'l' },
+		{ "blocks",      no_argument,       NULL,       'b' },
+		{ "send",        no_argument,       NULL,       's' },
+		{ "interactive", no_argument,       NULL,       'i' },
+		{ "libusb-log",  required_argument, NULL, LIBUSB_LOG },
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsf:w::", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsif:w::", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -86,7 +84,7 @@ int main(int argc, char **argv)
 	case 'l':
 	case 'b':
 	case 's':
-	case TEST:
+	case 'i':
 		mode = option;
 		break;
 	case LIBUSB_LOG:
@@ -141,7 +139,7 @@ int main(int argc, char **argv)
 	libusb_context *context = NULL;
 
 	/* Initialize libusb for corresponding modes */
-	if(mode == 'l' || mode == TEST) {
+	if(mode == 'l' || mode == 'i') {
 		if((rc = libusb_init(&context)))
 			return libusb_err(rc, "error initializing libusb");
 		libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, loglevel);
@@ -168,18 +166,8 @@ int main(int argc, char **argv)
 		rc = err("this fxlink was built without UDisks2; -s is disabled");
 		#endif
 	}
-	else if(mode == TEST) {
-		libusb_device *dev = NULL;
-		int rc = usb_unique_wait(filter, &delay, context, &dev);
-
-		if(rc == FILTER_NONE)
-			printf("No device found.\n");
-		else if(rc == FILTER_MULTIPLE)
-			printf("Multiple devices found, ambiguous!\n");
-		else if(rc == FILTER_UNIQUE) {
-			rc = main_test(dev, context);
-			libusb_unref_device(dev);
-		}
+	else if(mode == 'i') {
+		rc = main_interactive(filter, &delay, context);
 	}
 
 	if(context) libusb_exit(context);
@@ -240,48 +228,9 @@ int main_list(filter_t *filter, delay_t *delay, libusb_context *context)
 }
 
 //---
-// WIP tests
+// libudev tests; work but not useful yet
 //---
 
-int main_test(libusb_device *dev, libusb_context *context)
-{
-	libusb_device_handle *dh;
-	int rc;
-	(void)context;
-
-	if((rc = libusb_open(dev, &dh)))
-		return libusb_err(rc, "cannot open device %s", usb_id(dev));
-
-	/* When possible detach any existing driver */
-	libusb_set_auto_detach_kernel_driver(dh, true);
-
-	if((rc = libusb_claim_interface(dh, 0))) {
-		libusb_close(dh);
-		return libusb_err(rc, "cannot claim interface on %s", usb_id(dev));
-	}
-
-	uint8_t buffer[2048];
-	int transferred = -1;
-
-	while(1)
-	{
-		rc = libusb_bulk_transfer(dh, 0x81, buffer, 2048, &transferred, 500);
-
-		if((rc == 0 || rc == LIBUSB_ERROR_TIMEOUT) && transferred > 0)
-			fwrite(buffer, 1, transferred, stdout);
-		if(rc)
-			rc=libusb_err(rc,"cannot perform bulk transfer on %s",usb_id(dev));
-
-		fprintf(stderr, "Transferred: %d\n", transferred);
-		if(rc || transferred == 0) break;
-	}
-
-	libusb_release_interface(dh, 0);
-	libusb_close(dh);
-	return rc;
-}
-
-/* libudev tests, work but not useful yet */
 #if 0
 #include <libudev.h>
 int main_udev_test(libusb_device *dev)
