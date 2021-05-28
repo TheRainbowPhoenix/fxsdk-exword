@@ -108,8 +108,6 @@ static void message_output(message_t *msg, void *buffer, int size)
 {
 	int data_left = msg->header.size - msg->size_read;
 
-	printf("Got %d bytes of message data!\n", size);
-
 	if(size > data_left) {
 		err("Too much data in message, dropping %d bytes", size - data_left);
 		size = data_left;
