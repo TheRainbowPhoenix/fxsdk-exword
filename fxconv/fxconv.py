@@ -180,6 +180,8 @@ class ObjectData:
 	def __add__(self, other):
 		if isinstance(other, bytes):
 			self.elements.append(other)
+		elif isinstance(other, bytearray):
+			self.elements.append(bytes(other))
 		elif isinstance(other, Ref) and other.name:
 			self.elements.append((other.name, other.offset))
 		elif isinstance(other, Ref) and other.data:
