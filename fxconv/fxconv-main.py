@@ -6,7 +6,7 @@ import os
 import re
 import fnmatch
 import fxconv
-import importlib
+import importlib.util
 
 help_string = f"""
 usage: fxconv [<TYPE>] <INPUT> -o <OUTPUT> [--fx|--cg] [<PARAMETERS>...]
