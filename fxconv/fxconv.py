@@ -19,6 +19,10 @@ __all__ = [
 	"quantize", "convert", "elf",
 	# Reusable classes
 	"Area", "Grid",
+	# Reusable converters
+	"convert_bopti_fx", "convert_bopti_cg",
+	"convert_topti",
+	"convert_libimg_fx", "convert_libimg_cg",
 ]
 
 #
