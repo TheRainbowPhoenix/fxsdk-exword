@@ -310,15 +310,14 @@ class Grid:
 # Binary conversion
 #
 
-def convert_binary(input, output, params, target):
-	data = open(input, "rb").read()
-	elf(data, output, "_" + params["name"], **target)
+def convert_binary(input, params):
+	return open(input, "rb").read()
 
 #
 # Image conversion for fx-9860G
 #
 
-def convert_bopti_fx(input, output, params, target):
+def convert_bopti_fx(input, params):
 	if isinstance(input, Image.Image):
 		img = input.copy()
 	else:
@@ -373,8 +372,7 @@ def convert_bopti_fx(input, output, params, target):
 				n += 1
 
 	# Generate the object file
-
-	elf(header + data, output, "_" + params["name"], **target)
+	return header + data
 
 def _image_project(img, f):
 	# New width and height
@@ -396,7 +394,7 @@ def _image_project(img, f):
 # Image conversion for fx-CG 50
 #
 
-def convert_bopti_cg(input, output, params, target):
+def convert_bopti_cg(input, params):
 	if isinstance(input, Image.Image):
 		img = input.copy()
 	else:
@@ -442,7 +440,7 @@ def convert_bopti_cg(input, output, params, target):
 		h >> 8, h & 0xff,		# Height
 	])
 
-	elf(header + encoded, output, "_" + params["name"], **target)
+	return header + encoded
 
 #
 # Font conversion
@@ -473,7 +471,7 @@ def _blockstart(name):
 	except Exception as e:
 		return None
 
-def convert_topti(input, output, params, target):
+def convert_topti(input, params):
 
 	#--
 	# Character set
@@ -650,13 +648,13 @@ def convert_topti(input, output, params, target):
 		o += u16(grid.w)
 		o += u16((grid.w * grid.h + 31) >> 5)
 
-	elf(o, output, "_" + params["name"], **target)
+	return o
 
 #
 # libimg conversion for fx-9860G
 #
 
-def convert_libimg_fx(input, output, params, target):
+def convert_libimg_fx(input, params):
 	if isinstance(input, Image.Image):
 		img = input.copy()
 	else:
@@ -688,14 +686,14 @@ def convert_libimg_fx(input, output, params, target):
 	o += u16(img.width) + u8(LIBIMG_FLAG_RO) + bytes(1)
 	o += ref(data)
 
-	elf(o, output, "_" + params["name"], **target)
+	return o
 
 
 #
 # libimg conversion for fx-CG 50
 #
 
-def convert_libimg_cg(input, output, params, target):
+def convert_libimg_cg(input, params):
 	if isinstance(input, Image.Image):
 		img = input.copy()
 	else:
@@ -715,7 +713,7 @@ def convert_libimg_cg(input, output, params, target):
 	o += u16(img.width) + u8(LIBIMG_FLAG_RO) + bytes(1)
 	o += ref(encoded)
 
-	elf(o, output, "_" + params["name"], **target)
+	return o
 
 #
 # Exceptions
@@ -986,17 +984,17 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		raise FxconvError(f"missing type in conversion '{input}'")
 
 	if t == "binary":
-		convert_binary(input, output, params, target)
+		o = convert_binary(input, params)
 	elif t == "bopti-image" and model in [ "fx", None ]:
-		convert_bopti_fx(input, output, params, target)
+		o = convert_bopti_fx(input, params)
 	elif t == "bopti-image" and model == "cg":
-		convert_bopti_cg(input, output, params, target)
+		o = convert_bopti_cg(input, params)
 	elif t == "font":
-		convert_topti(input, output, params, target)
+		o = convert_topti(input, params)
 	elif t == "libimg-image" and model in [ "fx", None ]:
-		convert_libimg_fx(input, output, params, target)
+		o = convert_libimg_fx(input, params)
 	elif t == "libimg-image" and model == "cg":
-		convert_libimg_cg(input, output, params, target)
+		o = convert_libimg_cg(input, params)
 	elif custom is not None:
 		for converter in custom:
 			if converter(input, output, params, target) == 0:
@@ -1004,6 +1002,9 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		raise FxconvError(f'unknown custom resource type \'{t}\'')
 	else:
 		raise FxconvError(f'unknown resource type \'{t}\'')
+
+	# Standard conversions: save to ELF in the natural way
+	elf(o, output, "_" + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None):
