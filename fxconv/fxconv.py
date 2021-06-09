@@ -14,7 +14,7 @@ __all__ = [
 	# Color names
 	"FX_BLACK", "FX_DARK", "FX_LIGHT", "FX_WHITE", "FX_ALPHA",
 	# Conversion mechanisms
-	"ObjectData", "u8", "u16", "u32", "ref",
+	"ObjectData", "u8", "u16", "u32", "ref", "sym",
 	# Functions
 	"quantize", "convert", "elf",
 	# Reusable classes
@@ -153,6 +153,7 @@ def u16(x):
     return bytes([ (x >> 8) & 255, x & 255 ])
 def u32(x):
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+
 def ref(base, offset=None, padding=None):
 	if isinstance(base, bytearray):
 		base = bytes(base)
@@ -168,7 +169,11 @@ def ref(base, offset=None, padding=None):
 
 	raise FxconvError(f"invalid type {type(base)} for ref()")
 
+def sym(name):
+	return Sym("_" + name)
+
 Ref = collections.namedtuple("Ref", ["data", "name", "offset"])
+Sym = collections.namedtuple("Sym", ["name"])
 
 class ObjectData:
 	"""
@@ -191,6 +196,19 @@ class ObjectData:
 		elif isinstance(other, Ref) and other.data:
 			self.elements.append(("", len(self.static_data)))
 			self.static_data += other.data
+		elif isinstance(other, ObjectData):
+			# Shift all offsets into other.static_data by len(self.static_data)
+			el = other.elements
+			for i in range(len(el)):
+				if not isinstance(el[i], bytes):
+					name, offset = el
+					if not name:
+						el[i] = (name, offset + len(self.static_data))
+			# Extend elements and data
+			self.elements += el
+			self.static_data += static_data
+		elif isinstance(other, Sym):
+			self.elements.append(other)
 		return self
 
 	def data(self):
@@ -201,6 +219,9 @@ class ObjectData:
 		for el in self.elements:
 			if isinstance(el, bytes):
 				assembly += ".byte " + ",".join(hex(x) for x in el) + "\n"
+			elif isinstance(el, Sym):
+				assembly += f".global {el.name}\n"
+				assembly += f"{el.name}:\n"
 			else:
 				name, offset = el
 				name = "_" + name if name != "" else data_symbol
