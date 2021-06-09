@@ -1060,6 +1060,11 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		symbol = symbol + "_staticdata"
 		data = data.data()
 
+	if data is None and assembly is None:
+		raise fxconv.FxconvError("elf() but no data and no assembly")
+
+	# Toolchain parameters
+
 	if toolchain is None:
 		toolchain = "sh3eb-elf"
 	if section is None:
@@ -1078,46 +1083,57 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
 
-	fp_obj = tempfile.NamedTemporaryFile()
-	fp_obj.write(data)
-	fp_obj.flush()
+	# Generate data - in <output> directly if there is no assembly
 
-	if assembly is not None:
+	if data:
+		fp_obj = tempfile.NamedTemporaryFile()
+		fp_obj.write(data)
+		fp_obj.flush()
+
+		sybl = "_binary_" + fp_obj.name.replace("/", "_")
+		objcopy_args = [
+			f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
+			"--binary-architecture", arch, "--file-alignment", "4",
+			"--rename-section", f".data={section}",
+			"--redefine-sym", f"{sybl}_start={symbol}",
+			"--redefine-sym", f"{sybl}_end={symbol}_end",
+			"--redefine-sym", f"{sybl}_size={symbol}_size",
+			fp_obj.name, output if not assembly else fp_obj.name + ".o" ]
+
+		proc = subprocess.run(objcopy_args)
+		if proc.returncode != 0:
+			raise FxconvError(f"objcopy returned {proc.returncode}")
+
+	# Generate assembly - in <output> directly if there is no data
+
+	if assembly:
 		fp_asm = tempfile.NamedTemporaryFile()
 		fp_asm.write(assembly.encode('utf-8'))
 		fp_asm.flush()
 
-		proc = subprocess.run([
-			f"{toolchain}-as", "-c", fp_asm.name, "-o", fp_asm.name + ".o" ])
+		as_args = [
+			f"{toolchain}-as", "-c", fp_asm.name, "-o",
+			output if not data else fp_asm.name + ".o" ]
+
+		proc = subprocess.run(as_args)
 		if proc.returncode != 0:
 			raise FxconvError(f"as returned {proc.returncode}")
 
-	sybl = "_binary_" + fp_obj.name.replace("/", "_")
+	# If both data and assembly are specified, merge everyone
 
-	objcopy_args = [
-		f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
-		"--binary-architecture", arch, "--file-alignment", "4",
-		"--rename-section", f".data={section}",
-		"--redefine-sym", f"{sybl}_start={symbol}",
-		"--redefine-sym", f"{sybl}_end={symbol}_end",
-		"--redefine-sym", f"{sybl}_size={symbol}_size",
-		fp_obj.name, output if assembly is None else fp_obj.name + "-tmp" ]
+	if data and assembly:
+		ld_args = [
+			f"{toolchain}-ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
+			"-o", output ]
 
-	proc = subprocess.run(objcopy_args)
-	if proc.returncode != 0:
-		raise FxconvError(f"objcopy returned {proc.returncode}")
-
-	if assembly is not None:
-		proc = subprocess.run([
-			f"{toolchain}-ld", "-r", fp_obj.name + "-tmp", fp_asm.name + ".o",
-			"-o", output ])
-
-		os.remove(fp_obj.name + "-tmp")
-		os.remove(fp_asm.name + ".o")
-
+		proc = subprocess.run(ld_args)
 		if proc.returncode != 0:
 			raise FxconvError(f"ld returned {proc.returncode}")
 
-		fp_asm.close()
+		os.remove(fp_obj.name + ".o")
+		os.remove(fp_asm.name + ".o")
 
-	fp_obj.close()
+	if data:
+		fp_obj.close()
+	if assembly:
+		fp_asm.close()
