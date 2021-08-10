@@ -6,6 +6,7 @@
 #include "protocol.h"
 #include "usb.h"
 #include "png.h"
+#include "sdl2.h"
 
 #include <libusb.h>
 #include <string.h>
@@ -86,6 +87,18 @@ static void message_finish(message_t *msg)
 			fwrite(msg->output, 1, msg->header.size, stdout);
 			if(msg->output[msg->header.size - 1] != '\n') printf("\n");
 			printf("------------------\n");
+			return;
+		}
+
+		if(!strncmp(msg->header.type, "video", 16)) {
+			usb_fxlink_image_t *img = (void *)msg->output;
+			uint8_t **row_pointers = fxlink_protocol_decode_image(msg);
+
+#ifndef FXLINK_DISABLE_SDL2
+			sdl2_stream(row_pointers, img->width, img->height);
+#else
+			warn("SDL2 support disabled, skipping video frame!");
+#endif
 			return;
 		}
 	}
@@ -170,9 +183,13 @@ int main_interactive(filter_t *filter, delay_t *delay, libusb_context *context)
 
 	while(1)
 	{
+#ifndef FXLINK_DISABLE_SDL2
+		sdl2_tick();
+#endif
+
 		int transferred = -1;
 		rc = libusb_bulk_transfer(dh, 0x81, buffer + buffer_size, 2048,
-			&transferred, 2000);
+			&transferred, 500);
 
 		if(rc == LIBUSB_ERROR_NO_DEVICE) {
 			printf("Disconnected, leaving.\n");

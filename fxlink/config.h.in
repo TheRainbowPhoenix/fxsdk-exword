@@ -8,4 +8,7 @@
 /* Disables UDisks2 interfaces for systems that don't use it. */
 #cmakedefine FXLINK_DISABLE_UDISKS2
 
+/* Disable SDL2 interfaces. */
+#cmakedefine FXLINK_DISABLE_SDL2
+
 #endif /* FXLINK_CONFIG_H */
