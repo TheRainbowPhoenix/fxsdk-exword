@@ -16,6 +16,10 @@
 #include <time.h>
 #include <png.h>
 
+/* Video capture trackers, to avoid spamming terminal with messages */
+static int last_message_was_video = 0;
+static int video_frame_count = 0;
+
 static char *output_file(char const *path,char const *type,char const *suffix)
 {
 	char *filename = NULL;
@@ -47,9 +51,25 @@ static bool message_new(message_t *msg, usb_fxlink_header_t const *h)
 	int version_major = (h->version >> 8) & 0xff;
 	int version_minor = (h->version) & 0xff;
 
+	if(!strncmp(h->application,"fxlink",16) && !strncmp(h->type,"video",16)) {
+		if(last_message_was_video)
+			fprintf(stderr, "\r");
+		last_message_was_video = 1;
+	}
+	else {
+		if(last_message_was_video)
+			fprintf(stderr, "\n");
+		last_message_was_video = 0;
+	}
+
 	fprintf(stderr, "New message (v%d.%d): application '%.16s', type '%.16s', "
-		"size %d bytes\n", version_major, version_minor, h->application,
+		"size %d bytes", version_major, version_minor, h->application,
 		h->type, h->size);
+
+	if(last_message_was_video)
+		fprintf(stderr, " [video frame #%d]", ++video_frame_count);
+	else
+		fprintf(stderr, "\n");
 
 	msg->output = malloc(h->size);
 	if(!msg->output) {
@@ -130,7 +150,10 @@ static void message_output(message_t *msg, void *buffer, int size)
 
 	msg->size_read += size;
 	if(msg->size_read >= msg->header.size) {
-		fprintf(stderr, "Successfully read %d bytes\n", msg->size_read);
+		bool is_video = !strncmp(msg->header.application, "fxlink", 16) &&
+			!strncmp(msg->header.type, "video", 16);
+		if(!is_video)
+			fprintf(stderr, "Successfully read %d bytes\n", msg->size_read);
 		message_finish(msg);
 		msg->valid = false;
 	}
@@ -192,6 +215,8 @@ int main_interactive(filter_t *filter, delay_t *delay, libusb_context *context)
 			&transferred, 500);
 
 		if(rc == LIBUSB_ERROR_NO_DEVICE) {
+			if(last_message_was_video)
+				fprintf(stderr, "\n");
 			printf("Disconnected, leaving.\n");
 			break;
 		}
