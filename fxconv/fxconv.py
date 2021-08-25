@@ -154,27 +154,55 @@ def u16(x):
 def u32(x):
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
-def ref(base, offset=None, padding=None):
-	if isinstance(base, bytearray):
+def ref(base, offset=None, padding=None, prefix_underscore=True):
+	if isinstance(base, bytes) or isinstance(base, bytearray):
 		base = bytes(base)
-
-	if isinstance(base, bytes):
-		assert offset is None
+		if offset is not None:
+			raise FxconvError(f"reference to bytes does not allow offset")
 		if padding and len(base) % padding != 0:
 			base += bytes(padding - len(base) % padding)
-		return Ref(base, "", 0)
+		return Ref("bytes", base)
+
 	elif isinstance(base, str):
-		assert padding is None
-		return Ref(b"", base, offset or 0)
+		if padding is not None:
+			raise FxconvError(f"reference to name does not allow padding")
+		if prefix_underscore:
+			base = "_" + base
+		if offset is not None:
+			offset = int(offset)
+			base = f"{base} + {offset}"
+		return Ref("name", base)
 
-	raise FxconvError(f"invalid type {type(base)} for ref()")
+	elif isinstance(base, ObjectData):
+		if offset is not None or padding is not None:
+			raise FxconvError("reference to structure does not allow offset " +
+				"or padding")
+		return Ref("struct", base)
 
-ptr = ref
+	else:
+		raise FxconvError(f"invalid type {type(base)} for ref()")
+
+def ptr(base):
+	return ref(base)
+
+def chars(text, length, require_final_nul=True):
+	btext = bytes(text, 'utf-8')
+	if len(btext) >= length and require_final_nul:
+		raise FxconvError(f"'{text}' does not fit within {length} bytes")
+	return btext + bytes(length - len(btext))
+
+def string(text):
+	return ref(bytes(text, 'utf-8') + bytes([0]))
 
 def sym(name):
 	return Sym("_" + name)
 
-Ref = collections.namedtuple("Ref", ["data", "name", "offset"])
+# There are 3 kinds of Refs:
+#   "bytes"    -> target is a bytes(), we point to that data
+#   "name"     -> target is an str like "_sym+2", we point to that
+#   "struct"   -> target is an ObjectData
+Ref = collections.namedtuple("Ref", ["kind", "target"])
+
 Sym = collections.namedtuple("Sym", ["name"])
 
 class ObjectData:
@@ -183,53 +211,105 @@ class ObjectData:
 	other data generated along the output structure.
 	"""
 
-	def __init__(self):
+	def __init__(self, alignment=4):
 		"""Construct an empty ObjectData sequence."""
-		self.elements = []
-		self.static_data = bytes()
+
+		if alignment & (alignment - 1) != 0:
+			raise FxconvError(f"invalid ObjectData alignment {align} (not a " +
+				"power of 2)")
+		self.alignment = alignment
+
+		# Elements in the structure: bytes, Ref, Sym, ObjectData
+		self.inner = []
 
 	def __add__(self, other):
-		if isinstance(other, bytes):
-			self.elements.append(other)
-		elif isinstance(other, bytearray):
-			self.elements.append(bytes(other))
-		elif isinstance(other, Ref) and other.name:
-			self.elements.append((other.name, other.offset))
-		elif isinstance(other, Ref) and other.data:
-			self.elements.append(("", len(self.static_data)))
-			self.static_data += other.data
-		elif isinstance(other, ObjectData):
-			# Shift all offsets into other.static_data by len(self.static_data)
-			el = other.elements
-			for i in range(len(el)):
-				if not isinstance(el[i], bytes):
-					name, offset = el
-					if not name:
-						el[i] = (name, offset + len(self.static_data))
-			# Extend elements and data
-			self.elements += el
-			self.static_data += static_data
+		if isinstance(other, bytes) or isinstance(other, bytearray):
+			self.inner.append(bytes(other))
+		elif isinstance(other, Ref):
+			self.inner.append(other)
 		elif isinstance(other, Sym):
-			self.elements.append(other)
+			self.inner.append(other)
+		elif isinstance(other, ObjectData):
+			self.inner.append(other)
 		return self
 
-	def data(self):
-		return self.static_data
+	@staticmethod
+	def element_size(el):
+		if isinstance(el, bytes):
+			return len(el)
+		elif isinstance(el, Ref):
+			return 4
+		elif isinstance(el, Sym):
+			return 0
+		elif isinstance(el, tuple): # linked sub-ObjectData
+			return el[1]
+		else:
+			raise Exception(f"invalid _element_length: {el}")
 
-	def assembly(self, data_symbol):
-		assembly = ""
-		for el in self.elements:
-			if isinstance(el, bytes):
-				assembly += ".byte " + ",".join(hex(x) for x in el) + "\n"
-			elif isinstance(el, Sym):
-				assembly += f".global {el.name}\n"
-				assembly += f"{el.name}:\n"
+	def align(self, size, alignment, elements):
+		padding = (alignment - size) % alignment
+		if padding != 0:
+			elements.append(bytes(padding))
+		return padding
+
+	def link(self, symbol):
+		inner = []
+		outer = []
+		elements = []
+		size = 0
+
+		# First unfold all structures within [inner] as we accumulate the total
+		# size of the inner data
+		for el in self.inner:
+			if isinstance(el, ObjectData):
+				size += self.align(size, el.alignment, inner)
+				code, code_size = el.link(f"{symbol} + {size}")
+				inner.append((code, code_size))
+				size += code_size
 			else:
-				name, offset = el
-				name = "_" + name if name != "" else data_symbol
-				assembly += f".long {name} + {offset}\n"
-		return assembly
+				inner.append(el)
+				size += self.element_size(el)
 
+		# Then replace complex references with unfolded data appended at the
+		# end of the structure
+		for el in inner:
+			if isinstance(el, Ref) and el.kind == "bytes":
+				elements.append(Ref("name", f"{symbol} + {size}"))
+				outer.append(el.target)
+				size += self.element_size(el.target)
+
+			elif isinstance(el, Ref) and el.kind == "struct":
+				size += self.align(size, el.target.alignment, outer)
+				elements.append(Ref("name", f"{symbol} + {size}"))
+				code, code_size = el.target.link(f"{symbol} + {size}")
+				outer.append((code, code_size))
+				size += code_size
+
+			else:
+				elements.append(el)
+
+		elements += outer
+
+		# Make sure the whole structure is properly aligned
+		size += self.align(size, self.alignment, elements)
+
+		# Finally, generate actual assembler code based on all elements
+		asm = ""
+
+		for el in elements:
+			if isinstance(el, bytes):
+				asm += ".byte " + ",".join(hex(x) for x in el) + "\n"
+			elif isinstance(el, Ref) and el.kind == "name":
+				asm += f".long {el.target}\n"
+			elif isinstance(el, Sym):
+				asm += f".global {el.name}\n"
+				asm += f"{el.name}:\n"
+			elif isinstance(el, tuple): # linked ObjectData
+				asm += el[0]
+
+		return asm, size
+
+# User-friendly synonym
 Structure = ObjectData
 
 #
@@ -1081,17 +1161,17 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	# Unfold ObjectData into data and assembly
 	if isinstance(data, ObjectData):
-		assembly = (assembly or "") + f"""
-			.section .rodata
-			.global {symbol}
-			{symbol}:
-		""" + data.assembly(symbol + "_staticdata")
+		asm =   ".section .rodata\n"
+		asm += f".global {symbol}\n"
+		asm += f"{symbol}:\n"
+		asm += data.link(symbol)[0]
+		asm += (assembly or "")
 
-		symbol = symbol + "_staticdata"
-		data = data.data()
+		data = None
+		assembly = asm
 
 	if data is None and assembly is None:
-		raise fxconv.FxconvError("elf() but no data and no assembly")
+		raise FxconvError("elf() but no data and no assembly")
 
 	# Toolchain parameters
 
