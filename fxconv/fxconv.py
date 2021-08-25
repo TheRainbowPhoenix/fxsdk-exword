@@ -169,6 +169,8 @@ def ref(base, offset=None, padding=None):
 
 	raise FxconvError(f"invalid type {type(base)} for ref()")
 
+ptr = ref
+
 def sym(name):
 	return Sym("_" + name)
 
@@ -227,6 +229,8 @@ class ObjectData:
 				name = "_" + name if name != "" else data_symbol
 				assembly += f".long {name} + {offset}\n"
 		return assembly
+
+Structure = ObjectData
 
 #
 #  Area specifications
