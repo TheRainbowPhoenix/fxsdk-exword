@@ -168,6 +168,9 @@ def main():
 				if fnmatch.fnmatchcase(basename, wildcard):
 					params.update(**p)
 
+			if "section" in params:
+				target["section"] = params["section"]
+
 	# In manual conversion modes, read parameters from the command-line
 	else:
 		params = parse_parameters(args)
