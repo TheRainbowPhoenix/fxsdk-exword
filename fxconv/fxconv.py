@@ -108,13 +108,22 @@ class CgProfile:
 		return None
 
 CG_PROFILES = [
-	# 16-bit R5G6B5
+	# 16-bit RGB565 and RGB565 with alpha
+	CgProfile(0x0, "rgb565", False),
+	CgProfile(0x1, "rgb565a", True),
+	# 8-bit palette for RGB565 and RGB565A (supported by Azur only)
+	CgProfile(0x4, "p8_rgb565", False),
+	CgProfile(0x5, "p8_rgb565a", True),
+	# 4-bit palette for RGB565 and RGB565A (supported by Azur only)
+	CgProfile(0x6, "p4_rgb565", False),
+	CgProfile(0x3, "p4_rgb565a", True),
+
+	# Original names for RGB565 and RGB565A
 	CgProfile(0x0, "r5g6b5", False),
-	# 16-bit R5G6B5 with alpha
 	CgProfile(0x1, "r5g6b5a", True),
-	# 8-bit palette
+	# The original 8-bit palette mode of bopti (inferior to the other P8 modes)
 	CgProfile(0x2, "p8", True),
-	# 4-bit palette
+	# The original 4-bit palette mode of bopti (same as P4_RGB565A)
 	CgProfile(0x3, "p4", True),
 ]
 
@@ -515,40 +524,51 @@ def convert_bopti_cg(input, params):
 	area = Area(params.get("area", {}), img)
 	img = img.crop(area.tuple())
 
-	# If no profile is specified, fall back to r5g6b5 or r5g6b5a later on
+	# If no profile is specified, fall back to rgb565 or rgb565a later on
 	name = params.get("profile", None)
 	if name is not None:
 		profile = CgProfile.find(name)
 
-	if name in [ "r5g6b5", "r5g6b5a", None ]:
+	if name in ["r5g6b5", "r5g6b5a", "rgb565", "rgb565a", None]:
 		# Encode the image into the 16-bit format
 		encoded, alpha = r5g6b5(img)
 
-		name = "r5g6b5" if alpha is None else "r5g6b5a"
+		if name is None:
+			name = "rgb565" if alpha is None else "rgb565a"
 		profile = CgProfile.find(name)
 
-	elif name in [ "p4", "p8" ]:
+	elif name.startswith("p"):
+		if name in ["p8_rgb565", "p8_rgb565a"]:
+			trim_palette = True
+			palette_base = 0x80
+		else:
+			trim_palette = False
+			palette_base = 0x00
+
 		# Encoded the image into 16-bit with a palette of 16 or 256 entries
 		color_count = 1 << int(name[1])
-		encoded, palette, alpha = r5g6b5(img, color_count=color_count)
+		encoded, palette, alpha = r5g6b5(img, color_count=color_count,
+			trim_palette=trim_palette, palette_base=palette_base)
 
+		color_count = len(palette) // 2
 		encoded = palette + encoded
 
 	else:
 		raise FxconvError(f"unknown color profile '{name}'")
 
 	if alpha is not None and not profile.supports_alpha:
-		raise FxconvError(f"'{input}' has transparency; use r5g6b5a, p8 or p4")
+		raise FxconvError(f"'{input}' has transparency; use rgb565a, p8 or p4")
 
-	w, h, a = img.width, img.height, alpha or 0x0000
+	header = bytes()
+	header += u16(profile.id)
+	header += u16(alpha if alpha is not None else 0xffff)
+	header += u16(img.width) + u16(img.height)
 
-	header = bytearray([
-		0x00, profile.id,		# Profile identification
-		a >> 8, a & 0xff,		# Alpha color
-		w >> 8, w & 0xff,		# Width
-		h >> 8, h & 0xff,		# Height
-	])
+	if name in ["p8_rgb565", "p8_rgb565a"]:
+		header += u16(color_count)
 
+	if len(encoded) % 4 != 0:
+		encoded += bytes(4 - (len(encoded) % 4))
 	return header + encoded
 
 #
@@ -901,9 +921,9 @@ def quantize(img, dither=False):
 
 	return img
 
-def r5g6b5(img, color_count=0, alpha=None):
+def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0, alpha=None):
 	"""
-	Convert a PIL.Image.Image into an R5G6B5 byte stream. If there are
+	Convert a PIL.Image.Image into an RGB565 byte stream. If there are
 	transparent pixels, chooses a color to implement alpha and replaces them
 	with this color.
 
@@ -915,18 +935,33 @@ def r5g6b5(img, color_count=0, alpha=None):
 	bytearray, the palette as a bytearray, and the alpha value (None if there
 	were no transparent pixels).
 
+	If trim_palette is set, the palette bytearray is trimmed so that only used
+	entries are set. This option has no effect if color_count=0.
+
+	If palette_base is provided, palette entries will be numbered starting from
+	that value, wrapping around modulo color_count. If there is alpha, the
+	alpha value (which is always 0) is excluded from that cycle. This option
+	has no effect if color_count=0.
+
 	If alpha is provided, it should be a pair (alpha value, replacement).
-	Trandarpent pixels will be encoded with the specified alpha value and
+	Transparent pixels will be encoded with the specified alpha value and
 	pixels with the value will be encoded with the replacement.
 	"""
 
-	def rgb24to16(r, g, b):
+	def rgb24to16(rgb24):
+		r, g, b = rgb24
 		r = (r & 0xff) >> 3
 		g = (g & 0xff) >> 2
 		b = (b & 0xff) >> 3
 		return (r << 11) | (g << 5) | b
 
-	# Save the alpha channel and make it 1-bit
+	#---
+	# Initial image transforms
+	# Separate the alpha channel and generate a first palette.
+	#---
+
+	# Save the alpha channel and make it 1-bit. If there are transparent
+	# pixels, set has_alpha=True and record the alpha channel in alpha_pixels.
 	try:
 		alpha_channel = img.getchannel("A").convert("1", dither=Image.NONE)
 		alpha_levels = { t[1]: t[0] for t in alpha_channel.getcolors() }
@@ -942,54 +977,115 @@ def r5g6b5(img, color_count=0, alpha=None):
 	# Convert the input image to RGB
 	img = img.convert("RGB")
 
-	# Optionally convert to palette
+	# Transparent pixels also have values on the RGB channels, so they use up a
+	# palette entry (in indexed mode) of possible alpha value (in 16-bit mode)
+	# even though their color is unused. Replace them with a non-transparent
+	# color used elsewhere in the image to avoid that.
+	if has_alpha:
+		nontransparent_pixels = { (x,y)
+			for x in range(img.width) for y in range(img.height)
+			if alpha_pixels[x,y] > 0 }
+
+		if nontransparent_pixels:
+			x0, y0 = nontransparent_pixels.pop()
+			pixels = img.load()
+
+			for y in range(img.height):
+				for x in range(img.width):
+					if alpha_pixels[x,y] == 0:
+						pixels[x,y] = pixels[x0,y0]
+
+	# In indexed mode, generate a specific palette
 	if color_count:
-		palette_size = color_count - int(has_alpha)
-		img = img.convert("P", dither=Image.NONE, palette=Image.ADAPTIVE,
-			colors=palette_size)
-		palette = img.getpalette()
+		palette_max_size = color_count - int(has_alpha)
+		img = img.convert("P",
+			dither=Image.NONE,
+			palette=Image.ADAPTIVE,
+			colors=palette_max_size)
+
+		# Format for the first palette is a list of N triplets where N is the
+		# number of used opaque colors; obviously N <= palette_max_size
+		palette1 = img.getpalette()[:3*len(img.getcolors())]
+		palette1 = list(zip(palette1[::3], palette1[1::3], palette1[2::3]))
 
 	pixels = img.load()
 
-	# Choose an alpha color
+	#---
+	# Alpha encoding
+	# Find a value to encode transparency and map it into palettes.
+	#---
 
+	# RGB565A with fixed alpha value (fi. alpha=0x0001 in libimg)
 	if alpha is not None:
-		alpha, replacement = alpha
+		if color_count > 0:
+			raise FxconvError("cannot choose alpha value in palette formats")
+		else:
+			alpha, replacement = alpha
 
-	elif color_count > 0:
-		# Transparency is mapped to the last palette element, if there are no
-		# transparent pixels then select an index out of bounds.
-		alpha = color_count - 1 if has_alpha else 0xffff
+	# Alpha always uses color index 0 in palettes (helps faster rendering)
+	elif color_count > 0 and has_alpha:
+		alpha = 0
 
+	# Find an unused RGB565 value and keep the encoding to 16-bit
 	elif has_alpha:
-		# Compute the set of all used R5G6B5 colors
-		colormap = set()
+		colormap = { rgb24to16(pixels[x, y])
+			for x in range(img.width) for y in range(img.height)
+			if alpha_pixels[x, y] > 0 }
 
-		for y in range(img.height):
-			for x in range(img.width):
-				if alpha_pixels[x, y] > 0:
-					colormap.add(rgb24to16(*pixels[x, y]))
-
-		# Choose an alpha color among the unused ones
 		available = set(range(65536)) - colormap
 
 		if not available:
 			raise FxconvError("image uses all 65536 colors and alpha")
 		alpha = available.pop()
 
+	# No transparency in the image
 	else:
 		alpha = None
 
+	# Function to encode with alpha support in RGB565
 	def alpha_encoding(color, a):
-		if a > 0:
-			if color == alpha:
-				return replacement
-			else:
-				return color
+		if a > 0: # pixel is not transparent
+			return color if color != alpha else replacement
 		else:
 			return alpha
 
-	# Create a byte array with all encoded pixels
+	# In palette formats, rearrange the palette to account for palette_base,
+	# insert alpha, and determine encoded size (which may include alpha)
+
+	if color_count > 0:
+		# The palette remap indicates how to transform indices of the first
+		# palette into (1) signed or unsigned indices starting at palette_base,
+		# and (2) indices into the physically encoded palette (always starting
+		# at 0). Each entry is a tuple with both values.
+		palette_remap = [(-1,-1)] * len(palette1)
+		passed_alpha = False
+
+		index1 = palette_base
+		index2 = 0
+
+		for i in range(len(palette1)):
+			# Leave an empty spot for the alpha value
+			if index1 == alpha:
+				index1 += 1
+				index2 += 1
+				passed_alpha = True
+
+			palette_remap[i] = (index1, index2)
+
+			index1 += 1
+			index2 += 1
+			if index1 >= color_count:
+				index1 = 0
+
+		# How many entries are needed in the palette (for trim_palette). This
+		# is either len(palette1) or len(palette1) + 1 depending on whether the
+		# alpha value stands in the middle
+		palette_bin_size = len(palette1) + passed_alpha
+
+	#---
+	# Image encoding
+	# Create byte arrays with pixel data and palette data
+	#---
 
 	pixel_count = img.width * img.height
 
@@ -998,58 +1094,58 @@ def r5g6b5(img, color_count=0, alpha=None):
 	elif color_count == 256:
 		size = pixel_count
 	elif color_count == 16:
-		size = (pixel_count + 1) // 2
+		size = ((img.width + 1) // 2) * img.height
 
 	# Result of encoding
 	encoded = bytearray(size)
-	# Number of pixels encoded so far
-	entries = 0
 	# Offset into the array
 	offset = 0
 
 	for y in range(img.height):
 		for x in range(img.width):
-			a = alpha_pixels[x, y] if has_alpha else 0xff
+			a = alpha_pixels[x, y] if has_alpha else 255
 
 			if not color_count:
-				c = alpha_encoding(rgb24to16(*pixels[x, y]), a)
-				encoded[offset]   = c >> 8
-				encoded[offset+1] = c & 0xff
+				c = alpha_encoding(rgb24to16(pixels[x, y]), a)
+				encoded[offset:offset+2] = u16(c)
 				offset += 2
 
 			elif color_count == 16:
-				c = alpha_encoding(pixels[x, y], a)
+				c = palette_remap[pixels[x, y]][0] if a > 0 else alpha
 
-				# Aligned pixels: left 4 bits = high 4 bits of current byte
-				if (entries % 2) == 0:
+				# Select either the 4 MSb or 4 LSb of the current byte
+				if x % 2 == 0:
 					encoded[offset] |= (c << 4)
-				# Unaligned pixels: right 4 bits of current byte
 				else:
 					encoded[offset] |= c
-					offset += 1
+
+				offset += (x % 2 == 1) or (x == img.width - 1)
 
 			elif color_count == 256:
-				c = alpha_encoding(pixels[x, y], a)
+				c = palette_remap[pixels[x, y]][0] if a > 0 else alpha
 				encoded[offset] = c
 				offset += 1
 
-			entries += 1
-
-	if not color_count:
-		return encoded, alpha
-
 	# Encode the palette as R5G6B5
 
-	encoded_palette = bytearray(2 * color_count)
+	if color_count > 0:
+		if trim_palette:
+			encoded_palette = bytearray(2 * palette_bin_size)
+		else:
+			encoded_palette = bytearray(2 * color_count)
 
-	for c in range(color_count - int(has_alpha)):
-		r, g, b = palette[3*c], palette[3*c+1], palette[3*c+2]
-		rgb16 = rgb24to16(r, g, b)
+		for i in range(len(palette1)):
+			index = palette_remap[i][1]
+			encoded_palette[2*index:2*index+2] = u16(rgb24to16(palette1[i]))
 
-		encoded_palette[2*c]   = rgb16 >> 8
-		encoded_palette[2*c+1] = rgb16 & 0xff
+	#---
+	# Outro
+	#---
 
-	return encoded, encoded_palette, alpha
+	if color_count > 0:
+		return encoded, encoded_palette, alpha
+	else:
+		return encoded, alpha
 
 def convert(input, params, target, output=None, model=None, custom=None):
 	"""
