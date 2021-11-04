@@ -697,7 +697,7 @@ def convert_topti(input, params):
 	line_height = int(params.get("height", grid.h))
 
 	# Default character spacing to 1
-	char_spacing = params.get("char-spacing", 1)
+	char_spacing = int(params.get("char-spacing", "1"))
 
 	#--
 	# Encoding blocks
