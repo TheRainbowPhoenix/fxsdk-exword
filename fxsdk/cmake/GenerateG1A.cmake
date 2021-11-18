@@ -35,6 +35,14 @@ function(generate_g1a)
     list(APPEND FXG1A_ARGS "-i" "${G1A_ICON}")
   endif()
 
+  if(DEFINED G1A_INTERNAL)
+    list(APPEND FXG1A_ARGS "--internal=${G1A_INTERNAL}")
+  endif()
+
+  if(DEFINED G1A_VERSION)
+    list(APPEND FXG1A_ARGS "--version=${G1A_VERSION}")
+  endif()
+
   string(REGEX REPLACE "sh-elf-gcc$" "sh-elf-objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
 
   add_custom_command(

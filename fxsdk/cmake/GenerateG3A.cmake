@@ -1,5 +1,5 @@
 function(generate_g3a)
-  cmake_parse_arguments(G3A "" "TARGET;OUTPUT;NAME" "ICONS" ${ARGN})
+  cmake_parse_arguments(G3A "" "TARGET;OUTPUT;NAME;VERSION" "ICONS" ${ARGN})
 
   # Check arguments
 
@@ -34,6 +34,10 @@ function(generate_g3a)
   # Check in KEYWORDS_MISSING_VALUES as a complement.
   if(DEFINED G3A_NAME OR "NAME" IN_LIST G3A_KEYWORDS_MISSING_VALUES)
     list(APPEND MKG3A_ARGS "-n" "basic:${G3A_NAME}")
+  endif()
+
+  if(DEFINED G3A_VERSION)
+    list(APPEND MKG3A_ARGS "-V" "${G3A_VERSION}")
   endif()
 
   if(DEFINED G3A_ICONS)
