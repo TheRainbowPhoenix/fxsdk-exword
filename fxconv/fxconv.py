@@ -1005,10 +1005,16 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0, alpha=None):
 
 		# Format for the first palette is a list of N triplets where N is the
 		# number of used opaque colors; obviously N <= palette_max_size
-		palette1 = img.getpalette()[:3*len(img.getcolors())]
+		# Note: sometimes colors are not numbered 0..N-1, so we take the max
+		# value rather than len(img.getcolors()); we don't try to remap indices
+		pixels = img.load()
+		N = 1 + max(pixels[x,y]
+		            for y in range(img.height)
+		            for x in range(img.width))
+		palette1 = img.getpalette()[:3*N]
 		palette1 = list(zip(palette1[::3], palette1[1::3], palette1[2::3]))
-
-	pixels = img.load()
+	else:
+		pixels = img.load()
 
 	#---
 	# Alpha encoding
