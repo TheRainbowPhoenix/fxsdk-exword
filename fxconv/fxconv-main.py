@@ -3,8 +3,6 @@
 import getopt
 import sys
 import os
-import re
-import fnmatch
 import fxconv
 import importlib.util
 
@@ -53,52 +51,6 @@ try:
 	converters = [conv.convert]
 except ImportError:
 	converters = []
-
-def parse_parameters(params):
-	"""Parse parameters of the form "NAME:VALUE" into a dictionary."""
-	d = dict()
-
-	def insert(d, path, value):
-		if len(path) == 1:
-			d[path[0]] = value
-		else:
-			if not path[0] in d:
-				d[path[0]] = dict()
-			insert(d[path[0]], path[1:], value)
-
-	for decl in params:
-		if ":" not in decl:
-			raise FxconvError(f"invalid parameter {decl}, ignoring")
-		else:
-			name, value = decl.split(":", 1)
-			value = value.strip()
-			if name == "name_regex":
-				value = value.split(" ", 1)
-			insert(d, name.split("."), value)
-
-	return d
-
-def parse_parameters_metadata(contents):
-	"""Parse parameters from a metadata file contents."""
-
-	RE_COMMENT = re.compile(r'#.*$', re.MULTILINE)
-	contents = re.sub(RE_COMMENT, "", contents)
-
-	RE_WILDCARD = re.compile(r'^(\S(?:[^:\s]|\\:|\\ )*)\s*:\s*$', re.MULTILINE)
-	lead, *elements = [ s.strip() for s in re.split(RE_WILDCARD, contents) ]
-
-	if lead:
-		raise FxconvError(f"invalid metadata: {lead} appears before wildcard")
-
-	# Group elements by pairs (left: wildcard, right: list of properties)
-	elements = list(zip(elements[::2], elements[1::2]))
-
-	metadata = []
-	for (wildcard, params) in elements:
-		params = [ s.strip() for s in params.split("\n") if s.strip() ]
-		metadata.append((wildcard, parse_parameters(params)))
-
-	return metadata
 
 def main():
 	types = "binary image font bopti-image libimg-image custom"
@@ -155,21 +107,15 @@ def main():
 	# In automatic mode, look for information in fxconv-metadata.txt
 	if mode == "":
 		metadata_file = os.path.dirname(input) + "/fxconv-metadata.txt"
-		basename = os.path.basename(input)
 
 		if not os.path.exists(metadata_file):
 			return err(f"using auto mode but {metadata_file} does not exist")
 
-		with open(metadata_file, "r") as fp:
-			metadata = parse_parameters_metadata(fp.read())
+		metadata = fxconv.Metadata(path=metadata_file)
+		params = metadata.rules_for(input)
 
-			params = dict()
-			for (wildcard, p) in metadata:
-				if fnmatch.fnmatchcase(basename, wildcard):
-					params.update(**p)
-
-			if "section" in params:
-				target["section"] = params["section"]
+		if "section" in params:
+			target["section"] = params["section"]
 
 	# In manual conversion modes, read parameters from the command-line
 	else:

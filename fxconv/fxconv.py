@@ -6,6 +6,7 @@ import os
 import tempfile
 import subprocess
 import collections
+import fnmatch
 import re
 
 from PIL import Image
@@ -23,6 +24,8 @@ __all__ = [
 	"convert_bopti_fx", "convert_bopti_cg",
 	"convert_topti",
 	"convert_libimg_fx", "convert_libimg_cg",
+	# Meta API to use fxconv-metadata.txt files
+	"Metadata",
 ]
 
 #
@@ -1349,3 +1352,112 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		fp_obj.close()
 	if assembly:
 		fp_asm.close()
+
+#
+# Meta API
+#
+
+def _parse_parameters(params):
+	"""Parse parameters of the form "NAME:VALUE" into a dictionary."""
+	d = dict()
+
+	def insert(d, path, value):
+		if len(path) == 1:
+			d[path[0]] = value
+		else:
+			if not path[0] in d:
+				d[path[0]] = dict()
+			insert(d[path[0]], path[1:], value)
+
+	for decl in params:
+		if ":" not in decl:
+			raise FxconvError(f"invalid parameter {decl}, ignoring")
+		else:
+			name, value = decl.split(":", 1)
+			value = value.strip()
+			if name == "name_regex":
+				value = value.split(" ", 1)
+			insert(d, name.split("."), value)
+
+	return d
+
+def _parse_metadata(contents):
+	"""
+	Parse the contents of an fxconv-metadata.txt file. Comments start with '#'
+	anywhere on a line and extend to the end of the line.
+
+	The file is divided in blocks that start with a "<wildcard>:" pattern at
+	the first column of a line (no leading spaces) followed by zero or more
+	properties declared as "key: value" (with at least one leading space).
+
+	The key can contain dots (eg. "category.field"), in which case the value
+	for the main component ("category") is itself a dictionary.
+	"""
+
+	RE_COMMENT = re.compile(r'#.*$', re.MULTILINE)
+	contents = re.sub(RE_COMMENT, "", contents)
+
+	RE_WILDCARD = re.compile(r'^(\S(?:[^:\s]|\\:|\\ )*)\s*:\s*$', re.MULTILINE)
+	lead, *elements = [ s.strip() for s in re.split(RE_WILDCARD, contents) ]
+
+	if lead:
+		raise FxconvError(f"invalid metadata: {lead} appears before wildcard")
+
+	# Group elements by pairs (left: wildcard, right: list of properties)
+	elements = list(zip(elements[::2], elements[1::2]))
+
+	metadata = []
+	for (wildcard, params) in elements:
+		params = [ s.strip() for s in params.split("\n") if s.strip() ]
+		metadata.append((wildcard, _parse_parameters(params)))
+
+	return metadata
+
+class Metadata:
+	def __init__(self, path=None, text=None):
+		"""
+		Load either an fxconv-metadata.txt file (if path is not None) or the
+		contents of such a file (if text is not None).
+		"""
+
+		if (path is not None) == (text is not None):
+			raise ValueError("Metadata must have exactly one of path and text")
+
+		if path is not None:
+			self._path = path
+			with open(path, "r") as fp:
+				self._rules = _parse_metadata(fp.read())
+		elif text is not None:
+			self._path = None
+			self._rules = _parse_metadata(text)
+
+	def path(self):
+		"""
+		Returns the path of the file from which the metadata was parsed, or
+		None if the metadata was parsed from string.
+		"""
+		return self._path
+
+	def rules(self):
+		"""
+		Returns a list of pairs (wildcard, rules) where the wildcard is a
+		string and the rules are a nested dictionary.
+		"""
+		return self._rules
+
+	def rules_for(self, path):
+		"""
+		Returns the parameters that apply to the specified path, or None if no
+		wildcard matches it.
+		"""
+
+		basename = os.path.basename(path)
+		params = dict()
+		matched = False
+
+		for (wildcard, p) in self._rules:
+			if fnmatch.fnmatchcase(basename, wildcard):
+				params.update(**p)
+				matched = True
+
+		return params if matched else None
