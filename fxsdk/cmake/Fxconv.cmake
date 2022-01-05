@@ -11,6 +11,7 @@ function(fxconv_declare_assets)
     # Set up a dependency to the local fxconv-metadata.txt
     if(DEFINED CONV_WITH_METADATA)
       get_filename_component(DIR "${ASSET}" DIRECTORY)
+      get_filename_component(DIR "${DIR}" ABSOLUTE)
       set(METADATA "${DIR}/fxconv-metadata.txt")
       get_filename_component(METADATA "${METADATA}" ABSOLUTE
         BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
