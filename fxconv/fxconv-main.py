@@ -119,7 +119,7 @@ def main():
 
 	# In manual conversion modes, read parameters from the command-line
 	else:
-		params = parse_parameters(args)
+		params = fxconv.parse_parameters(args)
 
 		if "type" in params:
 			pass

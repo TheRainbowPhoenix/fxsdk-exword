@@ -25,7 +25,7 @@ __all__ = [
 	"convert_topti",
 	"convert_libimg_fx", "convert_libimg_cg",
 	# Meta API to use fxconv-metadata.txt files
-	"Metadata",
+	"Metadata", "parse_parameters",
 ]
 
 #
@@ -1353,7 +1353,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 # Meta API
 #
 
-def _parse_parameters(params):
+def parse_parameters(params):
 	"""Parse parameters of the form "NAME:VALUE" into a dictionary."""
 	d = dict()
 
@@ -1405,7 +1405,7 @@ def _parse_metadata(contents):
 	metadata = []
 	for (wildcard, params) in elements:
 		params = [ s.strip() for s in params.split("\n") if s.strip() ]
-		metadata.append((wildcard, _parse_parameters(params)))
+		metadata.append((wildcard, parse_parameters(params)))
 
 	return metadata
 
