@@ -121,7 +121,7 @@ def main():
 	else:
 		params = fxconv.parse_parameters(args)
 
-		if "type" in params:
+		if "type" in params or "custom-type" in params:
 			pass
 		elif len(mode) == 1:
 			params["type"] = { "b": "binary", "i": "image", "f": "font" }[mode]
@@ -129,7 +129,7 @@ def main():
 			params["type"] = mode
 
 		# Will be deprecated in the future
-		if params["type"] == "image":
+		if params.get("type") == "image":
 			warn("type 'image' is deprecated, use 'bopti-image' instead")
 			params["type"] = "bopti-image"
 
