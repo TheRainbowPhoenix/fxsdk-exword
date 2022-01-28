@@ -114,6 +114,9 @@ def main():
 		metadata = fxconv.Metadata(path=metadata_file)
 		params = metadata.rules_for(input)
 
+		if params is None:
+			return err(f"no metadata specified for {input}")
+
 		if "section" in params:
 			target["section"] = params["section"]
 
