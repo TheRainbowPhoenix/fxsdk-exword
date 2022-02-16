@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <endian.h>
 
 //---
 // Image format
@@ -36,7 +35,7 @@ static void decode_rgb565(void *pixels, int width, int height, int size,
 			uint16_t color = 0;
 			if(input - pixels + 2 <= size) color = *(uint16_t *)input;
 
-			color = be16toh(color);
+			color = ((color & 0xff00) >> 8) | ((color & 0x00ff) << 8);
 
 			row_pointers[y][3*x+0] = (color >> 11) << 3;
 			row_pointers[y][3*x+1] = ((color >> 5) & 0x3f) << 2;
