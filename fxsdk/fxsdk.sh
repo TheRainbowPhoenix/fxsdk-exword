@@ -26,7 +26,7 @@ ${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}) [${R}-c${n}] \
   (usually for .g3a add-ins). The first form compiles in every existing build
   folder, and configures for both if none exists.
 
-  With -c, reconfigure but don't build (CMake only).
+  With -c, reconfigure but do not build (CMake only).
   With -s, also sends the resulting program to the calculator.
   Other arguments are passed to CMake (if using -c) or make (otherwise). You
   can pass -c or -s to CMake/make by specifying --.
