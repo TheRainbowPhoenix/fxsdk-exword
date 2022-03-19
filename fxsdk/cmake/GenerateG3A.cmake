@@ -21,6 +21,8 @@ function(generate_g3a)
   if(DEFINED G3A_OUTPUT)
     get_filename_component(G3A_OUTPUT "${G3A_OUTPUT}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    # Who doesn't love to deal with escaping
+    string(REPLACE "'" "\\'" G3A_OUTPUT "${G3A_OUTPUT}")
   else()
     set(G3A_OUTPUT "${G3A_TARGET}.g3a")
   endif()
@@ -47,14 +49,17 @@ function(generate_g3a)
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     get_filename_component(G3A_ICON2 "${G3A_ICON2}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    list(APPEND MKG3A_ARGS "-i" "uns:${G3A_ICON1}" "-i" "sel:${G3A_ICON2}")
+    # Who doesn't REALLY love to deal with escaping
+    string(REPLACE "'" "\\'" G3A_ICON1B "${G3A_ICON1}")
+    string(REPLACE "'" "\\'" G3A_ICON2B "${G3A_ICON2}")
+    list(APPEND MKG3A_ARGS "-i" "uns:${G3A_ICON1B}" "-i" "sel:${G3A_ICON2B}")
   endif()
 
   string(REPLACE "gcc" "objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
 
   add_custom_command(
     TARGET "${G3A_TARGET}" POST_BUILD
-    COMMAND "${OBJCOPY}" -O binary -R .bss -R .gint_bss "${G3A_TARGET}" "${G3A_TARGET}.bin"
+    COMMAND ${OBJCOPY} -O binary -R .bss -R .gint_bss ${G3A_TARGET} ${G3A_TARGET}.bin
     COMMAND mkg3a ${MKG3A_ARGS} "${G3A_TARGET}.bin" "${G3A_OUTPUT}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
