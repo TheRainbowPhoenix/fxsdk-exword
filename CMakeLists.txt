@@ -24,10 +24,18 @@ set(BIN "${CMAKE_CURRENT_BINARY_DIR}")
 add_compile_options(-Wall -Wextra -std=c11 -Og -g -D_GNU_SOURCE)
 
 # fxg1a
-add_executable(fxg1a fxg1a/dump.c fxg1a/edit.c fxg1a/file.c fxg1a/icon.c
-  fxg1a/main.c fxg1a/util.c)
-target_include_directories(fxg1a PUBLIC fxg1a/)
+add_executable(fxg1a fxgxa/dump.c fxgxa/edit.c fxgxa/file.c fxgxa/icon.c
+  fxgxa/main.c fxgxa/util.c)
+target_include_directories(fxg1a PUBLIC fxgxa/)
 target_link_libraries(fxg1a PkgConfig::libpng)
+target_compile_definitions(fxg1a PRIVATE -DFXGXA_FORMAT_G1A)
+
+# fxg3a
+add_executable(fxg3a fxgxa/dump.c fxgxa/edit.c fxgxa/file.c fxgxa/icon.c
+  fxgxa/main.c fxgxa/util.c)
+target_include_directories(fxg3a PUBLIC fxgxa/)
+target_link_libraries(fxg3a PkgConfig::libpng)
+target_compile_definitions(fxg3a PRIVATE -DFXGXA_FORMAT_G3A)
 
 # fxsdk
 add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
@@ -58,6 +66,8 @@ install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
 install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
 # fxg1a
 install(TARGETS fxg1a)
+# fxg3a
+install(TARGETS fxg3a)
 # fxconv
 install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
 install(FILES fxconv/fxconv.py TYPE BIN)

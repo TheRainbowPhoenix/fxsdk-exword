@@ -88,6 +88,12 @@ don't need to worry about it, but here are the main commands:
 * `fxg1a -r`: Repair control bytes and checksums for broken files
 * `fxg1a -x`: Extract icon into a PNG file
 
+**G3A file generation** with `fxg3a`
+
+`fxg3a` is very similar to `fxg1a`, but generates and edits g3a files instead.
+These files are used for fx-CG 10/20/50 programs. The main commands are
+identical.
+
 **Asset conversion** with `fxconv`
 
 `fxconv` is a programmable asset converter that converts images, fonts and
