@@ -1,132 +1,173 @@
 #include <stdio.h>
 #include <string.h>
-
-#include <fxg1a.h>
+#include <fxgxa.h>
 #include <png.h>
 
-/* icon_print(): Show a monochrome 30*17 icon on stdout */
-void icon_print(uint8_t const *icon)
+uint8_t *icon_load(const char *filename, int *width, int *height)
 {
-	for(int y = 0; y < 17; y++)
-	{
-		for(int x = 0; x < 30; x++)
-		{
-			int v = icon[(y << 2) + (x >> 3)] & (0x80 >> (x & 7));
-			putchar(v ? '#' : ' ');
-			putchar(v ? '#' : ' ');
-		}
+    png_image img;
+    memset(&img, 0, sizeof img);
+    img.opaque = NULL;
+    img.version = PNG_IMAGE_VERSION;
 
-		putchar('\n');
-	}
+    void *buffer = NULL;
+
+    png_image_begin_read_from_file(&img, filename);
+    if(img.warning_or_error) {
+        fprintf(stderr, "libpng %s: %s\n", img.warning_or_error == 1
+            ? "warning": "error", img.message);
+        if(img.warning_or_error > 1) goto err;
+    }
+
+    img.format = PNG_FORMAT_RGB;
+
+    buffer = calloc(img.width * img.height, 3);
+    if(!buffer) {
+        fprintf(stderr, "error: cannot read %s: %m\n", filename);
+        goto err;
+    }
+
+    png_image_finish_read(&img, NULL, buffer, 0, NULL);
+    if(img.warning_or_error) {
+        fprintf(stderr, "libpng %s: %s\n", img.warning_or_error == 1
+            ? "warning": "error", img.message);
+        if(img.warning_or_error > 1) goto err;
+    }
+    if(width) *width = img.width;
+    if(height) *height = img.height;
+
+    png_image_free(&img);
+    return buffer;
+
+err:
+    png_image_free(&img);
+    free(buffer);
+    return NULL;
 }
 
-/* icon_load(): Load a monochrome PNG image into an array */
-uint8_t *icon_load(const char *filename, size_t *width, size_t *height)
+int icon_save(const char *filename, uint8_t *input, int width, int height)
 {
-	png_image img;
-	memset(&img, 0, sizeof img);
-	img.opaque = NULL;
-	img.version = PNG_IMAGE_VERSION;
+    png_image img;
+    memset(&img, 0, sizeof img);
 
-	png_image_begin_read_from_file(&img, filename);
-	if(img.warning_or_error)
-	{
-		fprintf(stderr, "libpng %s: %s\n", img.warning_or_error == 1
-			? "warning": "error", img.message);
-		if(img.warning_or_error > 1)
-		{
-			png_image_free(&img);
-			return NULL;
-		}
-	}
+    img.version = PNG_IMAGE_VERSION;
+    img.width = width;
+    img.height = height;
+    img.format = PNG_FORMAT_RGB;
 
-	img.format = PNG_FORMAT_GRAY;
+    png_image_write_to_file(&img, filename, 0, input, 0, NULL);
+    png_image_free(&img);
 
-	void *buffer = calloc(img.width * img.height, 1);
-	if(!buffer)
-	{
-		fprintf(stderr, "error: cannot read %s: %m\n", filename);
-		png_image_free(&img);
-		return NULL;
-	}
+    if(img.warning_or_error) {
+        fprintf(stderr, "libpng %s: %s\n", img.warning_or_error == 1
+            ? "warning": "error", img.message);
+        if(img.warning_or_error > 1) return 1;
+    }
 
-	png_image_finish_read(&img, NULL, buffer, img.width, NULL);
-	if(width) *width = img.width;
-	if(height) *height = img.height;
-
-	png_image_free(&img);
-	return buffer;
+    return 0;
 }
 
-/* icon_save(): Save an 8-bit array to a PNG image */
-int icon_save(const char *filename, uint8_t *input, size_t width,
-	size_t height)
+uint8_t *icon_conv_24to1(uint8_t const *rgb24, int width, int height)
 {
-	png_image img;
-	memset(&img, 0, sizeof img);
+    int bytes_per_row = (width + 7) >> 3;
+    uint8_t *mono = calloc(bytes_per_row * height, 1);
+    if(!mono) return NULL;
 
-	img.version = PNG_IMAGE_VERSION;
-	img.width = width;
-	img.height = height;
-	img.format = PNG_FORMAT_GRAY;
+    for(int y = 0; y < height; y++)
+    for(int x = 0; x < width; x++) {
+        int in = 3 * (y * width + x);
+        int out = (y * bytes_per_row) + (x >> 3);
+        int color = (rgb24[in] + rgb24[in+1] + rgb24[in+2]) < 384;
+        mono[out] |= color << (~x & 7);
+    }
 
-	png_image_write_to_file(&img, filename, 0, input, 0, NULL);
-	png_image_free(&img);
-
-	if(img.warning_or_error)
-	{
-		fprintf(stderr, "libpng %s: %s\n", img.warning_or_error == 1
-			? "warning": "error", img.message);
-		if(img.warning_or_error > 1) return 1;
-	}
-
-	return 0;
+    return mono;
 }
 
-/* icon_conv_8to1(): Convert an 8-bit icon to 1-bit */
-uint8_t *icon_conv_8to1(uint8_t const *input, size_t width, size_t height)
+uint8_t *icon_conv_1to24(uint8_t const *mono, int width, int height)
 {
-	if(!input) return NULL;
-	uint8_t *mono = calloc(68, 1);
-	if(!mono) return NULL;
-	size_t stride = width;
+    int bytes_per_row = (width + 7) >> 3;
+    uint8_t *rgb24 = calloc(width * height, 3);
+    if(!rgb24) return NULL;
 
-	/* If the image is wider than 30 pixels, ignore columns at the right */
-	if(width > 30) width = 30;
+    for(int y = 0; y < height; y++)
+    for(int x = 0; x < width; x++) {
+        int in = (y * bytes_per_row) + (x >> 3);
+        int out = 3 * (y * width + x);
+        int color = (mono[in] & (0x80 >> (x & 7))) != 0 ? 0x00 : 0xff;
+        rgb24[out]   = color;
+        rgb24[out+1] = color;
+        rgb24[out+2] = color;
+    }
 
-	/* Skip the first line if there is enough rows, because in standard
-	   30*19 icons, the first and last lines are skipped */
-	if(height > 17) input += stride, height--;
-
-	/* If height is still larger than 17, ignore rows at the bottom */
-	if(height > 17) height = 17;
-
-	/* Then copy individual pixels on the currently-blank image */
-	for(size_t y = 0; y < height; y++)
-	for(size_t x = 0; x < width; x++)
-	{
-		int offset = (y << 2) + (x >> 3);
-		int color = input[y * stride + x] < 128;
-		uint8_t mask = color << (~x & 7);
-		mono[offset] |= mask;
-	}
-
-	return mono;
+    return rgb24;
 }
 
-/* icon_conv_1to8(): Convert an 1-bit icon to 8-bit */
-uint8_t *icon_conv_1to8(uint8_t const *mono)
+uint16_t *icon_conv_24to16(uint8_t const *rgb24, int width, int height)
 {
-	uint8_t *data = calloc(30 * 17, 1);
-	if(!data) return NULL;
+    uint16_t *rgb16be = calloc(width * height, 2);
+    if(!rgb16be) return NULL;
 
-	for(int y = 0; y < 17; y++)
-	for(int x = 0; x < 30; x++)
-	{
-		int offset = (y << 2) + (x >> 3);
-		int bit = mono[offset] & (0x80 >> (x & 7));
-		data[y * 30 + x] = (bit ? 0x00 : 0xff);
-	}
+    for(int y = 0; y < height; y++)
+    for(int x = 0; x < width; x++) {
+        int in = 3 * (y * width + x);
+        int color = ((rgb24[in]   & 0xf8) << 8)
+                  | ((rgb24[in+1] & 0xfc) << 3)
+                  | ((rgb24[in+2] & 0xf8) >> 3);
+        rgb16be[y * width + x] = htobe16(color);
+    }
 
-	return data;
+    return rgb16be;
+}
+
+uint8_t *icon_conv_16to24(uint16_t const *rgb16be, int width, int height)
+{
+    uint8_t *rgb24 = calloc(width * height, 3);
+    if(!rgb24) return NULL;
+
+    for(int y = 0; y < height; y++)
+    for(int x = 0; x < width; x++) {
+        int out = 3 * (y * width + x);
+        int color = be16toh(rgb16be[y * width + x]);
+        rgb24[out]   = (color & 0xf800) >> 8;
+        rgb24[out+1] = (color & 0x07e0) >> 3;
+        rgb24[out+2] = (color & 0x001f) << 3;
+    }
+
+    return rgb24;
+}
+
+void icon_print_1(uint8_t const *mono, int width, int height)
+{
+    int bytes_per_row = (width + 7) >> 3;
+
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            int in = (y * bytes_per_row) + (x >> 3);
+            int color = (mono[in] & (0x80 >> (x & 7))) != 0;
+            putchar(color ? '#' : ' ');
+            putchar(color ? '#' : ' ');
+        }
+        putchar('\n');
+    }
+}
+
+void icon_print_16(uint16_t const *rgb16be, int width, int height)
+{
+    uint8_t *rgb24 = icon_conv_16to24(rgb16be, width, height);
+    if(!rgb24) {
+        fprintf(stderr, "error: %m\n");
+        return;
+    };
+
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            int in = 3 * (y * width + x);
+            int r=rgb24[in], g=rgb24[in+1], b=rgb24[in+2];
+            printf("\e[48;2;%d;%d;%dm  ", r, g, b);
+        }
+        printf("\e[0m\n");
+    }
+
+    free(rgb24);
 }

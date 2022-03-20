@@ -27,19 +27,22 @@ function(generate_g3a)
     set(G3A_OUTPUT "${G3A_TARGET}.g3a")
   endif()
 
-  # Compute the set of mkg3a arguments
+  # Compute the set of fxgxa arguments
 
-  set(MKG3A_ARGS "")
+  set(FXGXA_ARGS "")
 
   # Empty names are commonly used to avoid having the file name printed over
   # the icon, but using ARGN in cmake_parse_arguments() drops the empty string.
   # Check in KEYWORDS_MISSING_VALUES as a complement.
   if(DEFINED G3A_NAME OR "NAME" IN_LIST G3A_KEYWORDS_MISSING_VALUES)
-    list(APPEND MKG3A_ARGS "-n" "basic:${G3A_NAME}")
+    if("${G3A_NAME}" STREQUAL "")
+      set(G3A_NAME "''")
+    endif()
+    list(APPEND FXGXA_ARGS "-n" "${G3A_NAME}")
   endif()
 
   if(DEFINED G3A_VERSION)
-    list(APPEND MKG3A_ARGS "-V" "${G3A_VERSION}")
+    list(APPEND FXGXA_ARGS "--version=${G3A_VERSION}")
   endif()
 
   if(DEFINED G3A_ICONS)
@@ -52,7 +55,7 @@ function(generate_g3a)
     # Who doesn't REALLY love to deal with escaping
     string(REPLACE "'" "\\'" G3A_ICON1B "${G3A_ICON1}")
     string(REPLACE "'" "\\'" G3A_ICON2B "${G3A_ICON2}")
-    list(APPEND MKG3A_ARGS "-i" "uns:${G3A_ICON1B}" "-i" "sel:${G3A_ICON2B}")
+    list(APPEND FXGXA_ARGS "--icon-uns=${G3A_ICON1B}" "--icon-sel=${G3A_ICON2B}")
   endif()
 
   string(REPLACE "gcc" "objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
@@ -60,7 +63,7 @@ function(generate_g3a)
   add_custom_command(
     TARGET "${G3A_TARGET}" POST_BUILD
     COMMAND ${OBJCOPY} -O binary -R .bss -R .gint_bss ${G3A_TARGET} ${G3A_TARGET}.bin
-    COMMAND mkg3a ${MKG3A_ARGS} "${G3A_TARGET}.bin" "${G3A_OUTPUT}"
+    COMMAND fxgxa --g3a ${FXGXA_ARGS} "${G3A_TARGET}.bin" -o "${G3A_OUTPUT}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G3A_ICONS)

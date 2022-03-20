@@ -20,27 +20,27 @@ function(generate_g1a)
     set(G1A_OUTPUT "${G1A_TARGET}.g1a")
   endif()
 
-  # Compute the set of fxg1a arguments
+  # Compute the set of fxgxa arguments
 
-  set(FXG1A_ARGS "")
+  set(FXGXA_ARGS "")
 
-  # Support empty names enen though they're not normally used in g1a files
+  # Support empty names even though they're not normally used in g1a files
   if(DEFINED G1A_NAME OR "NAME" IN_LIST G1A_KEYWORDS_MISSING_VALUES)
-    list(APPEND FXG1A_ARGS "-n" "${G1A_NAME}")
+    list(APPEND FXGXA_ARGS "-n" "${G1A_NAME}")
   endif()
 
   if(DEFINED G1A_ICON)
     get_filename_component(G1A_ICON "${G1A_ICON}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    list(APPEND FXG1A_ARGS "-i" "${G1A_ICON}")
+    list(APPEND FXGXA_ARGS "-i" "${G1A_ICON}")
   endif()
 
   if(DEFINED G1A_INTERNAL)
-    list(APPEND FXG1A_ARGS "--internal=${G1A_INTERNAL}")
+    list(APPEND FXGXA_ARGS "--internal=${G1A_INTERNAL}")
   endif()
 
   if(DEFINED G1A_VERSION)
-    list(APPEND FXG1A_ARGS "--version=${G1A_VERSION}")
+    list(APPEND FXGXA_ARGS "--version=${G1A_VERSION}")
   endif()
 
   string(REGEX REPLACE "sh-elf-gcc$" "sh-elf-objcopy" OBJCOPY "${CMAKE_C_COMPILER}")
@@ -48,7 +48,7 @@ function(generate_g1a)
   add_custom_command(
     TARGET "${G1A_TARGET}" POST_BUILD
     COMMAND "${OBJCOPY}" -O binary -R .bss -R .gint_bss "${G1A_TARGET}" "${G1A_TARGET}.bin"
-    COMMAND fxg1a ${FXG1A_ARGS} -o "${G1A_OUTPUT}" "${G1A_TARGET}.bin"
+    COMMAND fxgxa --g1a ${FXGXA_ARGS} -o "${G1A_OUTPUT}" "${G1A_TARGET}.bin"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G1A_ICON)

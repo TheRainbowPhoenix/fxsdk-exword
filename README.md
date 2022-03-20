@@ -70,29 +70,27 @@ Summary of commands (`fxsdk --help` for details):
 * `fxsdk build/build-fx/build-cg`: Configure and compile add-ins and libraries
 * `fxsdk send/send-fx/send-cg`: Install files to the calculator (WIP)
 
-**G1A file generation** with `fxg1a`
+**G1A/G3A file generation** with `fxgxa`
 
-`fxg1a` is a versatile g1a file editor that creates, edits and dumps the header
-of fx-9860G add-ins files. It is used to build a g1a file out of a binary
-program.
+`fxgxa` is a versatile g1a/g3a file editor that creates, edits and dumps the
+header of fx-9860G add-ins files. It is used to build g1a/g3a files out of a
+binary program.
 
-It supports PNG icons, checking the validity and checksums of the header,
-repairing broken headers and dumping both the application data and icon.
+It supports PNG icons of any formats, checking the validity and checksums of
+the header, repairing broken headers and dumping both the application data and
+icons.
 
-`fxg1a` is called automatically by the build system in your add-in, so you
+`fxgxa` is called automatically by the build system in your add-in, so you
 don't need to worry about it, but here are the main commands:
 
-* `fxg1a -g`: Generate g1a files
-* `fxg1a -e`: Edit g1a files
-* `fxg1a -d`: Dump metadata, checksum, and icon
-* `fxg1a -r`: Repair control bytes and checksums for broken files
-* `fxg1a -x`: Extract icon into a PNG file
+* `fxgxa --g1a|--g3a`: Generate g1a/g3a files
+* `fxgxa -e`: Edit g1a/g3a files
+* `fxgxa -d`: Dump metadata, checksum, and icon
+* `fxgxa -r`: Repair control bytes and checksums for broken files
+* `fxgxa -x`: Extract icons into PNG files
 
-**G3A file generation** with `fxg3a`
-
-`fxg3a` is very similar to `fxg1a`, but generates and edits g3a files instead.
-These files are used for fx-CG 10/20/50 programs. The main commands are
-identical.
+`fxgxa` has an alias, `fxg1a`, for compatibility with fxSDK up to 2.7.0 for
+which there was no g3a file editor in the fxSDK.
 
 **Asset conversion** with `fxconv`
 

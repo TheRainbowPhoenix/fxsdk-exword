@@ -26,7 +26,7 @@ BINFLAGS := -R .bss -R .gint_bss
 NAME_G1A ?= $(NAME)
 NAME_G3A ?= $(NAME)
 G1AF := -i "$(ICON_FX)" -n "$(NAME_G1A)" --internal="$(INTERNAL)"
-G3AF := -n basic:"$(NAME_G3A)" -i uns:"$(ICON_CG_UNS)" -i sel:"$(ICON_CG_SEL)"
+G3AF := -n "$(NAME_G3A)" --icon-uns="$(ICON_CG_UNS)" --icon-sel="$(ICON_CG_SEL)"
 
 ifeq "$(TOOLCHAIN_FX)" ""
 TOOLCHAIN_FX := sh3eb-elf
@@ -104,13 +104,13 @@ $(TARGET_FX): $(obj-fx) $(deps-fx)
 	@ mkdir -p $(dir $@)
 	$(TOOLCHAIN_FX)-gcc -o $(ELF_FX) $(obj-fx) $(CFLAGSFX) $(LDFLAGSFX)
 	$(TOOLCHAIN_FX)-objcopy -O binary $(BINFLAGS) $(ELF_FX) $(BIN_FX)
-	fxg1a $(BIN_FX) -o $@ $(G1AF)
+	fxgxa --g1a $(BIN_FX) -o $@ $(G1AF)
 
 $(TARGET_CG): $(obj-cg) $(deps-cg)
 	@ mkdir -p $(dir $@)
 	$(TOOLCHAIN_CG)-gcc -o $(ELF_CG) $(obj-cg) $(CFLAGSCG) $(LDFLAGSCG)
 	$(TOOLCHAIN_CG)-objcopy -O binary $(BINFLAGS) $(ELF_CG) $(BIN_CG)
-	mkg3a $(G3AF) $(BIN_CG) $@
+	fxgxa --g3a $(BIN_CG) -o $@ $(G3AF)
 
 # C sources
 build-fx/%.c.o: %.c

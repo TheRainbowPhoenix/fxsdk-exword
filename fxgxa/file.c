@@ -7,13 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <fxg1a.h>
+#include <fxgxa.h>
 
 /* invert_header(): Bit-invert a standard header
    Part of the header is stored inverted in files for obfuscation purposes. */
-static void invert_header(struct g1a *g1a)
+static void invert_header(void *gxa)
 {
-	uint8_t *data = (void *)&g1a->header;
+	uint8_t *data = gxa;
 	for(size_t i = 0; i < 0x20; i++) data[i] = ~data[i];
 }
 
@@ -26,7 +26,7 @@ static void invert_header(struct g1a *g1a)
 
 /* load(): Fully load a file into memory
    Allocates a buffer with @prepend leading bytes initialized to zero. */
-static void *load(const char *filename, size_t *size, size_t prepend)
+static void *load(const char *filename, size_t *size, int header, int footer)
 {
 	int fd;
 	struct stat statbuf;
@@ -40,13 +40,13 @@ static void *load(const char *filename, size_t *size, size_t prepend)
 	if(x > 0) fail("cannot stat %s", filename);
 
 	filesize = statbuf.st_size;
-	data = malloc(prepend + filesize);
+	data = malloc(header + filesize + footer);
 	if(!data) fail("cannot load %s", filename);
 
 	size_t remaining = filesize;
 	while(remaining > 0)
 	{
-		size_t offset = prepend + filesize - remaining;
+		size_t offset = header + filesize - remaining;
 		ssize_t y = read(fd, data + offset, remaining);
 
 		if(y < 0) fail("cannot read from %s", filename);
@@ -54,58 +54,55 @@ static void *load(const char *filename, size_t *size, size_t prepend)
 	}
 	close(fd);
 
-	memset(data, 0, prepend);
+	memset(data, 0, header);
+	memset(data + header + filesize, 0, footer);
 
-	if(size) *size = prepend + filesize;
+	if(size) *size = header + filesize + footer;
 	return data;
 }
 
-/* load_g1a(): Load a g1a file into memory */
-struct g1a *load_g1a(const char *filename, size_t *size)
+void *load_gxa(const char *filename, size_t *size)
 {
-	struct g1a *ret = load(filename, size, 0);
+	void *ret = load(filename, size, 0, 0);
 	if(ret) invert_header(ret);
 	return ret;
 }
 
-/* load_binary(): Load a binary file into memory */
-struct g1a *load_binary(const char *filename, size_t *size)
+void *load_binary(const char *filename, size_t *size, int header, int footer)
 {
-	struct g1a *ret = load(filename, size, 0x200);
-	if(ret) memset(ret, 0xff, 0x20);
+	void *ret = load(filename, size, header, footer);
+	if(ret) invert_header(ret);
 	return ret;
 }
 
 #undef fail
 #define fail(msg, ...) {						\
 	fprintf(stderr, "error: " msg ": %m\n", ##__VA_ARGS__);		\
-	close(fd);							\
-	invert_header(g1a);						\
-	return 1;							\
+	rc = 1;								\
+	goto end;							\
 }
 
-/* save_g1a(): Save a g1a file to disk */
-int save_g1a(const char *filename, struct g1a *g1a, size_t size)
+int save_gxa(const char *filename, void *gxa, size_t size)
 {
 	/* Invert header before saving */
-	invert_header(g1a);
+	invert_header(gxa);
 
+	int rc = 0;
 	int fd = creat(filename, 0644);
 	if(fd < 0) fail("cannot open %s", filename);
 
-	void const *raw = g1a;
 	ssize_t status;
-
 	size_t written = 0;
 	while(written < size)
 	{
-		status = write(fd, raw + written, size - written);
+		status = write(fd, gxa + written, size - written);
 		if(status < 0) fail("cannot write to %s", filename);
 		written += status;
 	}
-	close(fd);
 
+end:
 	/* Before returning, re-invert header for further use */
-	invert_header(g1a);
-	return 0;
+	if(fd >= 0) close(fd);
+	invert_header(gxa);
+	return rc;
 }
