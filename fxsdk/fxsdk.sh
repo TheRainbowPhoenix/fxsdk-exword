@@ -210,13 +210,25 @@ fxsdk_send() {
 }
 
 fxsdk_send_fx() {
-  echo "$TAG Installing for fx9860g using p7"
-  make install-fx
+  echo "$TAG Installing for fx-9860G using p7"
+  if ! command -v p7 >/dev/null 2>&1; then
+    echo "error: p7 is not installed or not available"
+    return 1
+  fi
+  g1a_files=$(find -maxdepth 1 -name '*.g1a')
+  echo "$TAG Running: p7 send -f ${g1a_files}"
+  p7 send -f ${g1a_files}
 }
 
 fxsdk_send_cg() {
-  # TODO
-  echo "error: this is tricky and not implemented yet, sorry x_x"
+  echo "$TAG Installing for fx-CG using fxlink"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  g3a_files=$(find -maxdepth 1 -name '*.g3a')
+  echo "$TAG Running: fxlink -sw ${g3a_files}"
+  fxlink -sw ${g3a_files}
 }
 
 # Parse command name
