@@ -42,6 +42,8 @@ static const char *help_string =
 "                      missing, a generic filename will be created.\n"
 "  -q, --quiet         Activate quiet mode, i.e. minimum verbosity and very\n"
 "                      limited decorations (no extra messages).\n"
+"  -u, --unmount       Force unmount disk at the end of operations, even if\n"
+"                      not mounted here\n"
 "\n"
 "Device filters:\n"
 "  A device filter is a comma-separated list of properties that a device has\n"
@@ -64,6 +66,7 @@ static const char *help_string =
 bool silentmode = false;
 bool loginfile = false;
 char *userlogfilename = NULL;
+bool forceunmount = false;
 
 int main(int argc, char **argv)
 {
@@ -86,10 +89,11 @@ int main(int argc, char **argv)
 		{ "libusb-log",  required_argument, NULL, LIBUSB_LOG },
 		{ "quiet", 	 no_argument,       NULL,       'q' },
 		{ "fxlink-log",  optional_argument, NULL, LOG_IN_FILE },
+		{ "unmount",     no_argument,	     NULL,       'u' },
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsiqf:w::", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsiquf:w::", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -117,6 +121,10 @@ int main(int argc, char **argv)
 	case 'q':
 		printf("Enabling quiet mode (i.e. minimum verbosity)\n");
 		silentmode = true;
+		break;
+	case 'u':
+		printf("Force unmount the disk at the end.\n");
+		forceunmount = true;
 		break;
 	case LOG_IN_FILE:
 		printf("Enabling Log in File Mode\n");
