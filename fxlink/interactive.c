@@ -108,45 +108,39 @@ static void message_finish(message_t *msg)
 		}
 
 		if(!strncmp(msg->header.type, "text", 16)) {
-			
 			/* I choose the option of maintening a console ouptut even if log in file is set */
 			/* this can be removed by uncommenting the following line */
-			
 			//if (!loginfile)
 			{
-				if (!silentmode)
-				{
+				if (!silentmode) {
 					printf("------------------\n");
 					fwrite(msg->output, 1, msg->header.size, stdout);
 					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
 					printf("------------------\n");
 				}
-				else if (silentmode)
-				{
+				else {
 					fwrite(msg->output, 1, msg->header.size, stdout);
 					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
 				}
 			}
-			if (loginfile)
-			{
+			if (loginfile) {
 				FILE *fp = fopen( userlogfilename, "a" );
 				if(!fp) {
 					err("could not save to '%s': %m", userlogfilename);
 					return;
 				}
 				
-				if (!silentmode)
-				{			
+				if (!silentmode) {			
 					fprintf(fp, "------------------\n");
 					fwrite(msg->output, 1, msg->header.size, fp);
 					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
 					fprintf(fp, "------------------\n");
 				}
-				else if (silentmode)
-				{
+				else {
 					fwrite(msg->output, 1, msg->header.size, fp);
 					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
 				}
+				
 				fclose( fp );			
 			}
 			return;
