@@ -102,8 +102,11 @@ static void message_finish(message_t *msg)
 		}
 	}
 
+	static char combined_type[33];
+	snprintf(combined_type, 33, "%.16s-%.16s", msg->header.application,
+		msg->header.type);
 	/* Default to saving to a blob */
-	char *filename = gen_file_name(path, "blob", "bin");
+	char *filename = gen_file_name(path, combined_type, "bin");
 	FILE *fp = fopen(filename, "wb");
 	if(!fp) {
 		err("could not save to '%s': %m", filename);
