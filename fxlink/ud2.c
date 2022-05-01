@@ -16,8 +16,6 @@
 // UDisks2 utility functions
 //---
 
-extern bool forceunmount;
-
 int ud2_start(UDisksClient **udc_ptr, UDisksManager **udm_ptr)
 {
 	GError *error = NULL;
@@ -360,7 +358,7 @@ int main_send(filter_t *filter, delay_t *delay, char **files)
 	}
 
 	/* Unmount the filesystem and eject the device if we mounted it */
-	if(mounted_here || forceunmount) {
+	if(mounted_here || options.force_unmount) {
 		GVariant *args = g_variant_new("a{sv}", NULL);
 		udisks_filesystem_call_unmount_sync(fs, args, NULL, &error);
 		if(error) err("while unmounting %s: %s", dev, error->message);

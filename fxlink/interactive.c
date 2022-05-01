@@ -12,44 +12,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <time.h>
-#include <png.h>
 
 /* Video capture trackers, to avoid spamming terminal with messages */
 static int last_message_was_video = 0;
 static int video_frame_count = 0;
-
-/* external global variables coming from user arguments*/
-extern bool silentmode;
-extern bool loginfile;
-extern char *userlogfilename;
-
-static char *output_file(char const *path,char const *type,char const *suffix)
-{
-	char *filename = NULL;
-	int counter = 1;
-
-	time_t time_raw;
-	struct tm time_bd;
-	time(&time_raw);
-	localtime_r(&time_raw, &time_bd);
-
-	while(1) {
-		asprintf(&filename, "%s/fxlink-%.16s-%04d.%02d.%02d-%02dh%02d-%d.%s",
-			path, type, time_bd.tm_year + 1900, time_bd.tm_mon,
-			time_bd.tm_mday, time_bd.tm_hour, time_bd.tm_min, counter, suffix);
-		if(!filename) continue;
-
-		/* Try to find a name for a file that doesn't exist */
-		if(access(filename, F_OK) == -1) break;
-
-		free(filename);
-		counter++;
-	}
-
-	return filename;
-}
 
 static bool message_new(message_t *msg, usb_fxlink_header_t const *h)
 {
@@ -67,13 +33,15 @@ static bool message_new(message_t *msg, usb_fxlink_header_t const *h)
 		last_message_was_video = 0;
 	}
 
-	if (!silentmode) fprintf(stderr, "New message (v%d.%d): application '%.16s', type '%.16s', "
-		"size %d bytes", version_major, version_minor, h->application,
-		h->type, h->size);
+	if(!options.quiet) {
+		fprintf(stderr, "New message (v%d.%d): application '%.16s', type "
+			"'%.16s', size %d bytes", version_major, version_minor,
+			h->application, h->type, h->size);
+	}
 
 	if(last_message_was_video)
 		fprintf(stderr, " [video frame #%d]", ++video_frame_count);
-	else
+	else if(!options.quiet)
 		fprintf(stderr, "\n");
 
 	msg->output = malloc(h->size);
@@ -95,7 +63,7 @@ static void message_finish(message_t *msg)
 	if(!strncmp(msg->header.application, "fxlink", 16)) {
 		if(!strncmp(msg->header.type, "image", 16)) {
 			usb_fxlink_image_t *img = (void *)msg->output;
-			char *filename = output_file(path, msg->header.type, "png");
+			char *filename = gen_file_name(path, msg->header.type, "png");
 
 			uint8_t **row_pointers = fxlink_protocol_decode_image(msg);
 			fxlink_png_save(row_pointers, img->width, img->height, filename);
@@ -108,41 +76,16 @@ static void message_finish(message_t *msg)
 		}
 
 		if(!strncmp(msg->header.type, "text", 16)) {
-			/* I choose the option of maintening a console ouptut even if log in file is set */
-			/* this can be removed by uncommenting the following line */
-			//if (!loginfile)
-			{
-				if (!silentmode) {
-					printf("------------------\n");
-					fwrite(msg->output, 1, msg->header.size, stdout);
-					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
-					printf("------------------\n");
-				}
-				else {
-					fwrite(msg->output, 1, msg->header.size, stdout);
-					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
-				}
+			if(!options.quiet)
+				printf("------------------\n");
+			fwrite(msg->output, 1, msg->header.size, stdout);
+			if(!options.quiet) {
+				if(msg->output[msg->header.size - 1] != '\n') printf("\n");
+				printf("------------------\n");
 			}
-			if (loginfile) {
-				FILE *fp = fopen( userlogfilename, "a" );
-				if(!fp) {
-					err("could not save to '%s': %m", userlogfilename);
-					return;
-				}
-				
-				if (!silentmode) {			
-					fprintf(fp, "------------------\n");
-					fwrite(msg->output, 1, msg->header.size, fp);
-					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
-					fprintf(fp, "------------------\n");
-				}
-				else {
-					fwrite(msg->output, 1, msg->header.size, fp);
-					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
-				}
-				
-				fclose( fp );			
-			}
+
+			if(options.log_file)
+				fwrite(msg->output, 1, msg->header.size, options.log_file);
 			return;
 		}
 
@@ -160,7 +103,7 @@ static void message_finish(message_t *msg)
 	}
 
 	/* Default to saving to a blob */
-	char *filename = output_file(path, "blob", "bin");
+	char *filename = gen_file_name(path, "blob", "bin");
 	FILE *fp = fopen(filename, "wb");
 	if(!fp) {
 		err("could not save to '%s': %m", filename);
@@ -188,7 +131,7 @@ static void message_output(message_t *msg, void *buffer, int size)
 	if(msg->size_read >= msg->header.size) {
 		bool is_video = !strncmp(msg->header.application, "fxlink", 16) &&
 			!strncmp(msg->header.type, "video", 16);
-		if(!is_video && !silentmode)
+		if(!is_video && !options.quiet)
 			fprintf(stderr, "Successfully read %d bytes\n", msg->size_read);
 		message_finish(msg);
 		msg->valid = false;

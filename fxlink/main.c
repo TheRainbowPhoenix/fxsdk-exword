@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <time.h>
-
 
 int main_test(libusb_device *device, libusb_context *context);
 
@@ -38,12 +36,11 @@ static const char *help_string =
 "                      connect. If DELAY is unspecified, wait indefinitely.\n"
 "  -f FILTER           Filter which calculators can be detected and used\n"
 "  --libusb-log=LEVEL  libusb log level: NONE, ERROR, WARNING, INFO, DEBUG\n"
-"  --fxlink-log=file   Log text data into a logfile called file. If file is\n"
-"                      missing, a generic filename will be created.\n"
-"  -q, --quiet         Activate quiet mode, i.e. minimum verbosity and very\n"
-"                      limited decorations (no extra messages).\n"
-"  -u, --unmount       Force unmount disk at the end of operations, even if\n"
-"                      not mounted here\n"
+"  --fxlink-log[=FILE] Log fxlink text messages into FILE (append mode). If\n"
+"                      FILE is missing, a timestamp-name will be generated.\n"
+"  -q, --quiet         Quite mode (minimum verbosity)\n"
+"  -u, --unmount       In -s mode, always unmount the disk, even if it was\n"
+"                      mounted by someone else\n"
 "\n"
 "Device filters:\n"
 "  A device filter is a comma-separated list of properties that a device has\n"
@@ -63,10 +60,8 @@ static const char *help_string =
 "    serial_number=ID  Matches this specific serial number. Requires write\n"
 "                      access to the device in libusb. [libusb, udisks2]\n";
 
-bool silentmode = false;
-bool loginfile = false;
-char *userlogfilename = NULL;
-bool forceunmount = false;
+/* Global options */
+struct fxlink_options options;
 
 int main(int argc, char **argv)
 {
@@ -74,22 +69,25 @@ int main(int argc, char **argv)
 	delay_t delay = delay_seconds(0);
 	filter_t *filter = NULL;
 
+	options.quiet = false;
+	options.force_unmount = false;
+	options.log_file = NULL;
+
 	//---
 	// Command-line argument parsing
 	//---
 
-	enum { LIBUSB_LOG=1 };
-	enum { LOG_IN_FILE=2 };
+	enum { LIBUSB_LOG=1, LOG_TO_FILE=2 };
 	const struct option longs[] = {
-		{ "help",        no_argument,       NULL,       'h' },
-		{ "list",        no_argument,       NULL,       'l' },
-		{ "blocks",      no_argument,       NULL,       'b' },
-		{ "send",        no_argument,       NULL,       's' },
-		{ "interactive", no_argument,       NULL,       'i' },
+		{ "help",        no_argument,       NULL, 'h' },
+		{ "list",        no_argument,       NULL, 'l' },
+		{ "blocks",      no_argument,       NULL, 'b' },
+		{ "send",        no_argument,       NULL, 's' },
+		{ "interactive", no_argument,       NULL, 'i' },
 		{ "libusb-log",  required_argument, NULL, LIBUSB_LOG },
-		{ "quiet", 	 no_argument,       NULL,       'q' },
-		{ "fxlink-log",  optional_argument, NULL, LOG_IN_FILE },
-		{ "unmount",     no_argument,	     NULL,       'u' },
+		{ "quiet",       no_argument,       NULL, 'q' },
+		{ "fxlink-log",  optional_argument, NULL, LOG_TO_FILE },
+		{ "unmount",     no_argument,       NULL, 'u' },
 	};
 
 	while(option >= 0 && option != '?')
@@ -119,29 +117,20 @@ int main(int argc, char **argv)
 				"NONE, ERROR, WARNING, INFO or DEBUG\n", optarg);
 		break;
 	case 'q':
-		printf("Enabling quiet mode (i.e. minimum verbosity)\n");
-		silentmode = true;
+		options.quiet = true;
 		break;
 	case 'u':
-		printf("Force unmount the disk at the end.\n");
-		forceunmount = true;
+		options.force_unmount = true;
 		break;
-	case LOG_IN_FILE:
-		printf("Enabling Log in File Mode\n");
-		loginfile = true;
-		if (optarg) {
-			asprintf( &userlogfilename, "%s", optarg );
-		}
+	case LOG_TO_FILE:
+		if(optarg)
+			options.log_file = fopen(optarg, "a");
 		else {
-			time_t time_raw;
-			struct tm time_bd;
-			time(&time_raw);
-			localtime_r(&time_raw, &time_bd);
-			asprintf( &userlogfilename, "./fxlink-logfile-%04d.%02d.%02d-%02dh%02d.log",
-			 time_bd.tm_year + 1900, time_bd.tm_mon + 1, time_bd.tm_mday,
-			 time_bd.tm_hour, time_bd.tm_min );
+			char *name = gen_file_name(".", "logfile", "log");
+			printf("--fxlink-log will output in '%s'\n", name);
+			options.log_file = fopen(name, "a");
+			free(name);
 		}
-		printf("Log File will be : %s \n", userlogfilename );
 		break;
 	case 'w':
 		if(!optarg) {
@@ -212,7 +201,10 @@ int main(int argc, char **argv)
 		rc = main_interactive(filter, &delay, context);
 	}
 
-	if(context) libusb_exit(context);
+	if(context)
+		libusb_exit(context);
+	if(options.log_file)
+		fclose(options.log_file);
 	return rc;
 }
 

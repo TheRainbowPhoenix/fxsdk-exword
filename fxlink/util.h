@@ -30,6 +30,22 @@
 		libusb_strerror(rc))
 
 //---
+// File name generation
+//---
+
+/* gen_file_name(): Generate a unique timestamp-based file name
+
+   This function generates a unique name for a file to be stored in [path],
+   with the specified [name] component, and the provided [suffix]. The
+   generated path looks like
+
+     <path>/fxlink-<name>-2021.05.09-19h23-1.<suffix>
+
+   with the [-1] suffix being chosen as to avoid overriding extisting files.
+   Returns a newly-allocated string to be freed after use. */
+char *gen_file_name(char const *path, char const *name, char const *suffix);
+
+//---
 // Delay
 //---
 

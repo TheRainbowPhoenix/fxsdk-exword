@@ -9,6 +9,15 @@
 #include "filter.h"
 #include "util.h"
 
+struct fxlink_options
+{
+	bool quiet;
+	bool force_unmount;
+	FILE *log_file;
+};
+
+extern struct fxlink_options options;
+
 /* Main function for -l */
 int main_list(filter_t *filter, delay_t *delay, libusb_context *context);
 
