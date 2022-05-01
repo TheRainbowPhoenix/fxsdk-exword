@@ -20,6 +20,11 @@
 static int last_message_was_video = 0;
 static int video_frame_count = 0;
 
+/* external global variables coming from user arguments*/
+extern bool silentmode;
+extern bool loginfile;
+extern char *userlogfilename;
+
 static char *output_file(char const *path,char const *type,char const *suffix)
 {
 	char *filename = NULL;
@@ -62,7 +67,7 @@ static bool message_new(message_t *msg, usb_fxlink_header_t const *h)
 		last_message_was_video = 0;
 	}
 
-	fprintf(stderr, "New message (v%d.%d): application '%.16s', type '%.16s', "
+	if (!silentmode) fprintf(stderr, "New message (v%d.%d): application '%.16s', type '%.16s', "
 		"size %d bytes", version_major, version_minor, h->application,
 		h->type, h->size);
 
@@ -103,10 +108,41 @@ static void message_finish(message_t *msg)
 		}
 
 		if(!strncmp(msg->header.type, "text", 16)) {
-			printf("------------------\n");
-			fwrite(msg->output, 1, msg->header.size, stdout);
-			if(msg->output[msg->header.size - 1] != '\n') printf("\n");
-			printf("------------------\n");
+			/* I choose the option of maintening a console ouptut even if log in file is set */
+			/* this can be removed by uncommenting the following line */
+			//if (!loginfile)
+			{
+				if (!silentmode) {
+					printf("------------------\n");
+					fwrite(msg->output, 1, msg->header.size, stdout);
+					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
+					printf("------------------\n");
+				}
+				else {
+					fwrite(msg->output, 1, msg->header.size, stdout);
+					if(msg->output[msg->header.size - 1] != '\n') printf("\n");
+				}
+			}
+			if (loginfile) {
+				FILE *fp = fopen( userlogfilename, "a" );
+				if(!fp) {
+					err("could not save to '%s': %m", userlogfilename);
+					return;
+				}
+				
+				if (!silentmode) {			
+					fprintf(fp, "------------------\n");
+					fwrite(msg->output, 1, msg->header.size, fp);
+					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
+					fprintf(fp, "------------------\n");
+				}
+				else {
+					fwrite(msg->output, 1, msg->header.size, fp);
+					if(msg->output[msg->header.size - 1] != '\n') fprintf(fp, "\n");
+				}
+				
+				fclose( fp );			
+			}
 			return;
 		}
 
@@ -152,7 +188,7 @@ static void message_output(message_t *msg, void *buffer, int size)
 	if(msg->size_read >= msg->header.size) {
 		bool is_video = !strncmp(msg->header.application, "fxlink", 16) &&
 			!strncmp(msg->header.type, "video", 16);
-		if(!is_video)
+		if(!is_video && !silentmode)
 			fprintf(stderr, "Successfully read %d bytes\n", msg->size_read);
 		message_finish(msg);
 		msg->valid = false;

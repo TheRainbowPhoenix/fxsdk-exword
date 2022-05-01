@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
+
 
 int main_test(libusb_device *device, libusb_context *context);
 
@@ -36,6 +38,12 @@ static const char *help_string =
 "                      connect. If DELAY is unspecified, wait indefinitely.\n"
 "  -f FILTER           Filter which calculators can be detected and used\n"
 "  --libusb-log=LEVEL  libusb log level: NONE, ERROR, WARNING, INFO, DEBUG\n"
+"  --fxlink-log=file   Log text data into a logfile called file. If file is\n"
+"                      missing, a generic filename will be created.\n"
+"  -q, --quiet         Activate quiet mode, i.e. minimum verbosity and very\n"
+"                      limited decorations (no extra messages).\n"
+"  -u, --unmount       Force unmount disk at the end of operations, even if\n"
+"                      not mounted here\n"
 "\n"
 "Device filters:\n"
 "  A device filter is a comma-separated list of properties that a device has\n"
@@ -55,6 +63,11 @@ static const char *help_string =
 "    serial_number=ID  Matches this specific serial number. Requires write\n"
 "                      access to the device in libusb. [libusb, udisks2]\n";
 
+bool silentmode = false;
+bool loginfile = false;
+char *userlogfilename = NULL;
+bool forceunmount = false;
+
 int main(int argc, char **argv)
 {
 	int rc=1, mode=0, error=0, option=0, loglevel=LIBUSB_LOG_LEVEL_ERROR;
@@ -66,6 +79,7 @@ int main(int argc, char **argv)
 	//---
 
 	enum { LIBUSB_LOG=1 };
+	enum { LOG_IN_FILE=2 };
 	const struct option longs[] = {
 		{ "help",        no_argument,       NULL,       'h' },
 		{ "list",        no_argument,       NULL,       'l' },
@@ -73,10 +87,13 @@ int main(int argc, char **argv)
 		{ "send",        no_argument,       NULL,       's' },
 		{ "interactive", no_argument,       NULL,       'i' },
 		{ "libusb-log",  required_argument, NULL, LIBUSB_LOG },
+		{ "quiet", 	 no_argument,       NULL,       'q' },
+		{ "fxlink-log",  optional_argument, NULL, LOG_IN_FILE },
+		{ "unmount",     no_argument,	     NULL,       'u' },
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsif:w::", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsiquf:w::", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -100,6 +117,31 @@ int main(int argc, char **argv)
 			loglevel = LIBUSB_LOG_LEVEL_DEBUG;
 		else fprintf(stderr, "warning: ignoring log level '%s'; should be "
 				"NONE, ERROR, WARNING, INFO or DEBUG\n", optarg);
+		break;
+	case 'q':
+		printf("Enabling quiet mode (i.e. minimum verbosity)\n");
+		silentmode = true;
+		break;
+	case 'u':
+		printf("Force unmount the disk at the end.\n");
+		forceunmount = true;
+		break;
+	case LOG_IN_FILE:
+		printf("Enabling Log in File Mode\n");
+		loginfile = true;
+		if (optarg) {
+			asprintf( &userlogfilename, "%s", optarg );
+		}
+		else {
+			time_t time_raw;
+			struct tm time_bd;
+			time(&time_raw);
+			localtime_r(&time_raw, &time_bd);
+			asprintf( &userlogfilename, "./fxlink-logfile-%04d.%02d.%02d-%02dh%02d.log",
+			 time_bd.tm_year + 1900, time_bd.tm_mon + 1, time_bd.tm_mday,
+			 time_bd.tm_hour, time_bd.tm_min );
+		}
+		printf("Log File will be : %s \n", userlogfilename );
 		break;
 	case 'w':
 		if(!optarg) {
