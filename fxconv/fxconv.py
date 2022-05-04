@@ -1096,14 +1096,20 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0, alpha=None):
 	# Create byte arrays with pixel data and palette data
 	#---
 
-	pixel_count = img.width * img.height
+	stride = 0
 
 	if not color_count:
-		size = pixel_count * 2
+		# In RGB16, preserve alignment between rows
+		stride = (img.width + 1) // 2 * 2
+		size = stride * img.height * 2
 	elif color_count == 256:
-		size = pixel_count
+		# No constraint in P8
+		size = img.width * img.height
+		stride = img.width
 	elif color_count == 16:
-		size = ((img.width + 1) // 2) * img.height
+		# In P4, pad whole bytes
+		stride = (img.width + 1) // 2
+		size = stride * img.height
 
 	# Result of encoding
 	encoded = bytearray(size)
@@ -1116,8 +1122,8 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0, alpha=None):
 
 			if not color_count:
 				c = alpha_encoding(rgb24to16(pixels[x, y]), a)
+				offset = (stride * y + x) * 2
 				encoded[offset:offset+2] = u16(c)
-				offset += 2
 
 			elif color_count == 16:
 				c = palette_remap[pixels[x, y]][0] if a > 0 else alpha
