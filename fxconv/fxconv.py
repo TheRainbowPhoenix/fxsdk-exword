@@ -114,20 +114,16 @@ CG_PROFILES = [
 	# 16-bit RGB565 and RGB565 with alpha
 	CgProfile(0x0, "rgb565", False),
 	CgProfile(0x1, "rgb565a", True),
-	# 8-bit palette for RGB565 and RGB565A (supported by Azur only)
+	# 8-bit palette for RGB565 and RGB565A
 	CgProfile(0x4, "p8_rgb565", False),
 	CgProfile(0x5, "p8_rgb565a", True),
-	# 4-bit palette for RGB565 and RGB565A (supported by Azur only)
+	# 4-bit palette for RGB565 and RGB565A
 	CgProfile(0x6, "p4_rgb565", False),
 	CgProfile(0x3, "p4_rgb565a", True),
 
 	# Original names for RGB565 and RGB565A
 	CgProfile(0x0, "r5g6b5", False),
 	CgProfile(0x1, "r5g6b5a", True),
-	# The original 8-bit palette mode of bopti (inferior to the other P8 modes)
-	CgProfile(0x2, "p8", True),
-	# The original 4-bit palette mode of bopti (same as P4_RGB565A)
-	CgProfile(0x3, "p4", True),
 ]
 
 # Libimg flags
@@ -541,15 +537,18 @@ def convert_bopti_cg(input, params):
 		profile = CgProfile.find(name)
 
 	elif name.startswith("p"):
-		if name in ["p8_rgb565", "p8_rgb565a"]:
+		if name.startswith("p8"):
 			trim_palette = True
 			palette_base = 0x80
-		else:
+			color_count = 256
+		elif name.startswith("p4"):
 			trim_palette = False
 			palette_base = 0x00
+			color_count = 16
+		else:
+			raise FxconvError(f"unknown palette format {profile}")
 
-		# Encoded the image into 16-bit with a palette of 16 or 256 entries
-		color_count = 1 << int(name[1])
+		# Encode the image into 16-bit with a palette of 16 or 256 entries
 		encoded, palette, alpha = r5g6b5(img, color_count=color_count,
 			trim_palette=trim_palette, palette_base=palette_base)
 
@@ -559,8 +558,17 @@ def convert_bopti_cg(input, params):
 	else:
 		raise FxconvError(f"unknown color profile '{name}'")
 
+	# Resolve "p8" and "p4" to their optimal variation
+	if name == "p8":
+		name = "p8_rgb565" if alpha is None else "p8_rgb565a"
+		profile = CgProfile.find(name)
+	elif name == "p4":
+		name = "p4_rgb565" if alpha is None else "p4_rgb565a"
+		profile = CgProfile.find(name)
+
 	if alpha is not None and not profile.supports_alpha:
-		raise FxconvError(f"'{input}' has transparency; use rgb565a, p8 or p4")
+		raise FxconvError(f"'{input}' has transparency; use rgb565a, " +
+			"p8_rgb565a or p4_rgb565a")
 
 	header = bytes()
 	header += u16(profile.id)
