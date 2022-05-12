@@ -530,11 +530,14 @@ def convert_bopti_cg(input, params):
 
 	if name in ["r5g6b5", "r5g6b5a", "rgb565", "rgb565a", None]:
 		# Encode the image into the 16-bit format
-		encoded, alpha = r5g6b5(img)
+		encoded, stride, alpha = r5g6b5(img)
 
 		if name is None:
 			name = "rgb565" if alpha is None else "rgb565a"
 		profile = CgProfile.find(name)
+
+		color_count = -1
+		palette = None
 
 	elif name.startswith("p"):
 		force_alpha = name.endswith("_rgb565a")
@@ -550,12 +553,11 @@ def convert_bopti_cg(input, params):
 			raise FxconvError(f"unknown palette format {profile}")
 
 		# Encode the image into 16-bit with a palette of 16 or 256 entries
-		encoded, palette, alpha = r5g6b5(img, color_count=color_count,
+		encoded, stride, palette, alpha = r5g6b5(img, color_count=color_count,
 			trim_palette=trim_palette, palette_base=palette_base,
 			force_alpha=force_alpha)
 
 		color_count = len(palette) // 2
-		encoded = palette + encoded
 
 	else:
 		raise FxconvError(f"unknown color profile '{name}'")
@@ -572,17 +574,23 @@ def convert_bopti_cg(input, params):
 		raise FxconvError(f"'{input}' has transparency; use rgb565a, " +
 			"p8_rgb565a or p4_rgb565a")
 
-	header = bytes()
-	header += u16(profile.id)
-	header += u16(alpha if alpha is not None else 0xffff)
-	header += u16(img.width) + u16(img.height)
-
-	if name in ["p8_rgb565", "p8_rgb565a"]:
-		header += u16(color_count)
-
 	if len(encoded) % 4 != 0:
 		encoded += bytes(4 - (len(encoded) % 4))
-	return header + encoded
+
+	o = ObjectData()
+	o += u8(profile.id)
+	o += u8(3) # DATA_RO, PALETTE_RO
+	o += u16(alpha if alpha is not None else 0xffff)
+	o += u16(img.width)
+	o += u16(img.height)
+	o += u32(stride)
+	o += ref(encoded, padding=4)
+	o += u32(color_count)
+	if palette is None:
+		o += u32(0)
+	else:
+		o += ref(palette)
+	return o
 
 #
 # Font conversion
@@ -848,11 +856,11 @@ def convert_libimg_cg(input, params):
 	img = img.crop(area.tuple())
 
 	# Encode the image into 16-bit format and force the alpha to 0x0001
-	encoded, alpha = r5g6b5(img, force_alpha=(0x0001,0x0000))
+	encoded, stride, alpha = r5g6b5(img, force_alpha=(0x0001,0x0000))
 
 	o = ObjectData()
 	o += u16(img.width) + u16(img.height)
-	o += u16(img.width) + u8(LIBIMG_FLAG_RO) + bytes(1)
+	o += u16(stride // 2) + u8(LIBIMG_FLAG_RO) + bytes(1)
 	o += ref(encoded)
 
 	return o
@@ -942,7 +950,8 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
 	with this color.
 
 	When color_count=0, converts the image to 16-bit; returns a bytearray of
-	pixel data and the automatically-chosen alpha value (or None).
+	pixel data, the byte stride, and the automatically-chosen alpha value (or
+	None).
 
 	* If force_alpha is a pair (value, replacement), then the alpha is forced
 	  to be the indicated value, and any natural occurrence of the value is
@@ -950,8 +959,8 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
 
 	When color_count>0, if should be either 16 or 256. The image is encoded
 	with a palette of that size. Returns the converted image as a bytearray,
-	the palette as a bytearray, and the alpha value (None if there were no
-	transparent pixels).
+	the byte stride, the palette as a bytearray, and the alpha value (None if
+	there were no transparent pixels).
 
 	* If trim_palette is set, the palette bytearray is trimmed so that only
 	  used entries are set (this does not include alpha, which is at the end).
@@ -1083,7 +1092,7 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
 
 	if not color_count:
 		# In RGB16, preserve alignment between rows
-		stride = (img.width + 1) // 2 * 2
+		stride = (img.width + 1) // 2 * 4
 		size = stride * img.height * 2
 	elif color_count == 256:
 		# No constraint in P8
@@ -1105,7 +1114,7 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
 
 			if not color_count:
 				c = alpha_encoding(rgb24to16(pixels[x, y]), a)
-				offset = (stride * y + x) * 2
+				offset = (stride * y) + x * 2
 				encoded[offset:offset+2] = u16(c)
 
 			elif color_count == 16:
@@ -1142,9 +1151,9 @@ def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
 	if color_count > 0:
 		if alpha is not None:
 			alpha = palette_map[alpha]
-		return encoded, encoded_palette, alpha
+		return encoded, stride, encoded_palette, alpha
 	else:
-		return encoded, alpha
+		return encoded, stride, alpha
 
 def convert(input, params, target, output=None, model=None, custom=None):
 	"""
