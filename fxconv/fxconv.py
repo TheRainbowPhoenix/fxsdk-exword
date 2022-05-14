@@ -90,40 +90,50 @@ FX_PROFILES = [
 
 # fx-CG 50 profiles
 class CgProfile:
-	def __init__(self, id, name, alpha):
-		"""
-		Construct a CgProfile object.
-		* [id] is the profile ID in bopti
-		* [name] is the profile name as found in the specification key
-		* [alpha] is True if this profile supports alpha, False otherwise
-		"""
-
+	def __init__(self, id, depth, names, alpha=None, palette=None):
+		# Numerical ID
 		self.id = id
-		self.name = name
-		self.supports_alpha = alpha
+		# Name for printing
+		self.names = names
+		# Bit depth
+		self.depth = depth
+		# Whether the profile has alpha
+		self.has_alpha = (alpha is not None)
+		# Alpha value (None has_alpha == False)
+		self.alpha = alpha
+		# Whether the profile is indexed
+		self.is_indexed = (palette is not None)
+
+		if palette is not None:
+			# Palette base value (skipping the alpha value)
+			self.palette_base = palette[0]
+			# Color count (indices are always 0..color_count-1, wraps around)
+			self.color_count = palette[1]
+			# Whether to trim the palette to a minimal length
+			self.trim_palette = palette[2]
 
 	@staticmethod
 	def find(name):
 		"""Find a profile by name."""
 		for profile in CG_PROFILES:
-			if profile.name == name:
+			if name in profile.names:
 				return profile
 		return None
 
+IMAGE_RGB16 = 0
+IMAGE_P8 = 1
+IMAGE_P4 = 2
+
 CG_PROFILES = [
 	# 16-bit RGB565 and RGB565 with alpha
-	CgProfile(0x0, "rgb565", False),
-	CgProfile(0x1, "rgb565a", True),
+	CgProfile(0x0, IMAGE_RGB16, ["rgb565", "r5g6b5"]),
+	CgProfile(0x1, IMAGE_RGB16, ["rgb565a", "r5g6b5a"], alpha=0x0001),
 	# 8-bit palette for RGB565 and RGB565A
-	CgProfile(0x4, "p8_rgb565", False),
-	CgProfile(0x5, "p8_rgb565a", True),
+	CgProfile(0x4, IMAGE_P8, "p8_rgb565", palette=(0x80,256,True)),
+	CgProfile(0x5, IMAGE_P8, "p8_rgb565a", alpha=0x80, palette=(0x81,256,True)),
 	# 4-bit palette for RGB565 and RGB565A
-	CgProfile(0x6, "p4_rgb565", False),
-	CgProfile(0x3, "p4_rgb565a", True),
-
-	# Original names for RGB565 and RGB565A
-	CgProfile(0x0, "r5g6b5", False),
-	CgProfile(0x1, "r5g6b5a", True),
+	CgProfile(0x6, IMAGE_P4, "p4_rgb565", palette=(0,16,False)),
+	CgProfile(0x3, IMAGE_P4, "p4_rgb565a", alpha=0, palette=(1,16,False)),
 ]
 
 # Libimg flags
@@ -511,7 +521,19 @@ def _image_project(img, f):
 # Image conversion for fx-CG 50
 #
 
+def image_has_alpha(img):
+	# Convert the alpha channel to 1-bit; check if there are transparent pixels
+	try:
+		alpha_channel = img.getchannel("A").convert("1", dither=Image.NONE)
+		alpha_levels = { t[1]: t[0] for t in alpha_channel.getcolors() }
+		return 0 in alpha_levels
+	except ValueError:
+		return False
+
 def convert_bopti_cg(input, params):
+	return convert_image_cg(input, params)
+
+def convert_image_cg(input, params):
 	if isinstance(input, Image.Image):
 		img = input.copy()
 	else:
@@ -523,68 +545,48 @@ def convert_bopti_cg(input, params):
 	area = Area(params.get("area", {}), img)
 	img = img.crop(area.tuple())
 
-	# If no profile is specified, fall back to rgb565 or rgb565a later on
-	name = params.get("profile", None)
-	if name is not None:
-		profile = CgProfile.find(name)
+	img = img.convert("RGBA")
 
-	if name in ["r5g6b5", "r5g6b5a", "rgb565", "rgb565a", None]:
-		# Encode the image into the 16-bit format
-		encoded, stride, alpha = r5g6b5(img)
+	#---
+	# Format selection
+	#---
 
-		if name is None:
-			name = "rgb565" if alpha is None else "rgb565a"
-		profile = CgProfile.find(name)
+	format_name = params.get("profile", "")
+	has_alpha = image_has_alpha(img)
 
-		color_count = -1
-		palette = None
+	# If no format is specified, select rgb565 or rgb565a
+	if format_name == "":
+		format_name = "rgb565a" if has_alpha else "rgb565"
+	# Similarly, if "p8" or "p4" is specified, select the cheapest variation
+	elif format_name == "p8":
+		format_name = "p8_rgb565a" if has_alpha else "p8_rgb565"
+	elif format_name == "p4":
+		format_name = "p4_rgb565a" if has_alpha else "p4_rgb565"
 
-	elif name.startswith("p"):
-		force_alpha = name.endswith("_rgb565a")
-		if name.startswith("p8"):
-			trim_palette = True
-			palette_base = 0x80
-			color_count = 256
-		elif name.startswith("p4"):
-			trim_palette = False
-			palette_base = 0x00
-			color_count = 16
-		else:
-			raise FxconvError(f"unknown palette format {profile}")
+	# Otherwise, just use the format as specified
+	format = CgProfile.find(format_name)
+	if format is None:
+		raise FxconvError(f"unknown image format '{format_name}")
 
-		# Encode the image into 16-bit with a palette of 16 or 256 entries
-		encoded, stride, palette, alpha = r5g6b5(img, color_count=color_count,
-			trim_palette=trim_palette, palette_base=palette_base,
-			force_alpha=force_alpha)
+	# Check that we have transparency support if we need it
+	if has_alpha and not format.has_alpha:
+		raise FxconvError(f"'{input}' has transparency, which {format_name} "+
+			"doesn't support")
 
-		color_count = len(palette) // 2
+	#---
+	# Structure generation
+	#---
 
-	else:
-		raise FxconvError(f"unknown color profile '{name}'")
-
-	# Resolve "p8" and "p4" to their optimal variation
-	if name == "p8":
-		name = "p8_rgb565" if alpha is None else "p8_rgb565a"
-		profile = CgProfile.find(name)
-	elif name == "p4":
-		name = "p4_rgb565" if alpha is None else "p4_rgb565a"
-		profile = CgProfile.find(name)
-
-	if alpha is not None and not profile.supports_alpha:
-		raise FxconvError(f"'{input}' has transparency; use rgb565a, " +
-			"p8_rgb565a or p4_rgb565a")
-
-	if len(encoded) % 4 != 0:
-		encoded += bytes(4 - (len(encoded) % 4))
+	data, stride, palette, color_count = image_encode(img, format)
 
 	o = ObjectData()
-	o += u8(profile.id)
+	o += u8(format.id)
 	o += u8(3) # DATA_RO, PALETTE_RO
-	o += u16(alpha if alpha is not None else 0xffff)
+	o += u16(format.alpha if format.alpha is not None else 0xffff)
 	o += u16(img.width)
 	o += u16(img.height)
 	o += u32(stride)
-	o += ref(encoded, padding=4)
+	o += ref(data, padding=4)
 	o += u32(color_count)
 	if palette is None:
 		o += u32(0)
@@ -856,7 +858,8 @@ def convert_libimg_cg(input, params):
 	img = img.crop(area.tuple())
 
 	# Encode the image into 16-bit format and force the alpha to 0x0001
-	encoded, stride, alpha = r5g6b5(img, force_alpha=(0x0001,0x0000))
+	format = CgProfile.find("rgb565a")
+	encoded, stride, palette, color_count = image_encode(img, format)
 
 	o = ObjectData()
 	o += u16(img.width) + u16(img.height)
@@ -942,218 +945,141 @@ def quantize(img, dither=False):
 
 	return img
 
-def r5g6b5(img, color_count=0, trim_palette=False, palette_base=0,
-	force_alpha=None):
+def image_encode(img, format):
 	"""
-	Convert a PIL.Image.Image into an RGB565 byte stream. If there are
-	transparent pixels, chooses a color to implement alpha and replaces them
-	with this color.
+	Encodes a PIL.Image.Image into one of the fx-CG image formats. The color
+	depth is either RGB16, P8 or P4, with various transparency settings and
+	palette encodings.
 
-	When color_count=0, converts the image to 16-bit; returns a bytearray of
-	pixel data, the byte stride, and the automatically-chosen alpha value (or
-	None).
-
-	* If force_alpha is a pair (value, replacement), then the alpha is forced
-	  to be the indicated value, and any natural occurrence of the value is
-	  substituted with the replacement.
-
-	When color_count>0, if should be either 16 or 256. The image is encoded
-	with a palette of that size. Returns the converted image as a bytearray,
-	the byte stride, the palette as a bytearray, and the alpha value (None if
-	there were no transparent pixels).
-
-	* If trim_palette is set, the palette bytearray is trimmed so that only
-	  used entries are set (this does not include alpha, which is at the end).
-	* If palette_base is provided, palette entries will be numbered starting
-	  from that value, wrapping around modulo color_count.
-	* If force_alpha=True, an index will be reserved for alpha even if no pixel
-	  is transparent in the source image.
+	Returns 4 values:
+	* data: A bytearray containing the encoded image data
+	* stride: The byte stride of the data array
+	* palette: A bytearray containing the encoded palette (None if not indexed)
+	* color_count: Number of colors in the palette (-1 if not indexed)
 	"""
-
-	def rgb24to16(rgb24):
-		r, g, b = rgb24
-		r = (r & 0xff) >> 3
-		g = (g & 0xff) >> 2
-		b = (b & 0xff) >> 3
-		return (r << 11) | (g << 5) | b
 
 	#---
-	# Initial image transforms
-	# Separate the alpha channel and generate a first palette.
+	# Separate the alpha channel
 	#---
 
 	# Save the alpha channel and make it 1-bit. If there are transparent
 	# pixels, set has_alpha=True and record the alpha channel in alpha_pixels.
-	try:
+	if format.has_alpha:
 		alpha_channel = img.getchannel("A").convert("1", dither=Image.NONE)
-		alpha_levels = { t[1]: t[0] for t in alpha_channel.getcolors() }
-		has_alpha = 0 in alpha_levels
-		replacement = None
+	else:
+		alpha_channel = Image.new("1", img.size, 1)
 
-		if has_alpha:
-			alpha_pixels = alpha_channel.load()
-
-	except ValueError:
-		has_alpha = False
-
-	# Convert the input image to RGB
+	alpha_pixels = alpha_channel.load()
 	img = img.convert("RGB")
 
-	# Transparent pixels also have values on the RGB channels, so they use up a
-	# palette entry (in indexed mode) or possible alpha value (in 16-bit mode)
-	# even though their color is unused. Replace them with a non-transparent
-	# color used elsewhere in the image to avoid that.
-	if has_alpha:
-		nontransparent_pixels = { (x,y)
-			for x in range(img.width) for y in range(img.height)
-			if alpha_pixels[x,y] > 0 }
+	# Transparent pixels have random values on the RGB channels, causing them
+	# to use up palette entries during quantization. To avoid that, set their
+	# RGB data to a color used somewhere else in the image.
+	pixels = img.load()
+	bg_color = next((pixels[x,y]
+	                 for x in range(img.width) for y in range(img.height)
+	                 if alpha_pixels[x,y] > 0),
+                    (0,0,0))
 
-		if nontransparent_pixels:
-			x0, y0 = nontransparent_pixels.pop()
-			pixels = img.load()
+	for y in range(img.height):
+		for x in range(img.width):
+			if alpha_pixels[x,y] == 0:
+				pixels[x,y] = bg_color
 
-			for y in range(img.height):
-				for x in range(img.width):
-					if alpha_pixels[x,y] == 0:
-						pixels[x,y] = pixels[x0,y0]
+	#---
+	# Quantize to generate a palette
+	#---
 
-	# In indexed mode, generate a specific palette
-	if color_count:
-		palette_max_size = color_count - int(has_alpha or force_alpha == True)
+	if format.is_indexed:
+		palette_max_size = format.color_count - int(format.has_alpha)
 		img = img.convert("P",
 			dither=Image.NONE,
 			palette=Image.ADAPTIVE,
 			colors=palette_max_size)
 
-		# Format for the first palette is a list of N triplets where N is the
-		# number of used opaque colors; obviously N <= palette_max_size
-		# Note: sometimes colors are not numbered 0..N-1, so we take the max
-		# value rather than len(img.getcolors()); we don't try to remap indices
+		# The palette format is a list of N triplets where N includes both the
+		# opaque colors we just generated and an alpha color. Sometimes colors
+		# after img.convert() are not numbered 0..N-1, so take the max.
 		pixels = img.load()
 		N = 1 + max(pixels[x,y]
-		            for y in range(img.height)
-		            for x in range(img.width))
-		palette1 = img.getpalette()[:3*N]
-		palette1 = list(zip(palette1[::3], palette1[1::3], palette1[2::3]))
+		            for y in range(img.height) for x in range(img.width))
+
+		palette = img.getpalette()[:3*N]
+		palette = list(zip(palette[::3], palette[1::3], palette[2::3]))
+
+		# For formats with transparency, make the transparent color consistent
+		if format.has_alpha:
+			N += 1
+			palette = [(255, 0, 255)] + palette
+
+		# Also keep track of how to remap indices from the values generated by
+		# img.convert() into the palette, which is shifted by 1 due to alpha
+		# and also starts at format.palette_base. Note: format.palette_base
+		# already starts 1 value later for formats with alpha.
+		palette_map = [(format.palette_base + i) % format.color_count
+		               for i in range(N)]
 	else:
-		pixels = img.load()
+		px = img.load()
 
 	#---
-	# Alpha encoding
-	# Find a value to encode transparency and map it into palettes.
+	# Encode data into a bytearray
 	#---
 
-	# RGB565A with fixed alpha value (fi. alpha=0x0001 in libimg)
-	if color_count == 0 and force_alpha is not None:
-		alpha, replacement = force_alpha
+	def rgb24to16(rgb):
+		r = (rgb[0] & 0xff) >> 3
+		g = (rgb[1] & 0xff) >> 2
+		b = (rgb[2] & 0xff) >> 3
+		return (r << 11) | (g << 5) | b
 
-	# For palettes, anything works; use the next value
-	elif color_count > 0 and (has_alpha or force_alpha == True):
-		alpha = N
-
-	# Find an unused RGB565 value and keep the encoding to 16-bit
-	elif has_alpha:
-		colormap = { rgb24to16(pixels[x, y])
-			for x in range(img.width) for y in range(img.height)
-			if alpha_pixels[x, y] > 0 }
-
-		available = set(range(65536)) - colormap
-
-		if not available:
-			raise FxconvError("image uses all 65536 colors and alpha")
-		alpha = available.pop()
-
-	# No transparency in the image
-	else:
-		alpha = None
-
-	# Function to encode with alpha support in RGB565
-	def alpha_encoding(color, a):
-		if a > 0: # pixel is not transparent
-			return color if color != alpha else replacement
-		else:
-			return alpha
-
-	# In palette formats, rearrange the palette to account for modulo numbering
-	# and trim the palette if needed
-
-	if color_count > 0:
-		total = len(palette1) + int(has_alpha or force_alpha == True)
-		# The palette_map list associates to indices into palette1, the pixel
-		# value in the data array (which starts at palette_base)
-		palette_map = [(palette_base + i) % color_count for i in range(total)]
-
-	#---
-	# Image encoding
-	# Create byte arrays with pixel data and palette data
-	#---
-
-	stride = 0
-
-	if not color_count:
-		# In RGB16, preserve alignment between rows
+	if format.depth == IMAGE_RGB16:
+		# Preserve alignment between rows by padding to 4 bytes
 		stride = (img.width + 1) // 2 * 4
 		size = stride * img.height * 2
-	elif color_count == 256:
-		# No constraint in P8
+	elif format.depth == IMAGE_P8:
 		size = img.width * img.height
 		stride = img.width
-	elif color_count == 16:
-		# In P4, pad whole bytes
+	elif format.depth == IMAGE_P4:
+		# Pad whole bytes
 		stride = (img.width + 1) // 2
 		size = stride * img.height
 
-	# Result of encoding
-	encoded = bytearray(size)
-	# Offset into the array
-	offset = 0
+	# Encode the pixel data
+	data = bytearray(size)
 
 	for y in range(img.height):
 		for x in range(img.width):
-			a = alpha_pixels[x, y] if has_alpha else 255
+			a = alpha_pixels[x,y]
 
-			if not color_count:
-				c = alpha_encoding(rgb24to16(pixels[x, y]), a)
+			if format.depth == IMAGE_RGB16:
+				# If c lands on the alpha value, flip its lowest bit
+				c = rgb24to16(pixels[x, y])
+				c = format.alpha if (a == 0) else c ^ (c == format.alpha)
 				offset = (stride * y) + x * 2
-				encoded[offset:offset+2] = u16(c)
+				data[offset:offset+2] = u16(c)
 
-			elif color_count == 16:
-				c = palette_map[pixels[x, y] if a > 0 else alpha]
+			elif format.depth == IMAGE_P8:
+				c = palette_map[pixels[x, y]] if a > 0 else format.alpha
+				offset = (stride * y) + x
+				data[offset] = c
 
-				# Select either the 4 MSb or 4 LSb of the current byte
+			elif format.depth == IMAGE_P4:
+				c = palette_map[pixels[x, y]] if a > 0 else format.alpha
+				offset = (stride * y) + (x // 2)
 				if x % 2 == 0:
-					encoded[offset] |= (c << 4)
+					data[offset] |= (c << 4)
 				else:
-					encoded[offset] |= c
+					data[offset] |= c
 
-				offset += (x % 2 == 1) or (x == img.width - 1)
+	# Encode the palette
 
-			elif color_count == 256:
-				c = palette_map[pixels[x, y] if a > 0 else alpha]
-				encoded[offset] = c
-				offset += 1
-
-	# Encode the palette as R5G6B5
-
-	if color_count > 0:
-		if trim_palette:
-			encoded_palette = bytearray(2 * len(palette_map))
-		else:
-			encoded_palette = bytearray(2 * color_count)
-
-		for i in range(len(palette1)):
-			encoded_palette[2*i:2*i+2] = u16(rgb24to16(palette1[i]))
-
-	#---
-	# Outro
-	#---
-
-	if color_count > 0:
-		if alpha is not None:
-			alpha = palette_map[alpha]
-		return encoded, stride, encoded_palette, alpha
+	if format.is_indexed:
+		N = N if format.trim_palette else format.color_count
+		encoded_palette = bytearray(2 * N)
+		for i, rgb24 in enumerate(palette):
+			encoded_palette[2*i:2*i+2] = u16(rgb24to16(rgb24))
+		return data, stride, encoded_palette, N
 	else:
-		return encoded, stride, alpha
+		return data, stride, None, -1
 
 def convert(input, params, target, output=None, model=None, custom=None):
 	"""
