@@ -582,12 +582,11 @@ def convert_image_cg(input, params):
 	o = ObjectData()
 	o += u8(format.id)
 	o += u8(3) # DATA_RO, PALETTE_RO
-	o += u16(format.alpha if format.alpha is not None else 0xffff)
+	o += u16(color_count)
 	o += u16(img.width)
 	o += u16(img.height)
 	o += u32(stride)
 	o += ref(data, padding=4)
-	o += u32(color_count)
 	if palette is None:
 		o += u32(0)
 	else:
