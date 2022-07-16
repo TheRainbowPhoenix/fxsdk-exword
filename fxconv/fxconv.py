@@ -1033,7 +1033,7 @@ def image_encode(img, format):
 	if format.depth == IMAGE_RGB16:
 		# Preserve alignment between rows by padding to 4 bytes
 		stride = (img.width + 1) // 2 * 4
-		size = stride * img.height * 2
+		size = stride * img.height
 	elif format.depth == IMAGE_P8:
 		size = img.width * img.height
 		stride = img.width
