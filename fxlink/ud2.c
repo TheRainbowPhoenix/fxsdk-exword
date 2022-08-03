@@ -354,7 +354,15 @@ int main_send(filter_t *filter, delay_t *delay, char **files)
 		goto end;
 	}
 	else {
-		waitpid(pid, NULL, 0);
+		int wstatus;
+		waitpid(pid, &wstatus, 0);
+
+		if(!WIFEXITED(wstatus))
+			err("process did not terminate normally");
+		else if(WEXITSTATUS(wstatus) != 0) {
+			err("process terminated with error %d",
+				WEXITSTATUS(wstatus));
+		}
 	}
 
 	/* Unmount the filesystem and eject the device if we mounted it */
