@@ -146,21 +146,21 @@ LIBIMG_FLAG_RO  = 2
 
 FX_CHARSETS = {
 	# Digits 0...9
-	"numeric": [ (ord('0'), 10) ],
+	"numeric":  [ (ord('0'), 10) ],
 	# Uppercase letters A...Z
-	"upper":   [ (ord('A'), 26) ],
+	"upper":    [ (ord('A'), 26) ],
 	# Upper and lowercase letters A..Z, a..z
-	"alpha":   [ (ord('A'), 26), (ord('a'), 26) ],
+	"alpha":    [ (ord('A'), 26), (ord('a'), 26) ],
 	# Letters and digits A..Z, a..z, 0..9
-	"alnum":   [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ],
+	"alnum":    [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ],
 	# All printable characters from 0x20 to 0x7e
-	"print":   [ (0x20, 95) ],
+	"print":    [ (0x20, 95) ],
 	# All 128 ASCII characters
-	"ascii":   [ (0x00, 128) ],
+	"ascii":    [ (0x00, 128) ],
 	# Custom Unicode block intervals
-	"unicode": [],
-	# All 256 ASCII characters (128 first characters as per ascii + 128 extended characters)
-	"extascii":   [ (0x00, 256) ],
+	"unicode":  [],
+    # Single block 0x00-0xff (does not imply single-byte encoding)
+	"256chars": [ (0x00, 256) ],
 }
 
 #
