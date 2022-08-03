@@ -155,10 +155,12 @@ FX_CHARSETS = {
 	"alnum":   [ (ord('A'), 26), (ord('a'), 26), (ord('0'), 10) ],
 	# All printable characters from 0x20 to 0x7e
 	"print":   [ (0x20, 95) ],
-	# All 128 ASII characters
+	# All 128 ASCII characters
 	"ascii":   [ (0x00, 128) ],
 	# Custom Unicode block intervals
 	"unicode": [],
+	# All 256 ASCII characters (128 first characters as per ascii + 128 extended characters)
+	"extascii":   [ (0x00, 256) ],
 }
 
 #
