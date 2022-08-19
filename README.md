@@ -4,7 +4,7 @@
 
 The fxSDK is a development kit for CASIO graphing calculators in the fx-9860G and fx-CG series. It provides command-line tools, build systems and a cross-compilation setup for add-ins and libraries. It's designed to be used with the [gint unikernel](/Lephenixnoir/gint) which provides a powerful base runtime to build add-ins from.
 
-This repository only contains the command-line tools of the SDK; in order to program add-ins more components like a [cross-compiler](https://gitea.planet-casio.com/Lephenixnoir/sh-elf-gcc) and usually the [gint kernel](https://gitea.planet-casio.com/Lephenixnoir/gint) are required. See the [Installing](#Installing) section for details.
+This repository only contains the command-line tools of the SDK; in order to program add-ins more components like a [cross-compiler](https://gitea.planet-casio.com/Lephenixnoir/sh-elf-gcc) and usually the [gint kernel](https://gitea.planet-casio.com/Lephenixnoir/gint) are required. See the [Installing](#installing) section for details.
 
 The fxSDK is distributed under the [MIT License](LICENSE).
 
@@ -84,7 +84,7 @@ From that folder, you can build the add-in with the `fxsdk build-*` commands:
 
 You can then send the add-in through your preferred method. Some shortcuts are provided:
 
-* `fxsdk send-fx` will send the g1a file with [p7](https://gitea.planet-casio.com/cake/p7utils) (which is like FA-124/xfer9860) if it's installed. This works for every fx-9860G-series models execept the fx-975G0G III and fx-9860G III.
+* `fxsdk send-fx` will send the g1a file with [p7](https://gitea.planet-casio.com/cake/p7utils) (which is like FA-124/xfer9860) if it's installed. This works for every fx-9860G-series models except the fx-975G0G III and fx-9860G III.
 * `fxsdk send-cg` will send the g3a file with fxlink using UDisks2, replicating the process of copying with the file manager. See below for details about fxlink.
 
 The command `fxsdk path` reports the folders in which the important files of the SDK (mainly the cross-compiler) are located.
@@ -101,7 +101,7 @@ It supports using and dumping PNG icons of any formats, validating header checks
 * `fxgxa -r`: Repair control bytes and checksums for broken files
 * `fxgxa -x`: Extract icons into PNG files
 
-`fxgxa` has an alias, `fxg1a`, for compatibility with fxSDK up to 2.7.0 for which there was no g3a file editor in the fxSDK.
+`fxgxa` has an alias, `fxg1a`, for compatibility with fxSDK up to 2.7 for which there was no g3a file editor in the fxSDK.
 
 **Asset conversion** with `fxconv`
 
@@ -110,6 +110,8 @@ It supports using and dumping PNG icons of any formats, validating header checks
 Projects can extend the support to custom types for maps, dialogs, GUI descriptions, or other application-specific assets. Extensions to `fxconv` are implemented in Python within the project.
 
 `fxconv` is tightly integrated into the build system. Normally you declare assets in a `CMakeLists.txt` file, set their parameters in an `fxconv-metadata.txt` file, and then let the build system do the magic.
+
+TODO: Link to gint tutorials or better explain how to use fxconv.
 
 **USB communication** with `fxlink`
 
@@ -129,14 +131,12 @@ The official build system is CMake since fxSDK 2.3. When creating a new project,
 
 Because we are using a cross-compiler, we can't just call `cmake` to configure the project; extra parameters are needed. The `fxsdk build-*` commands call CMake for you with the correct parameters.
 
+The fxSDK provides [a couple of modules](fxsdk/cmake), including:
 
-
-`fxsdk` lets you set up projects almost instantly with a default folder
-structure and a build system for both fx-9860G and fx-CG 50. The default build
-system is CMake since version 2.3, and a bare-bones Makefile is also supported.
-
-`fxsdk` only writes files at project creation time, so you keep control over
-your build system and configuration - it just helps you get started faster.
+* [`FX9860G.cmake`](fxsdk/cmake/FX9860G.cmake) and [`FXCG50.cmake`](fxsdk/cmake/FXCG50.cmake) that are loaded automatically by `fxsdk build-fx` and `fxsdk build-cg` respectively. These are one of the reasons why we don't call `cmake` directly. Anything defined here is available to your `CMakeLists.txt`, which includes a number of variables called `FXSDK_*` to give you information on the target and install.
+* [`Fxconv.cmake`](fxsdk/cmake/Fxconv.cmake) which provides functions to use fxconv. `fxconv_declare_assets(... WITH_METADATA)` will mark source files as assets to be converted with fxconv, and `fxconv_declare_converters(...)` declares Python modules containing custom conversion functions.
+* [`GenerateG1A.cmake`](fxsdk/cmake/GenerateG1A.cmake) and [`GenerateG3A.cmake`](fxsdk/cmake/GenerateG3A.cmake) wrap `fxgxa` and allow you to generate g1a/g3a files for the add-in. The default `CMakeLists.txt` shows how to use them.
+* [`FindSimpleLibrary.cmake`](fxsdk/cmake/FindSimpleLibrary.cmake) and [`GitVersionNumber.cmake`](fxsdk/cmake/GitVersionNumber.cmake) are general utilities for libraries. See the [Lephenixnoir/Template-gint-library](https://gitea.planet-casio.com/Lephenixnoir/Template-gint-library) repository for an example of building a library with the fxSDK.
 
 **Building add-ins with make alone**
 
@@ -166,4 +166,4 @@ When configuring, you should set an install prefix that you have write access to
 % make -C build install
 ```
 
-You can then proceed to install the cross-compiler. If in doubt about the order, refer to the [GiteaPC README](https://gitea.planet-casio.com/Lephenixnoir/GiteaPC) or check the `giteapc.make` files of each repository, where dependencies are listed.
+You can then proceed to install the cross-compiler. If in doubt about the order in which you need to install repositories, refer to the [GiteaPC README](https://gitea.planet-casio.com/Lephenixnoir/GiteaPC) or check the `giteapc.make` files of each repository, where dependencies are listed.
