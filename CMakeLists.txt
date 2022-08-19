@@ -35,7 +35,9 @@ add_custom_target(fxg1a ALL
 
 # fxsdk
 add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
-  COMMAND sed "'s#@FXSDK_PREFIX@#${CMAKE_INSTALL_PREFIX}#'"
+  COMMAND sed
+          -e "'s#@CMAKE_INSTALL_PREFIX@#${CMAKE_INSTALL_PREFIX}#'"
+          -e "'s#@CMAKE_PROJECT_VERSION@#${CMAKE_PROJECT_VERSION}#'"
           "${SRC}/fxsdk/fxsdk.sh" > "${BIN}/fxsdk.sh"
   DEPENDS "${SRC}/fxsdk/fxsdk.sh")
 add_custom_target(fxsdk ALL DEPENDS "${BIN}/fxsdk.sh")

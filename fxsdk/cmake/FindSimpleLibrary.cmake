@@ -3,11 +3,15 @@ function(find_simple_library _library _version_header _version_macro)
 
   # Find the library path
   execute_process(
-    COMMAND ${CMAKE_C_COMPILER} "-print-file-name=${_library}"
-    OUTPUT_VARIABLE LIB_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    COMMAND fxsdk path lib
+    OUTPUT_VARIABLE FXSDK_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(
+    COMMAND fxsdk path include
+    OUTPUT_VARIABLE FXSDK_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-  if("${LIB_PATH}" STREQUAL "${_library}")
-    message("lib not found")
+  set(LIB_PATH "${FXSDK_LIB}/${_library}")
+  if(NOT EXISTS "${LIB_PATH}")
+    message(SEND_ERROR "find_simple_library: Library not found: ${LIB_PATH}")
     return()
   endif()
 
@@ -16,11 +20,9 @@ function(find_simple_library _library _version_header _version_macro)
   endif()
 
   # Find the version header
-  execute_process(
-    COMMAND ${CMAKE_C_COMPILER} "-print-file-name=${_version_header}"
-    OUTPUT_VARIABLE HEADER_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  if("${HEADER_PATH}" STREQUAL "${_version_header}")
+  set(HEADER_PATH "${FXSDK_INCLUDE}/${_version_header}")
+  if(NOT EXISTS "${HEADER_PATH}")
+    message(SEND_ERROR "find_simple_library: Header not found: ${HEADER_PATH}")
     return()
   endif()
 

@@ -1,7 +1,8 @@
 #! /usr/bin/env bash
 
-# Note: this line is edited at compile time to insert the install folder
-PREFIX=@FXSDK_PREFIX@
+# These lines are substituted at install time
+PREFIX="@CMAKE_INSTALL_PREFIX@"
+VERSION="@CMAKE_PROJECT_VERSION@"
 
 R=$(printf "\e[31;1m")
 g=$(printf "\e[32m\e[3m")
@@ -9,8 +10,9 @@ n=$(printf "\e[0m")
 TAG=$(printf "\e[36m<fxSDK>\e[0m")
 
 usage_string=$(cat << EOF
-usage: ${R}fxsdk${n} (${R}new${n}|${R}build${n}|${R}build-fx${n}|${R}build-\
-cg${n}|${R}send${n}|${R}send-fx${n}|${R}send-cg${n}) [${g}ARGUMENTS${n}...]
+fxSDK version $VERSION
+usage: ${R}fxsdk${n} (${R}new${n}|${R}build-fx${n}|${R}build-cg${n}|\
+${R}send-fx${n}|${R}send-cg${n}|...) [${g}ARGUMENTS${n}...]
 
 This program is a command-line helper for the fxSDK, a set of tools used in
 conjunction with gint to develop add-ins for CASIO fx-9860G and fx-CG 50.
@@ -33,8 +35,14 @@ ${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}) [${R}-c${n}] \
 
 ${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n})
   Sends the target file to the calculator. Uses p7 (which must be installed
-  externally) for fx-9860G. Currently not implemented for fx-CG 50, as it
-  requires detecting and mounting the calculator (same for the Graph 35+E II).
+  externally) for the fx-9860G, and fxlink for the fx-CG. For the G-III series,
+  call fxlink directly instead of this command.
+
+${R}fxsdk${n} ${R}path${n} (${R}sysroot${n}|${R}include${n}|${R}lib${n})
+  Prints commonly-used paths in the SuperH sysroot:
+    ${R}sysroot${n}    The root folder of the SuperH toolchain and libraries
+    ${R}include${n}    Install folder for user's headers
+    ${R}lib${n}        Install folder for user's library files
 EOF
 )
 
@@ -231,6 +239,23 @@ fxsdk_send_cg() {
   fxlink -sw ${g3a_files}
 }
 
+fxsdk_path() {
+  case "$1" in
+    "sysroot")
+      echo "$PREFIX/share/fxsdk/sysroot";;
+    "include")
+      echo "$PREFIX/share/fxsdk/sysroot/sh3eb-elf/include";;
+    "lib")
+      echo "$PREFIX/share/fxsdk/sysroot/sh3eb-elf/lib";;
+    "")
+      echo "error: no path specified; try 'fxsdk --help'" >&2
+      exit 1;;
+    *)
+      echo "error: unknown path '$1'; try 'fxsdk --help'" >&2
+      exit 1;;
+  esac
+}
+
 # Parse command name
 
 case "$1" in
@@ -254,9 +279,15 @@ case "$1" in
   "send-cg"|"sc"|"scg")
     fxsdk_send_cg;;
 
+  # Utilities
+  "path")
+    fxsdk_path "${@:2}";;
+
   # Misc
   -h|--help|-\?)
     usage 0;;
+  --version)
+    echo "fxSDK version $VERSION";;
   ?*)
     error "unknown command '$1'"
     exit 1;;

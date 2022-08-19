@@ -7,7 +7,7 @@ project(MyAddin)
 include(GenerateG1A)
 include(GenerateG3A)
 include(Fxconv)
-find_package(Gint 2.1 REQUIRED)
+find_package(Gint 2.9 REQUIRED)
 
 set(SOURCES
   src/main.c

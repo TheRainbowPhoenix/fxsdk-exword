@@ -38,5 +38,18 @@ endforeach()
 execute_process(
   COMMAND ${CMAKE_C_COMPILER} --print-file-name=.
   OUTPUT_VARIABLE FXSDK_COMPILER_INSTALL
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# Provide fxSDK sysroot and standard install folders
+execute_process(
+  COMMAND fxsdk path sysroot
+  OUTPUT_VARIABLE FXSDK_SYSROOT
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(
+  COMMAND fxsdk path include
+  OUTPUT_VARIABLE FXSDK_INCLUDE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(
+  COMMAND fxsdk path lib
+  OUTPUT_VARIABLE FXSDK_LIB
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
