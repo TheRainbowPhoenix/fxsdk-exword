@@ -1,7 +1,7 @@
 # Build system for the fxSDK
 
 cmake_minimum_required(VERSION 3.15)
-project(fxSDK VERSION 2.8.0 LANGUAGES C)
+project(fxSDK VERSION 2.9.0 LANGUAGES C)
 
 option(FXLINK_DISABLE_UDISKS2 "Do not build the UDisks2-based features of fxlink")
 option(FXLINK_DISABLE_SDL2 "Do not build the SDL2-based features of fxlink")
@@ -9,7 +9,6 @@ option(FXLINK_DISABLE_SDL2 "Do not build the SDL2-based features of fxlink")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libpng REQUIRED libpng16 IMPORTED_TARGET)
 pkg_check_modules(libusb REQUIRED libusb-1.0 IMPORTED_TARGET)
-# pkg_check_modules(libudev libudev IMPORTED_TARGET)
 if(NOT FXLINK_DISABLE_UDISKS2)
   pkg_check_modules(udisks2 REQUIRED udisks2 IMPORTED_TARGET)
 endif()
@@ -47,7 +46,7 @@ configure_file(fxlink/config.h.in "${BIN}/include/fxlink/config.h")
 add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/interactive.c
   fxlink/main.c fxlink/png.c fxlink/properties.c fxlink/ud2.c fxlink/util.c
   fxlink/protocol.c fxlink/sdl2.c)
-target_link_libraries(fxlink PkgConfig::libpng PkgConfig::libusb) # PkgConfig::libudev
+target_link_libraries(fxlink PkgConfig::libpng PkgConfig::libusb)
 target_include_directories(fxlink PRIVATE "${BIN}/include/fxlink")
 if(NOT FXLINK_DISABLE_UDISKS2)
   target_link_libraries(fxlink PkgConfig::udisks2)
