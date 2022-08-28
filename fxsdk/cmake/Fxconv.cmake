@@ -1,5 +1,7 @@
-set(CMAKE_FXCONV_COMPILE_OBJECT
-  "fxconv <SOURCE> -o <OBJECT> --toolchain=sh-elf --${FXSDK_PLATFORM}")
+# For the template of the custom language, see:
+# - https://gitlab.kitware.com/cmake/cmake/-/blob/master/Modules/CMakeAddNewLanguage.txt
+# - https://stackoverflow.com/questions/59536644/cmake-custom-compiler-linker-language-not-found
+enable_language(FXCONV)
 
 function(fxconv_declare_assets)
   cmake_parse_arguments(CONV "WITH_METADATA" "" "" ${ARGN})
@@ -27,10 +29,9 @@ function(fxconv_declare_converters)
     list(APPEND FXCONV_CONVERTERS "${CONVERTER_PATH}")
   endforeach()
 
-  # Record the names in the list
+  # Record the full list in the parent scope
   set(FXCONV_CONVERTERS "${FXCONV_CONVERTERS}" PARENT_SCOPE)
-
-  # Update the compile command
-  set(CMAKE_FXCONV_COMPILE_OBJECT
-    "fxconv <SOURCE> -o <OBJECT> --toolchain=sh-elf --${FXSDK_PLATFORM} --converters=${FXCONV_CONVERTERS}" PARENT_SCOPE)
+  # Also push a language flag through the special "ARG1" variable
+  set(CMAKE_FXCONV_COMPILER_ARG1 "--converters=${FXCONV_CONVERTERS}"
+    PARENT_SCOPE)
 endfunction()
