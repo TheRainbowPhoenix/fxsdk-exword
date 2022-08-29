@@ -1,5 +1,5 @@
 function(find_simple_library _library _version_header _version_macro)
-  cmake_parse_arguments(CLV "" "PATH_VAR;VERSION_VAR" "" ${ARGN})
+  cmake_parse_arguments(CLV "" "PATH_VAR;VERSION_VAR" "OTHER_MACROS" ${ARGN})
 
   # Find the library path
   execute_process(
@@ -35,4 +35,13 @@ function(find_simple_library _library _version_header _version_macro)
   if(DEFINED CLV_VERSION_VAR)
     set("${CLV_VERSION_VAR}" "${VERSION}" PARENT_SCOPE)
   endif()
+
+  # Extract other macros from the header
+  foreach(MACRO_NAME IN LISTS CLV_OTHER_MACROS)
+    set(SED "s/^\\s*#\\s*define\\s*${MACRO_NAME}\\s*(.+)\\s*$/\\1/p; d")
+    execute_process(
+      COMMAND sed -E "${SED}" "${HEADER_PATH}"
+      OUTPUT_VARIABLE MACRO_VALUE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set("${MACRO_NAME}" "${MACRO_VALUE}" PARENT_SCOPE)
+  endforeach()
 endfunction()
