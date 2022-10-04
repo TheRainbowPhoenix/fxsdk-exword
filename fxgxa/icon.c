@@ -2,6 +2,7 @@
 #include <string.h>
 #include <fxgxa.h>
 #include <png.h>
+#include <endianness.h>
 
 uint8_t *icon_load(const char *filename, int *width, int *height)
 {
