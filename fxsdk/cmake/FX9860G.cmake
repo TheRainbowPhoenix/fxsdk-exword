@@ -9,6 +9,7 @@ set(CMAKE_SYSTEM_PROCESSOR sh)
 set(FXSDK_PLATFORM fx)
 set(FXSDK_PLATFORM_LONG fx9860G)
 
+set(FXSDK_TOOLCHAIN sh-elf-)
 set(CMAKE_C_COMPILER sh-elf-gcc)
 set(CMAKE_CXX_COMPILER sh-elf-g++)
 

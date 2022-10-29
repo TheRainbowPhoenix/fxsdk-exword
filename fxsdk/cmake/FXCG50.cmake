@@ -9,6 +9,7 @@ set(CMAKE_SYSTEM_PROCESSOR sh)
 set(FXSDK_PLATFORM cg)
 set(FXSDK_PLATFORM_LONG fxCG50)
 
+set(FXSDK_TOOLCHAIN sh-elf-)
 set(CMAKE_C_COMPILER sh-elf-gcc)
 set(CMAKE_CXX_COMPILER sh-elf-g++)
 
