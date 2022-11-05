@@ -106,7 +106,8 @@ def main():
 
 	# In automatic mode, look for information in fxconv-metadata.txt
 	if mode == "":
-		metadata_file = os.path.dirname(input) + "/fxconv-metadata.txt"
+		metadata_file = os.path.join(os.path.dirname(input),
+			"fxconv-metadata.txt")
 
 		if not os.path.exists(metadata_file):
 			return err(f"using auto mode but {metadata_file} does not exist")
