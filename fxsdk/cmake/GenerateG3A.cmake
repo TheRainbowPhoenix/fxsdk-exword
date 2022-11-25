@@ -1,3 +1,5 @@
+include(FxsdkUtils)
+
 function(generate_g3a)
   cmake_parse_arguments(G3A "" "TARGET;OUTPUT;NAME;VERSION" "ICONS" ${ARGN})
 
@@ -21,8 +23,7 @@ function(generate_g3a)
   if(DEFINED G3A_OUTPUT)
     get_filename_component(G3A_OUTPUT "${G3A_OUTPUT}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    # Who doesn't love to deal with escaping
-    string(REPLACE "'" "\\'" G3A_OUTPUT "${G3A_OUTPUT}")
+    shell_escape("${G3A_OUTPUT}" G3A_OUTPUT)
   else()
     set(G3A_OUTPUT "${G3A_TARGET}.g3a")
   endif()
@@ -52,9 +53,8 @@ function(generate_g3a)
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     get_filename_component(G3A_ICON2 "${G3A_ICON2}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    # Who doesn't REALLY love to deal with escaping
-    string(REPLACE "'" "\\'" G3A_ICON1B "${G3A_ICON1}")
-    string(REPLACE "'" "\\'" G3A_ICON2B "${G3A_ICON2}")
+    shell_escape("${G3A_ICON1}" G3A_ICON1B)
+    shell_escape("${G3A_ICON2}" G3A_ICON2B)
     list(APPEND FXGXA_ARGS "--icon-uns=${G3A_ICON1B}" "--icon-sel=${G3A_ICON2B}")
   endif()
 
@@ -63,7 +63,7 @@ function(generate_g3a)
   add_custom_command(
     TARGET "${G3A_TARGET}" POST_BUILD
     COMMAND ${OBJCOPY} -O binary -R .bss -R .gint_bss ${G3A_TARGET} ${G3A_TARGET}.bin
-    COMMAND fxgxa --g3a ${FXGXA_ARGS} "${G3A_TARGET}.bin" -o "${G3A_OUTPUT}"
+    COMMAND fxgxa --g3a ${FXGXA_ARGS} ${G3A_TARGET}.bin -o ${G3A_OUTPUT}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G3A_ICONS)

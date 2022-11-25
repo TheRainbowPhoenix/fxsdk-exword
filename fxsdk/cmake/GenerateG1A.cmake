@@ -1,3 +1,5 @@
+include(FxsdkUtils)
+
 function(generate_g1a)
   cmake_parse_arguments(G1A "" "TARGET;OUTPUT;NAME;INTERNAL;VERSION;DATE;ICON" "" ${ARGN})
 
@@ -16,6 +18,7 @@ function(generate_g1a)
   if(DEFINED G1A_OUTPUT)
     get_filename_component(G1A_OUTPUT "${G1A_OUTPUT}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    shell_escape("${G1A_OUTPUT}" G1A_OUTPUT)
   else()
     set(G1A_OUTPUT "${G1A_TARGET}.g1a")
   endif()
@@ -32,7 +35,8 @@ function(generate_g1a)
   if(DEFINED G1A_ICON)
     get_filename_component(G1A_ICON "${G1A_ICON}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    list(APPEND FXGXA_ARGS "-i" "${G1A_ICON}")
+    shell_escape("${G1A_ICON}" G1A_ICONB)
+    list(APPEND FXGXA_ARGS "-i" "${G1A_ICONB}")
   endif()
 
   if(DEFINED G1A_INTERNAL)
