@@ -41,6 +41,8 @@ static const char *help_string =
 "  -q, --quiet         Quite mode (minimum verbosity)\n"
 "  -u, --unmount       In -s mode, always unmount the disk, even if it was\n"
 "                      mounted by someone else\n"
+"  -r, --repeat        In interactive mode, reconnect infinitely if the\n"
+"                      calculator disconnects (implies -w)\n"
 "\n"
 "Device filters:\n"
 "  A device filter is a comma-separated list of properties that a device has\n"
@@ -68,6 +70,7 @@ int main(int argc, char **argv)
 	int rc=1, mode=0, error=0, option=0, loglevel=LIBUSB_LOG_LEVEL_ERROR;
 	delay_t delay = delay_seconds(0);
 	filter_t *filter = NULL;
+	bool repeat = false;
 
 	options.quiet = false;
 	options.force_unmount = false;
@@ -88,10 +91,11 @@ int main(int argc, char **argv)
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "fxlink-log",  optional_argument, NULL, LOG_TO_FILE },
 		{ "unmount",     no_argument,       NULL, 'u' },
+		{ "repeat",      no_argument,       NULL, 'r' },
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsiquf:w::", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsiquf:w::r", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -121,6 +125,10 @@ int main(int argc, char **argv)
 		break;
 	case 'u':
 		options.force_unmount = true;
+		break;
+	case 'r':
+		repeat = true;
+		delay = delay_infinite();
 		break;
 	case LOG_TO_FILE:
 		if(optarg)
@@ -198,7 +206,10 @@ int main(int argc, char **argv)
 		#endif
 	}
 	else if(mode == 'i') {
-		rc = main_interactive(filter, &delay, context);
+		do {
+			rc = main_interactive(filter, &delay, context);
+		}
+		while(repeat);
 	}
 
 	if(context)
