@@ -102,12 +102,14 @@ fxsdk_new_project() {
 
       mkdir -p "$1"/{assets-fx,assets-cg}/img
       cp -r "$assets"/assets-fx/* "$1"/assets-fx/img/
-      cp -r "$assets"/assets-cg/* "$1"/assets-cg/img/;;
+      cp -r "$assets"/assets-cg/* "$1"/assets-cg/img/
+      cp "$assets/icon-cg.xcf" "$1/assets-cg";;
 
     "CMake")
       cp "$assets/CMakeLists.txt" "$1"
       cp -r "$assets"/assets-fx "$1"/
-      cp -r "$assets"/assets-cg "$1"/;;
+      cp -r "$assets"/assets-cg "$1"/
+      cp "$assets/icon-cg.xcf" "$1/assets-cg";;
   esac
 
   cp "$assets"/gitignore "$1"/.gitignore
