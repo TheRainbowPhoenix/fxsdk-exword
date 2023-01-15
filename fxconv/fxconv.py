@@ -1186,20 +1186,6 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	Produces an output file and returns nothing.
 	"""
 
-	# Unfold ObjectData into data and assembly
-	if isinstance(data, ObjectData):
-		asm =   ".section .rodata\n"
-		asm += f".global {symbol}\n"
-		asm += f"{symbol}:\n"
-		asm += data.link(symbol)[0]
-		asm += (assembly or "")
-
-		data = None
-		assembly = asm
-
-	if data is None and assembly is None:
-		raise FxconvError("elf() but no data and no assembly")
-
 	# Toolchain parameters
 
 	if toolchain is None:
@@ -1219,6 +1205,20 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	elif arch in ["fx", "cg", None]:
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
+
+	# Unfold ObjectData into data and assembly
+	if isinstance(data, ObjectData):
+		asm =   ".section " + section.split(",",1)[0] + "\n"
+		asm += f".global {symbol}\n"
+		asm += f"{symbol}:\n"
+		asm += data.link(symbol)[0]
+		asm += (assembly or "")
+
+		data = None
+		assembly = asm
+
+	if data is None and assembly is None:
+		raise FxconvError("elf() but no data and no assembly")
 
 	# Generate data - in <output> directly if there is no assembly
 
