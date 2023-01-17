@@ -262,9 +262,9 @@ fxsdk_send_cg-push() {
     echo "error: fxlink is not installed or not available"
     return 1
   fi
-  g3a_files=$(find -maxdepth 1 -name '*.g3a')
-  echo "$TAG Running: fxlink -pw ${g3a_files}"
-  fxlink -pw ${g3a_files}
+  bin_files=$(find "build-cg-push" -maxdepth 1 -name '*.bin')
+  echo "$TAG Running: fxlink -pw ${bin_files}"
+  fxlink -pw ${bin_files}
 }
 
 fxsdk_path() {

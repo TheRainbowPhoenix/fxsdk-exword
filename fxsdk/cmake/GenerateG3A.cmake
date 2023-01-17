@@ -63,8 +63,9 @@ function(generate_g3a)
   add_custom_command(
     TARGET "${G3A_TARGET}" POST_BUILD
     COMMAND ${OBJCOPY} -O binary -R .bss -R .gint_bss ${G3A_TARGET} ${G3A_TARGET}.bin
-    COMMAND fxgxa --g3a ${FXGXA_ARGS} ${G3A_TARGET}.bin -o ${G3A_OUTPUT}
+    COMMAND "$<IF:$<CONFIG:FastLoad>,,fxgxa;--g3a;${FXGXA_ARGS};${G3A_TARGET}.bin;-o;${G3A_OUTPUT}>"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND_EXPAND_LISTS
   )
   if(DEFINED G3A_ICONS)
     set_target_properties("${G3A_TARGET}" PROPERTIES
