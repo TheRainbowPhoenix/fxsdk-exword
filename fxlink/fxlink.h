@@ -28,6 +28,9 @@ int main_blocks(filter_t *filter, delay_t *delay);
 int main_send(filter_t *filter, delay_t *delay, char **files);
 
 /* Main function for -i */
-int main_interactive(filter_t *filter,delay_t *delay,libusb_context *context);
+int main_interactive(filter_t *filter, delay_t *delay, libusb_context *context);
+
+/* Main function for -p */
+int main_push(filter_t *filter, delay_t *delay, libusb_context *context, char **files);
 
 #endif /* FXLINK_FXLINK_H */

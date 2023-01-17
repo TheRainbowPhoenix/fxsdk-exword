@@ -30,6 +30,7 @@ static const char *help_string =
 "  -b, --blocks        List detected Mass Storage filesystems (udisks2)\n"
 "  -s, --send          Send a file to a Mass Storage calculator (udisks2)\n"
 "  -i, --interactive   Interactive messaging with a gint add-in (libusb)\n"
+"  -p, --push          Push a .bin file to the Add-In Push app (libusb)\n"
 "\n"
 "General options:\n"
 "  -w DELAY            Wait up to this many seconds for a calculator to\n"
@@ -87,6 +88,7 @@ int main(int argc, char **argv)
 		{ "blocks",      no_argument,       NULL, 'b' },
 		{ "send",        no_argument,       NULL, 's' },
 		{ "interactive", no_argument,       NULL, 'i' },
+		{ "push",        no_argument,       NULL, 'p' },
 		{ "libusb-log",  required_argument, NULL, LIBUSB_LOG },
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "fxlink-log",  optional_argument, NULL, LOG_TO_FILE },
@@ -95,7 +97,7 @@ int main(int argc, char **argv)
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsiquf:w::r", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsipquf:w::r", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -104,6 +106,7 @@ int main(int argc, char **argv)
 	case 'b':
 	case 's':
 	case 'i':
+	case 'p':
 		mode = option;
 		break;
 	case LIBUSB_LOG:
@@ -163,6 +166,11 @@ int main(int argc, char **argv)
 	if(mode == 's' && optind == argc)
 		error = err("send mode requires additional arguments (file names)");
 
+	if(mode == 'p' && optind == argc)
+		error = err("push mode requires a file name");
+	if(mode == 'p' && optind < argc-1)
+		error = err("push mode only accepts one file name");
+
 	/* No arguments or bad arguments */
 	if(error)
 		return 1;
@@ -178,7 +186,7 @@ int main(int argc, char **argv)
 	libusb_context *context = NULL;
 
 	/* Initialize libusb for corresponding modes */
-	if(mode == 'l' || mode == 'i') {
+	if(mode == 'l' || mode == 'i' || mode == 'p') {
 		if((rc = libusb_init(&context)))
 			return libusb_err(rc, "error initializing libusb");
 		libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, loglevel);
@@ -210,6 +218,9 @@ int main(int argc, char **argv)
 			rc = main_interactive(filter, &delay, context);
 		}
 		while(repeat);
+	}
+	else if(mode == 'p') {
+		rc = main_push(filter, &delay, context, argv + optind);
 	}
 
 	if(context)
