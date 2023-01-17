@@ -33,6 +33,14 @@ ${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}) [${R}-c${n}] \
   Other arguments are passed to CMake (if using -c) or make (otherwise). You
   can pass -c or -s to CMake/make by specifying --.
 
+${R}fxsdk${n} ${R}build-cg-push${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
+[${g}<ARGS>${n}...]
+  Builds the current project for fx-CG 50 for a "fast load" to the calculator.
+  This uses Add-In Push by circuit10, which immediately launches the add-in
+  without saving it to storage memory, and is much faster than LINK. Options
+  are identical to other build commands. Typical workflows will always set -s
+  (which requires libusb support in fxlink).
+
 ${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n})
   Sends the target file to the calculator. Uses p7 (which must be installed
   externally) for the fx-9860G, and fxlink for the fx-CG. For the G-III series,
@@ -150,6 +158,9 @@ fxsdk_build_fx() {
 fxsdk_build_cg() {
   fxsdk_build_in "cg" "FXCG50" "$@"
 }
+fxsdk_build_cg_push() {
+  fxsdk_build_in "cg-push" "FXCG50" "$@"
+}
 
 fxsdk_build_in() {
   platform="$1"
@@ -178,11 +189,15 @@ fxsdk_build_in() {
     fi
 
     if [[ ! -e "build-$platform/Makefile" || ! -z "$configure" ]]; then
+      platform_args=()
+      if [[ "$platform" == *"-push" ]]; then
+        platform_args=( "-DCMAKE_BUILD_TYPE=FastLoad" )
+      fi
       cmake -B "build-$platform" \
         -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
         -DCMAKE_TOOLCHAIN_FILE="$PREFIX/lib/cmake/fxsdk/$toolchain.cmake" \
         -DFXSDK_CMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
-        "${cmake_extra_args[@]}"
+        "${cmake_extra_args[@]}" "${platform_args[@]}"
       if [[ $? != 0 ]]; then
         return 1
       fi
@@ -241,6 +256,17 @@ fxsdk_send_cg() {
   fxlink -sw ${g3a_files}
 }
 
+fxsdk_send_cg-push() {
+  echo "$TAG Fast loading to fx-CG using fxlink; open Add-In Push on the calc"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  g3a_files=$(find -maxdepth 1 -name '*.g3a')
+  echo "$TAG Running: fxlink -pw ${g3a_files}"
+  fxlink -pw ${g3a_files}
+}
+
 fxsdk_path() {
   case "$1" in
     "sysroot")
@@ -272,6 +298,8 @@ case "$1" in
     fxsdk_build_fx "${@:2}";;
   "build-cg"|"bc"|"bcg")
     fxsdk_build_cg "${@:2}";;
+  "build-cg-push"|"bcgp")
+    fxsdk_build_cg_push "${@:2}";;
 
   # Install
   "send"|"s")
