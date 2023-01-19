@@ -43,7 +43,7 @@ add_custom_target(fxsdk ALL DEPENDS "${BIN}/fxsdk.sh")
 
 # fxlink
 configure_file(fxlink/config.h.in "${BIN}/include/fxlink/config.h")
-add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/interactive.c
+add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/interactive.c fxlink/push.c
   fxlink/main.c fxlink/png.c fxlink/properties.c fxlink/ud2.c fxlink/util.c
   fxlink/protocol.c fxlink/sdl2.c)
 target_link_libraries(fxlink PkgConfig::libpng PkgConfig::libusb)
