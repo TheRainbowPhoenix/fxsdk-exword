@@ -1,20 +1,15 @@
-#include "config.h"
+//---------------------------------------------------------------------------//
+// ==>/[_]\   fxlink: A community communication tool for CASIO calculators.  //
+//    |:::|   Made by Lephe' as part of the fxSDK.                           //
+//    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
+//---------------------------------------------------------------------------//
+
+#include <fxlink/config.h>
 #ifndef FXLINK_DISABLE_UDISKS2
 
-#include "ud2.h"
-#include "fxlink.h"
-#include "util.h"
-#include "properties.h"
-#include "filter.h"
-
-#include <udisks/udisks.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
-//---
-// UDisks2 utility functions
-//---
+#include <fxlink/tooling/udisks2.h>
+#include <fxlink/filter.h>
+#include <fxlink/logging.h>
 
 int ud2_start(UDisksClient **udc_ptr, UDisksManager **udm_ptr)
 {
@@ -22,12 +17,12 @@ int ud2_start(UDisksClient **udc_ptr, UDisksManager **udm_ptr)
 
 	UDisksClient *udc = udisks_client_new_sync(NULL, &error);
 	if(error)
-		return err("cannot open udisks2 client: %s", error->message);
+		return elog("cannot open udisks2 client: %s\n", error->message);
 
 	UDisksManager *udm = udisks_client_get_manager(udc);
 	if(!udm) {
 		g_object_unref(udc);
-		return err("udisks2 daemon does not seem to be running");
+		return elog("udisks2 daemon does not seem to be running\n");
 	}
 
 	*udc_ptr = udc;
@@ -35,8 +30,9 @@ int ud2_start(UDisksClient **udc_ptr, UDisksManager **udm_ptr)
 	return 0;
 }
 
-void ud2_end(UDisksClient *udc, __attribute__((unused)) UDisksManager *udm)
+void ud2_end(UDisksClient *udc, UDisksManager *udm)
 {
+	(void)udm;
 	g_object_unref(udc);
 }
 
@@ -47,9 +43,8 @@ gchar **ud2_block_devices(UDisksManager *udm)
 	GError *error = NULL;
 
 	udisks_manager_call_get_block_devices_sync(udm,args,&blocks,NULL,&error);
-	if(error) {
-		err("cannot list udisks2 block devices: %s", error->message);
-	}
+	if(error)
+		elog("cannot list udisks2 block devices: %s\n", error->message);
 
 	return blocks;
 }
@@ -81,9 +76,9 @@ bool is_casio_drive(UDisksDrive *drive)
 	return strstr(udisks_drive_get_vendor(drive), "CASIO") != NULL;
 }
 
-properties_t ud2_properties(UDisksDrive *drive)
+struct fxlink_filter ud2_properties(UDisksDrive *drive)
 {
-	properties_t props = { 0 };
+	struct fxlink_filter props = { 0 };
 	props.p7 = false;
 	props.mass_storage = true;
 
@@ -94,17 +89,17 @@ properties_t ud2_properties(UDisksDrive *drive)
 
 	gchar const *s = udisks_drive_get_serial(drive);
 	/* LINK sends a 12-byte serial number with four leading 0. Remove them */
-	if(s && strlen(s) == 12 && !strncmp(s, "0000", 4)) s+= 4;
-	props.serial_number = (char *)s;
+	if(s && strlen(s) == 12 && !strncmp(s, "0000", 4)) s += 4;
+	props.serial = strdup(s);
 
 	return props;
 }
 
-int ud2_unique_matching(filter_t const *filter, UDisksClient *udc,
+int ud2_unique_matching(struct fxlink_filter const *filter, UDisksClient *udc,
 	UDisksManager *udm, UDisksBlock **block_ptr, UDisksDrive **drive_ptr,
 	UDisksFilesystem **fs_ptr)
 {
-	int status = FILTER_NONE;
+	int status = FXLINK_FILTER_NONE;
 	bool error;
 
 	UDisksBlock *block = NULL;
@@ -112,11 +107,12 @@ int ud2_unique_matching(filter_t const *filter, UDisksClient *udc,
 	UDisksFilesystem *fs = NULL;
 
 	for_udisks2_devices(it, udc, udm, &error) {
-		if(!filter_match(&it.props, filter)) continue;
+		if(!fxlink_filter_match(&it.props, filter))
+			continue;
 
 		/* Already found a device before */
-		if(status == FILTER_UNIQUE) {
-			status = FILTER_MULTIPLE;
+		if(status == FXLINK_FILTER_UNIQUE) {
+			status = FXLINK_FILTER_MULTIPLE;
 			g_object_unref(fs);
 			g_object_unref(drive);
 			g_object_unref(block);
@@ -130,31 +126,37 @@ int ud2_unique_matching(filter_t const *filter, UDisksClient *udc,
 		block = g_object_ref(it.block);
 		drive = g_object_ref(it.drive);
 		fs = g_object_ref(it.fs);
-		status = FILTER_UNIQUE;
+		status = FXLINK_FILTER_UNIQUE;
 	}
 	if(error)
-		return FILTER_ERROR;
+		return FXLINK_FILTER_ERROR;
 
-	if(block_ptr) *block_ptr = block;
-	else g_object_unref(block);
+	if(block_ptr)
+		*block_ptr = block;
+	else if(block)
+		g_object_unref(block);
 
-	if(drive_ptr) *drive_ptr = drive;
-	else g_object_unref(drive);
+	if(drive_ptr)
+		*drive_ptr = drive;
+	else if(drive)
+		g_object_unref(drive);
 
-	if(fs_ptr) *fs_ptr = fs;
-	else g_object_unref(fs);
+	if(fs_ptr)
+		*fs_ptr = fs;
+	else if(fs)
+		g_object_unref(fs);
 
 	return status;
 }
 
-int ud2_unique_wait(filter_t const *filter, delay_t *delay, UDisksClient *udc,
-	UDisksManager *udm, UDisksBlock **block, UDisksDrive **drive,
-	UDisksFilesystem **fs)
+int ud2_unique_wait(struct fxlink_filter const *filter, delay_t *delay,
+	UDisksClient *udc, UDisksManager *udm, UDisksBlock **block,
+	UDisksDrive **drive, UDisksFilesystem **fs)
 {
 	while(true) {
 		int rc = ud2_unique_matching(filter, udc, udm, block, drive, fs);
-		if(rc != FILTER_NONE) return rc;
-		if(delay_cycle(delay)) return FILTER_NONE;
+		if(rc != FXLINK_FILTER_NONE) return rc;
+		if(delay_cycle(delay)) return FXLINK_FILTER_NONE;
 		udisks_client_settle(udc);
 	}
 }
@@ -223,9 +225,9 @@ void ud2_iter_next(ud2_iterator_t *it)
 // Main functions
 //---
 
-int main_blocks(filter_t *filter, delay_t *delay)
+int main_blocks(struct fxlink_filter *filter, delay_t *delay)
 {
-	filter_clean_udisks2(filter);
+	fxlink_filter_clean_udisks2(filter);
 
 	UDisksClient *udc = NULL;
 	UDisksManager *udm = NULL;
@@ -237,7 +239,8 @@ int main_blocks(filter_t *filter, delay_t *delay)
 	bool error;
 
 	for_udisks2_devices(it, udc, udm, &error) {
-		if(!filter_match(&it.props, filter)) continue;
+		if(!fxlink_filter_match(&it.props, filter))
+			continue;
 
 		if(total_devices > 0) printf("\n");
 
@@ -254,8 +257,8 @@ int main_blocks(filter_t *filter, delay_t *delay)
 			udisks_drive_get_vendor(it.drive),
 			udisks_drive_get_model(it.drive));
 
-		if(it.props.serial_number)
-			printf("       Serial number:  %s\n", it.props.serial_number);
+		if(it.props.serial)
+			printf("       Serial number:  %s\n", it.props.serial);
 
 		gchar const * const * mount_points =
 			udisks_filesystem_get_mount_points(it.fs);
@@ -267,7 +270,7 @@ int main_blocks(filter_t *filter, delay_t *delay)
 		}
 
 		printf("          Properties:  ");
-		properties_print(stdout, &it.props);
+		fxlink_filter_print(stdout, &it.props);
 		printf("\n");
 
 		total_devices++;
@@ -278,114 +281,6 @@ int main_blocks(filter_t *filter, delay_t *delay)
 
 	ud2_end(udc, udm);
 	return 0;
-}
-
-int main_send(filter_t *filter, delay_t *delay, char **files)
-{
-	filter_clean_udisks2(filter);
-	GError *error = NULL;
-	char **argv = NULL;
-	int rc = 0;
-
-	UDisksClient *udc = NULL;
-	UDisksManager *udm = NULL;
-	if(ud2_start(&udc, &udm)) return 1;
-
-	UDisksBlock *block = NULL;
-	UDisksDrive *drive = NULL;
-	UDisksFilesystem *fs = NULL;
-	rc = ud2_unique_wait(filter, delay, udc, udm, &block, &drive, &fs);
-	if(rc != FILTER_UNIQUE) {
-		rc = 1;
-		goto end;
-	}
-
-	/* Determine a mount folder, mounting the volume if needed */
-	gchar *folder = NULL;
-	bool mounted_here = false;
-
-	gchar const *dev = udisks_block_get_device(block);
-	gchar const * const * mount_points =
-		udisks_filesystem_get_mount_points(fs);
-
-	if(!mount_points || !mount_points[0]) {
-		GVariant *args = g_variant_new("a{sv}", NULL);
-		udisks_filesystem_call_mount_sync(fs, args, &folder, NULL, &error);
-		if(error) {
-			rc = err("cannot mount %s: %s", dev, error->message);
-			goto end;
-		}
-		printf("Mounted %s to %s.\n", dev, folder);
-		mounted_here = true;
-	}
-	else {
-		folder = strdup(mount_points[0]);
-		printf("Already mounted at %s.\n", folder);
-		mounted_here = false;
-	}
-
-	/* Copy files with external cp(1) */
-	int file_count = 0;
-	while(files[file_count]) file_count++;
-
-	argv = malloc((file_count + 3) * sizeof *argv);
-	if(!argv) {
-		rc = err("cannot allocate argv array for cp(1)");
-		goto end;
-	}
-	argv[0] = "cp";
-	for(int i = 0; files[i]; i++)
-		argv[i+1] = files[i];
-	argv[file_count+1] = folder;
-	argv[file_count+2] = NULL;
-
-	/* Print command */
-	printf("Running cp");
-	for(int i = 1; argv[i]; i++) printf(" '%s'", argv[i]);
-	printf("\n");
-
-	pid_t pid = fork();
-
-	if(pid == 0) {
-		execvp("cp", argv);
-	}
-	else if(pid == -1) {
-		rc = err("failed to fork to invoke cp");
-		goto end;
-	}
-	else {
-		int wstatus;
-		waitpid(pid, &wstatus, 0);
-
-		if(!WIFEXITED(wstatus))
-			err("process did not terminate normally");
-		else if(WEXITSTATUS(wstatus) != 0) {
-			err("process terminated with error %d",
-				WEXITSTATUS(wstatus));
-		}
-	}
-
-	/* Unmount the filesystem and eject the device if we mounted it */
-	if(mounted_here || options.force_unmount) {
-		GVariant *args = g_variant_new("a{sv}", NULL);
-		udisks_filesystem_call_unmount_sync(fs, args, NULL, &error);
-		if(error) err("while unmounting %s: %s", dev, error->message);
-		else printf("Unmounted %s.\n", dev);
-
-		args = g_variant_new("a{sv}", NULL);
-		udisks_drive_call_power_off_sync(drive, args, NULL, &error);
-		if(error) err("while ejecting %s: %s", dev, error->message);
-		else printf("Ejected %s.\n", dev);
-	}
-
-end:
-	free(folder);
-	if(argv) free(argv);
-	if(fs) g_object_unref(fs);
-	if(drive) g_object_unref(drive);
-	if(block) g_object_unref(block);
-	if(udc && udm) ud2_end(udc, udm);
-	return rc;
 }
 
 #endif /* FXLINK_DISABLE_UDISKS2 */

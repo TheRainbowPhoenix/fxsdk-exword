@@ -1,36 +1,42 @@
-//---
-// fxlink:fxlink - Application logic
-//---
+//---------------------------------------------------------------------------//
+// ==>/[_]\   fxlink: A community communication tool for CASIO calculators.  //
+//    |:::|   Made by Lephe' as part of the fxSDK.                           //
+//    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
+//---------------------------------------------------------------------------//
+// fxlink.fxlink: Options and mode functions
 
-#ifndef FXLINK_FXLINK_H
-#define FXLINK_FXLINK_H
-
+#pragma once
+#include <fxlink/filter.h>
 #include <libusb.h>
-#include "filter.h"
-#include "util.h"
 
-struct fxlink_options
-{
-	bool quiet;
-	bool force_unmount;
+/* Global and command-line options. */
+struct fxlink_options {
+	/* If not NULL, gets a copy of all text messages received in either
+	   interactive mode */
 	FILE *log_file;
+	/* Extra details (mainly interactive messages) */
+	bool verbose;
 };
 
 extern struct fxlink_options options;
 
 /* Main function for -l */
-int main_list(filter_t *filter, delay_t *delay, libusb_context *context);
+int main_list(struct fxlink_filter *filter, delay_t *delay,
+	libusb_context *context);
 
 /* Main function for -b */
-int main_blocks(filter_t *filter, delay_t *delay);
+int main_blocks(struct fxlink_filter *filter, delay_t *delay);
 
 /* Main function for -s */
-int main_send(filter_t *filter, delay_t *delay, char **files);
+int main_send(struct fxlink_filter *filter, delay_t *delay, char **files);
 
 /* Main function for -i */
-int main_interactive(filter_t *filter, delay_t *delay, libusb_context *context);
+int main_interactive(struct fxlink_filter *filter, delay_t *delay,
+	libusb_context *context);
+
+/* Main function for -t */
+int main_tui_interactive(libusb_context *context);
 
 /* Main function for -p */
-int main_push(filter_t *filter, delay_t *delay, libusb_context *context, char **files);
-
-#endif /* FXLINK_FXLINK_H */
+int main_push(struct fxlink_filter *filter, delay_t *delay,
+	libusb_context *context, char **files);

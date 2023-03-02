@@ -15,6 +15,7 @@ endif()
 if(NOT FXLINK_DISABLE_SDL2)
   pkg_check_modules(sdl2 REQUIRED sdl2 IMPORTED_TARGET)
 endif()
+pkg_check_modules(ncurses REQUIRED ncurses IMPORTED_TARGET)
 
 set(CMAKE_INSTALL_MESSAGE LAZY)
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -28,7 +29,7 @@ add_executable(fxgxa fxgxa/dump.c fxgxa/edit.c fxgxa/file.c fxgxa/icon.c
 target_include_directories(fxgxa PUBLIC fxgxa/)
 target_link_libraries(fxgxa PkgConfig::libpng)
 
-# fxg1a as a symlink (for compatibility=
+# fxg1a as a symlink (for compatibility)
 add_custom_target(fxg1a ALL
   COMMAND ${CMAKE_COMMAND} -E create_symlink "fxgxa" "fxg1a")
 
@@ -42,12 +43,31 @@ add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
 add_custom_target(fxsdk ALL DEPENDS "${BIN}/fxsdk.sh")
 
 # fxlink
-configure_file(fxlink/config.h.in "${BIN}/include/fxlink/config.h")
-add_executable(fxlink fxlink/usb.c fxlink/filter.c fxlink/interactive.c fxlink/push.c
-  fxlink/main.c fxlink/png.c fxlink/properties.c fxlink/ud2.c fxlink/util.c
-  fxlink/protocol.c fxlink/sdl2.c)
-target_link_libraries(fxlink PkgConfig::libpng PkgConfig::libusb)
-target_include_directories(fxlink PRIVATE "${BIN}/include/fxlink")
+configure_file(fxlink/include/fxlink/config.h.in
+  "${BIN}/include/fxlink/config.h")
+add_executable(fxlink
+  fxlink/defs.c
+  fxlink/devices.c
+  fxlink/filter.c
+  fxlink/logging.c
+  fxlink/main.c
+  fxlink/protocol.c
+  fxlink/modes/interactive.c
+  fxlink/modes/list.c
+  fxlink/modes/push.c
+  fxlink/modes/tui-interactive.c
+  fxlink/modes/udisks2.c
+  fxlink/tooling/libpng.c
+  fxlink/tooling/sdl2.c
+  fxlink/tooling/udisks2.c
+  fxlink/tui/input.c
+  fxlink/tui/layout.c
+  fxlink/tui/render.c)
+target_link_libraries(fxlink
+  PkgConfig::libpng PkgConfig::libusb PkgConfig::ncurses -lm)
+target_include_directories(fxlink PRIVATE
+  "${BIN}/include"
+  "${SRC}/fxlink/include")
 if(NOT FXLINK_DISABLE_UDISKS2)
   target_link_libraries(fxlink PkgConfig::udisks2)
 endif()

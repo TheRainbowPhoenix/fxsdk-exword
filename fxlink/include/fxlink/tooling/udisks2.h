@@ -1,33 +1,39 @@
-//---
-// fxlink:ud2 - UDisks2 functions
-//---
+//---------------------------------------------------------------------------//
+// ==>/[_]\   fxlink: A community communication tool for CASIO calculators.  //
+//    |:::|   Made by Lephe' as part of the fxSDK.                           //
+//    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
+//---------------------------------------------------------------------------//
+// fxlink.tooling.udisks2: Utilities based on the UDisks2 library
 
-#ifndef FXLINK_UD2_H
-#define FXLINK_UD2_H
-
+#pragma once
+#include <fxlink/config.h>
 #ifndef FXLINK_DISABLE_UDISKS2
 
 #include <udisks/udisks.h>
-#include "config.h"
-#include "properties.h"
-#include "filter.h"
-#include "util.h"
+#include <fxlink/filter.h>
 
 /* ud2_properties(): Determine properties of a UDisks2 USB drive */
-properties_t ud2_properties(UDisksDrive *drive);
+struct fxlink_filter ud2_properties(UDisksDrive *drive);
+
+/* Initialize a connection to the UDisks2 service via D-Bus. */
+int ud2_start(UDisksClient **udc_ptr, UDisksManager **udm_ptr);
+
+/* Close the connection to the UDisks2 service. */
+void ud2_end(UDisksClient *udc, UDisksManager *udm);
 
 /* ud2_unique_matching(): Device matching the provided filter, if unique
    Similar to usb_unique_matching(), please refer to "usb.h" for details.
    There are just many more inputs and outputs. */
-int ud2_unique_matching(filter_t const *filter, UDisksClient *udc,
+int ud2_unique_matching(struct fxlink_filter const *filter, UDisksClient *udc,
 	UDisksManager *udm, UDisksBlock **block, UDisksDrive **drive,
 	UDisksFilesystem **fs);
 
 /* ud2_unique_wait(): Wait for a device matching the provided filter to connect
-   Like usb_unique_wait(), please see "usb.h" for details. */
-int ud2_unique_wait(filter_t const *filter, delay_t *delay, UDisksClient *udc,
-	UDisksManager *udm, UDisksBlock **block, UDisksDrive **drive,
-	UDisksFilesystem **fs);
+   Returns an FXLINK_FILTER_* code. If a unique device is found, sets *udc,
+   *udm, *block, *drive and *fs accordingly. */
+int ud2_unique_wait(struct fxlink_filter const *filter, delay_t *delay,
+	UDisksClient *udc, UDisksManager *udm, UDisksBlock **block,
+	UDisksDrive **drive, UDisksFilesystem **fs);
 
 //---
 // Iteration on UDisks2 devices
@@ -39,7 +45,7 @@ typedef struct {
 	UDisksDrive *drive;
 	UDisksFilesystem *fs;
 	/* Device properties */
-	properties_t props;
+	struct fxlink_filter props;
 	/* Whether the iteration has finished */
 	bool done;
 
@@ -66,5 +72,3 @@ void ud2_iter_next(ud2_iterator_t *it);
 		!NAME.done; ud2_iter_next(&NAME)) if(!NAME.done)
 
 #endif /* FXLINK_DISABLE_UDISKS2 */
-
-#endif /* FXLINK_UD2_H */
