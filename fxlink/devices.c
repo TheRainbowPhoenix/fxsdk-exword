@@ -460,7 +460,7 @@ void fxlink_device_start_bulk_IN(struct fxlink_device *fdev)
 
     int rc = libusb_submit_transfer(fdev->comm->tr_bulk_IN);
     if(rc < 0) {
-        elog("bulk IN transfer failed to submit: %s\n", libusb_strerror(rc));
+        elog_libusb(rc, "bulk IN transfer failed to submit");
         fdev->status = FXLINK_FDEV_STATUS_ERROR;
         return;
     }
@@ -489,8 +489,102 @@ struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
     log_("new message (v%d.%d): %.16s:%.16s, %s\n",
         version_major, version_minor,
         msg->application, msg->type, fxlink_size_string(msg->size));
+
+    fxlink_transfer_free(comm->ftransfer_IN);
     comm->ftransfer_IN = NULL;
     return msg;
+}
+
+/* Note: this function is run by the even handler and can't do any crazy libusb
+   stuff like sync I/O or getting descriptors. */
+static void bulk_OUT_callback(struct libusb_transfer *transfer)
+{
+    struct fxlink_device *fdev = transfer->user_data;
+    struct fxlink_comm *comm = fdev->comm;
+
+    int data_size = transfer->actual_length;
+    bool send_more = true;
+    struct fxlink_transfer *tr = comm->ftransfer_OUT;
+
+    if(transfer->status != LIBUSB_TRANSFER_COMPLETED)
+        hlog("calculators %s", fxlink_device_id(fdev));
+
+    switch(transfer->status) {
+    case LIBUSB_TRANSFER_COMPLETED:
+        if(tr->processed_size < 0) {
+            if(data_size != FXLINK_MESSAGE_HEADER_SIZE) {
+                elog("OUT for header only partially completed");
+                send_more = false;
+            }
+            tr->processed_size = 0;
+        }
+        else {
+            tr->processed_size += data_size;
+            if(fxlink_transfer_complete(tr))
+                send_more = false;
+        }
+
+        if(send_more) {
+            libusb_fill_bulk_transfer(comm->tr_bulk_OUT, fdev->dh,
+                comm->ep_bulk_OUT,                  /* Endpoint */
+                tr->msg.data + tr->processed_size,  /* Buffer */
+                tr->msg.size - tr->processed_size,  /* Buffer size */
+                bulk_OUT_callback, fdev, -1);       /* Callback and timeout */
+            libusb_submit_transfer(comm->tr_bulk_OUT);
+        }
+        else {
+            libusb_free_transfer(comm->tr_bulk_OUT);
+            comm->tr_bulk_OUT = NULL;
+            fxlink_transfer_free(comm->ftransfer_OUT);
+            comm->ftransfer_OUT = NULL;
+        }
+        break;
+
+    /* Typical errors */
+    case LIBUSB_TRANSFER_ERROR:     log_("transfer error\n"); break;
+    case LIBUSB_TRANSFER_TIMED_OUT: log_("transfer timed out\n"); break;
+    case LIBUSB_TRANSFER_CANCELLED: log_("transfer cancelled\n"); break;
+    case LIBUSB_TRANSFER_STALL:     log_("transfer stalled\n"); break;
+    case LIBUSB_TRANSFER_OVERFLOW:  log_("transfer overflowed\n"); break;
+    /* No device: this is normal */
+    case LIBUSB_TRANSFER_NO_DEVICE:
+        log_("stop listening (calculator disconnected)\n");
+        break;
+    }
+}
+
+void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
+    char const *app, char const *type, void const *data, int size)
+{
+    struct fxlink_comm *comm = fdev->comm;
+    if(!comm || !comm->claimed || comm->ftransfer_OUT)
+        return;
+
+    comm->ftransfer_OUT = fxlink_transfer_make_OUT(app, type, data, size);
+    if(!comm->ftransfer_OUT) {
+        elog("allocation of OUT transfer (protocol) failed\n");
+        return;
+    }
+
+    comm->tr_bulk_OUT = libusb_alloc_transfer(0);
+    if(!comm->tr_bulk_OUT) {
+        elog("allocation of bulk OUT transfer (libusb) failed\n");
+        free(comm->ftransfer_OUT);
+        return;
+    }
+
+    libusb_fill_bulk_transfer(comm->tr_bulk_OUT, fdev->dh,
+        comm->ep_bulk_OUT,                  /* Endpoint */
+        (void *)&comm->ftransfer_OUT->msg,  /* Buffer */
+        FXLINK_MESSAGE_HEADER_SIZE,         /* Buffer size */
+        bulk_OUT_callback, fdev, -1);       /* Callback and timeout */
+
+    int rc = libusb_submit_transfer(comm->tr_bulk_OUT);
+    if(rc < 0) {
+        elog_libusb(rc, "bulk OUT transfer failed to submit");
+        fdev->status = FXLINK_FDEV_STATUS_ERROR;
+        return;
+    }
 }
 
 //---

@@ -282,7 +282,32 @@ void fxlink_transfer_receive(struct fxlink_transfer *tr, void *data, int size)
     tr->processed_size += size;
 }
 
+struct fxlink_transfer *fxlink_transfer_make_OUT(char const *application,
+    char const *type, void const *data, int size)
+{
+    struct fxlink_transfer *tr = calloc(1, sizeof *tr);
+    if(!tr)
+        return NULL;
+
+    tr->msg.version = 0x00000100;
+    tr->msg.size = size;
+    tr->msg.transfer_size = 0;
+    strncpy(tr->msg.application, application, 16);
+    strncpy(tr->msg.type, type, 16);
+    tr->msg.data = (void *)data;
+    tr->direction = FXLINK_TRANSFER_OUT;
+    tr->processed_size = -1;
+    return tr;
+}
+
 bool fxlink_transfer_complete(struct fxlink_transfer const *tr)
 {
-    return tr->processed_size >= tr->msg.size;
+    return tr->processed_size >= (int)tr->msg.size;
+}
+
+void fxlink_transfer_free(struct fxlink_transfer *tr)
+{
+    if(tr->direction == FXLINK_TRANSFER_IN)
+        free(tr->msg.data);
+    free(tr);
 }

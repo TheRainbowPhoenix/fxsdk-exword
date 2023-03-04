@@ -112,7 +112,7 @@ struct fxlink_transfer {
     /* Transfer direction (FXLINK_TRANSFER_{IN,OUT}) */
     uint8_t direction;
     /* Size of data sent or received so far */
-    uint32_t processed_size;
+    int processed_size;
 };
 
 enum {
@@ -136,5 +136,12 @@ struct fxlink_message *fxlink_transfer_finish_IN(struct fxlink_transfer *tr);
 /* Append data to a previously-initialized inbound transfer. */
 void fxlink_transfer_receive(struct fxlink_transfer *tr, void *data, int size);
 
+/* Make an outbound transfer structure. */
+struct fxlink_transfer *fxlink_transfer_make_OUT(char const *application,
+    char const *type, void const *data, int size);
+
 /* Check whether a transfer is complete. */
 bool fxlink_transfer_complete(struct fxlink_transfer const *tr);
+
+/* Free a transfer structure and associated data. */
+void fxlink_transfer_free(struct fxlink_transfer *tr);

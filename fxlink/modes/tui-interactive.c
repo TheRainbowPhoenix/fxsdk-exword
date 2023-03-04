@@ -221,7 +221,7 @@ static void TUI_render_transfers(void)
         if(OUT) {
             mvwaddstr(win, y, 1, fxlink_device_id(fdev));
             mvwaddstr(win, y, 10, "OUT");
-            mvwaddstr(win, y, 16, fxlink_size_string(IN->msg.size));
+            mvwaddstr(win, y, 16, fxlink_size_string(OUT->msg.size));
             has_transfers = true;
             y++;
         }
@@ -482,6 +482,25 @@ int main_tui_interactive(libusb_context *ctx)
                     log_("command: '%s'\n", command);
                 if(!strcmp(command, "q"))
                     break;
+                if(!strcmp(command, "test")) {
+                    /* Find a device */
+                    struct fxlink_device *fdev = NULL;
+                    for(int i = 0; i < TUI.devices.count; i++) {
+                        fdev = &TUI.devices.devices[i];
+                        if(fdev->status == FXLINK_FDEV_STATUS_CONNECTED)
+                            break;
+                        else fdev = NULL;
+                    }
+                    if(fdev) {
+                        print(TUI.wConsole, "using device %s (%s)\n",
+                            fxlink_device_id(fdev), fdev->calc->serial);
+                        fxlink_device_start_bulk_OUT(fdev,
+                            "fxlink", "command", "test", 4);
+                    }
+                    else {
+                        print(TUI.wConsole, "no connected device!\n");
+                    }
+                }
                 fxlink_TUI_input_free(&input);
                 print(TUI.wConsole, "%s", prompt);
                 fxlink_TUI_input_init(&input, TUI.wConsole, 16);

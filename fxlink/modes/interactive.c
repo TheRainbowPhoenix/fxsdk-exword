@@ -158,8 +158,7 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 	/* Warning for unfinished transfer */
 	if(tr) {
 		wlog("unfinished transfer interrupted by disconnection\n");
-		// TODO: Proper way to free a transfer without finishing it
-		free(tr);
+		fxlink_transfer_free(tr);
 	}
 
 	fxlink_device_cleanup(fdev);
