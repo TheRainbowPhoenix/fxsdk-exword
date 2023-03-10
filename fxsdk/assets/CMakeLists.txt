@@ -38,4 +38,7 @@ if("${FXSDK_PLATFORM_LONG}" STREQUAL fx9860G)
 elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fxCG50)
   generate_g3a(TARGET myaddin OUTPUT "MyAddin.g3a"
     NAME "MyAddin" ICONS assets-cg/icon-uns.png assets-cg/icon-sel.png)
+elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fx9860G_AS_CG)
+  generate_g3a(TARGET myaddin OUTPUT "MyAddin.g3a"
+    NAME "MyAddin" ICONS assets-cg/icon-uns.png assets-cg/icon-sel.png)
 endif()
