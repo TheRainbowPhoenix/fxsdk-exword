@@ -579,6 +579,10 @@ void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
         FXLINK_MESSAGE_HEADER_SIZE,         /* Buffer size */
         bulk_OUT_callback, fdev, -1);       /* Callback and timeout */
 
+    /* The fxlink protocol generally doesn't rely on sizes and instead expects
+       zero-length packets to mark the ends of transactions */
+    comm->tr_bulk_OUT->flags = LIBUSB_TRANSFER_ADD_ZERO_PACKET;
+
     int rc = libusb_submit_transfer(comm->tr_bulk_OUT);
     if(rc < 0) {
         elog_libusb(rc, "bulk OUT transfer failed to submit");
