@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "fxlink.h"
 
 bool fxlink_message_is_apptype(struct fxlink_message const *msg,
@@ -236,6 +237,7 @@ struct fxlink_transfer *fxlink_transfer_make_IN(void *data, int size)
     tr->msg.data = malloc(tr->msg.size);
     tr->direction = FXLINK_TRANSFER_IN;
     tr->processed_size = 0;
+    tr->own_data = true;
 
     if(!tr->msg.data) {
         elog("cannot allocate buffer for %d bytes\n", tr->msg.size);
@@ -262,6 +264,7 @@ struct fxlink_message *fxlink_transfer_finish_IN(struct fxlink_transfer *tr)
         log_("extracting completed message (%d bytes)\n", tr->msg.size);
 
     /* Shallow copy the malloc()'d data pointer */
+    assert(tr->own_data && "Can't shallow copy data if we don't own it!");
     memcpy(msg, &tr->msg, sizeof *msg);
     free(tr);
     return msg;
@@ -283,7 +286,7 @@ void fxlink_transfer_receive(struct fxlink_transfer *tr, void *data, int size)
 }
 
 struct fxlink_transfer *fxlink_transfer_make_OUT(char const *application,
-    char const *type, void const *data, int size)
+    char const *type, void const *data, int size, bool own_data)
 {
     struct fxlink_transfer *tr = calloc(1, sizeof *tr);
     if(!tr)
@@ -297,6 +300,7 @@ struct fxlink_transfer *fxlink_transfer_make_OUT(char const *application,
     tr->msg.data = (void *)data;
     tr->direction = FXLINK_TRANSFER_OUT;
     tr->processed_size = -1;
+    tr->own_data = own_data;
     return tr;
 }
 
@@ -307,7 +311,7 @@ bool fxlink_transfer_complete(struct fxlink_transfer const *tr)
 
 void fxlink_transfer_free(struct fxlink_transfer *tr)
 {
-    if(tr->direction == FXLINK_TRANSFER_IN)
+    if(tr->own_data)
         free(tr->msg.data);
     free(tr);
 }

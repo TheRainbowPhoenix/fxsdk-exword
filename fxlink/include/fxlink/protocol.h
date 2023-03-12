@@ -113,6 +113,8 @@ struct fxlink_transfer {
     uint8_t direction;
     /* Size of data sent or received so far */
     int processed_size;
+    /* Whether we own msg.data and should free(3) it */
+    bool own_data;
 };
 
 enum {
@@ -130,7 +132,8 @@ enum {
 struct fxlink_transfer *fxlink_transfer_make_IN(void *data, int size);
 
 /* If the provided IN transfer is finished, extract the message and free the
-   transfer pointer. Otherwise, return NULL. */
+   transfer (do not fxlink_transfer_free(tr) later!). Returns NULL if the
+   transfer isn't finished yet. */
 struct fxlink_message *fxlink_transfer_finish_IN(struct fxlink_transfer *tr);
 
 /* Append data to a previously-initialized inbound transfer. */
@@ -138,7 +141,7 @@ void fxlink_transfer_receive(struct fxlink_transfer *tr, void *data, int size);
 
 /* Make an outbound transfer structure. */
 struct fxlink_transfer *fxlink_transfer_make_OUT(char const *application,
-    char const *type, void const *data, int size);
+    char const *type, void const *data, int size, bool own_data);
 
 /* Check whether a transfer is complete. */
 bool fxlink_transfer_complete(struct fxlink_transfer const *tr);

@@ -210,9 +210,11 @@ void fxlink_device_start_bulk_IN(struct fxlink_device *fdev);
 struct fxlink_message *fxlink_device_finish_bulk_IN(
     struct fxlink_device *fdev);
 
-/* Start an OUT transfer on the device. */
+/* Start an OUT transfer on the device. If `own_data` is set, the transfer will
+   free(data) when it completes. */
 void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
-    char const *app, char const *type, void const *data, int size);
+    char const *app, char const *type, void const *data, int size,
+    bool own_data);
 
 /* Interrupt any active transfers on the device. */
 void fxlink_device_interrupt_transfers(struct fxlink_device *fdev);

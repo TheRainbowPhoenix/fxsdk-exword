@@ -490,7 +490,6 @@ struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
         version_major, version_minor,
         msg->application, msg->type, fxlink_size_string(msg->size));
 
-    fxlink_transfer_free(comm->ftransfer_IN);
     comm->ftransfer_IN = NULL;
     return msg;
 }
@@ -554,13 +553,15 @@ static void bulk_OUT_callback(struct libusb_transfer *transfer)
 }
 
 void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
-    char const *app, char const *type, void const *data, int size)
+    char const *app, char const *type, void const *data, int size,
+    bool own_data)
 {
     struct fxlink_comm *comm = fdev->comm;
     if(!comm || !comm->claimed || comm->ftransfer_OUT)
         return;
 
-    comm->ftransfer_OUT = fxlink_transfer_make_OUT(app, type, data, size);
+    comm->ftransfer_OUT =
+        fxlink_transfer_make_OUT(app, type, data, size, own_data);
     if(!comm->ftransfer_OUT) {
         elog("allocation of OUT transfer (protocol) failed\n");
         return;
