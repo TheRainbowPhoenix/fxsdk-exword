@@ -1,0 +1,4 @@
+ PREFIX=$HOME/.local make -f giteapc.make configure
+ make -C build install
+
+

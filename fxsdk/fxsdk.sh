@@ -161,6 +161,11 @@ fxsdk_build() {
     echo "$TAG Making into build-cg"
     fxsdk_build_cg "$@"
   fi
+
+  if [[ -e build-fx-as-cg || $none_exists == 0 ]]; then
+    echo "$TAG Making into build-fx-as-cg"
+    fxsdk_build_fx_as_cg "$@"
+  fi
 }
 
 fxsdk_build_fx() {
@@ -247,8 +252,12 @@ fxsdk_send() {
     fxsdk_send_cg
   fi
 
+  if [[ -e "build-fx-as-cg" && ! -e "build-fxascg" ]]; then
+    fxsdk_send_fx_as_cg
+  fi
+
   echo "either no or several platforms are targeted, use 'fxsdk send-fx' or"
-  echo "fxsdk 'send-cg' to specify which calculator to send to."
+  echo "'fxsdk send-cg' or 'fxsdk send-fx-as-cg' to specify which calculator to send to."
 }
 
 fxsdk_send_fx() {
@@ -282,6 +291,21 @@ fxsdk_send_cg-push() {
   bin_files=$(find "build-cg-push" -maxdepth 1 -name '*.bin')
   echo "$TAG Running: fxlink -pw ${bin_files}"
   fxlink -pw ${bin_files}
+}
+
+fxsdk_send_fx-as-cg() {
+  echo "$TAG Installing for fx-CG using fxlink"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  g3a_files=$(find -maxdepth 1 -name '*.g3a')
+  echo "$TAG Running: fxlink -sw ${g3a_files}"
+  fxlink -sw ${g3a_files}
+}
+
+fxsdk_send_fx-as-cg-push() {
+  fxsdk_send_cg-push
 }
 
 fxsdk_path() {
