@@ -5,17 +5,10 @@
 //---------------------------------------------------------------------------//
 
 #include "../fxlink.h"
-#include <fxlink/tui/layout.h>
-#include <fxlink/tui/render.h>
-#include <fxlink/tui/input.h>
-#include <fxlink/devices.h>
-#include <fxlink/logging.h>
+#include "tui.h"
 #include <fxlink/tooling/libpng.h>
 #include <fxlink/tooling/sdl2.h>
 
-#include <libusb.h>
-#include <ncurses.h>
-#include <poll.h>
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -40,22 +33,7 @@ Application-specific commands:
   gintctl bench             USB transfer speed benchmark
 */
 
-static struct TUIData {
-    /* SIGWINCH flag */
-    bool resize_needed;
-    /* ncurses window panels */
-    WINDOW *wStatus;
-    WINDOW *wLogs;
-    WINDOW *wTransfers;
-    WINDOW *wTextOutput;
-    WINDOW *wConsole;
-    /* Root box */
-    struct fxlink_TUI_box *bRoot;
-    /* Application data */
-    struct fxlink_pollfds polled_fds;
-    struct fxlink_device_list devices;
-
-} TUI = { 0 };
+struct TUIData TUI = { 0 };
 
 //---
 // TUI management and rendering
@@ -421,50 +399,6 @@ static void handle_fxlink_log(int display_fmt, char const *str)
     wattroff(TUI.wLogs, attr);
 }
 
-static void execute_command(char const *command)
-{
-    /* Connected device (TODO: Use the "selected" device) */
-    struct fxlink_device *fdev = NULL;
-    for(int i = 0; i < TUI.devices.count; i++) {
-        if(TUI.devices.devices[i].status == FXLINK_FDEV_STATUS_CONNECTED) {
-            fdev = &TUI.devices.devices[i];
-            break;
-        }
-    }
-
-    /* The following commands require a connected device */
-    if(!fdev) {
-        print(TUI.wConsole, "no connected device!\n");
-        return;
-    }
-    print(TUI.wConsole, "using device %s (%s)\n",
-        fxlink_device_id(fdev), fdev->calc->serial);
-
-    if(!strncmp(command, "/echo", 5)) {
-        int len = strlen(command+1);
-        fxlink_device_start_bulk_OUT(fdev,
-            "fxlink", "command", strdup(command+1), len, true);
-        return;
-    }
-    else if(!strcmp(command, "/identify")) {
-        fxlink_device_start_bulk_OUT(fdev,
-            "fxlink", "command", "identify", 8, false);
-        return;
-    }
-    else if(!strcmp(command, "gintctl read-long")) {
-        int count = 128; // 2048;
-        uint32_t *data = malloc(count * 4);
-        for(int i = 0; i < count; i++)
-            data[i] = i;
-        fxlink_device_start_bulk_OUT(fdev,
-            "gintctl", "echo-bounds", data, count * 4, true);
-        return;
-    }
-
-    fprint(TUI.wConsole, FMT_RED, "error: ");
-    print(TUI.wConsole, "unrecognized command '%s'\n", command);
-}
-
 int main_tui_interactive(libusb_context *ctx)
 {
     if(!TUI_setup())
@@ -541,18 +475,29 @@ int main_tui_interactive(libusb_context *ctx)
 
             if(finished) {
                 char *command = input.data;
+                bool refresh_all = false;
+
                 if(command[0] != 0)
                     log_("command: '%s'\n", command);
                 if(!strcmp(command, ""))
                     {}
                 else if(!strcmp(command, "q") || !strcmp(command, "quit"))
                     break;
-                else
-                    execute_command(command);
+                else {
+                    TUI_execute_command(command);
+                    refresh_all = true;
+                }
+
                 fxlink_TUI_input_free(&input);
                 print(TUI.wConsole, "%s", prompt);
                 fxlink_TUI_input_init(&input, TUI.wConsole, 16);
-                TUI_refresh_console();
+
+                if(refresh_all) {
+                    TUI_render_all(false);
+                    TUI_refresh_all(false);
+                }
+                else
+                    TUI_refresh_console();
             }
         }
 

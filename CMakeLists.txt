@@ -55,14 +55,15 @@ add_executable(fxlink
   fxlink/modes/interactive.c
   fxlink/modes/list.c
   fxlink/modes/push.c
-  fxlink/modes/tui-interactive.c
   fxlink/modes/udisks2.c
   fxlink/tooling/libpng.c
   fxlink/tooling/sdl2.c
   fxlink/tooling/udisks2.c
+  fxlink/tui/commands.c
   fxlink/tui/input.c
   fxlink/tui/layout.c
-  fxlink/tui/render.c)
+  fxlink/tui/render.c
+  fxlink/tui/tui-interactive.c)
 target_link_libraries(fxlink
   PkgConfig::libpng PkgConfig::libusb PkgConfig::ncurses -lm)
 target_include_directories(fxlink PRIVATE
