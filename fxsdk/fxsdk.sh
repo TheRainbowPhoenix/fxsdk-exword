@@ -241,11 +241,11 @@ fxsdk_build_in() {
 }
 
 fxsdk_send() {
-  if [[ -e "build-fx" && ! -e "build-cg" && ! -e "build-fx-as-cg" ]]; then
+  if [[ -e "build-fx" && ! -e "build-cg" && ! -e "build-fxascg" ]]; then
     fxsdk_send_fx
   fi
 
-  if [[ -e "build-cg" && ! -e "build-fx" && ! -e "build-fx-as-cg" ]]; then
+  if [[ -e "build-cg" && ! -e "build-fx" && ! -e "build-fxascg" ]]; then
     fxsdk_send_cg
   fi
 
@@ -345,6 +345,8 @@ case "$1" in
     fxsdk_send_fx;;
   "send-cg"|"sc"|"scg")
     fxsdk_send_cg;;
+  "send-fxascg"|"sfxcg"|"sfcg")
+    fxsdk_send_fxascg;;
 
   # Utilities
   "path")
