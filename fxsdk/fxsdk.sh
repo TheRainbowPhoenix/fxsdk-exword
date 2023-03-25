@@ -41,10 +41,10 @@ ${R}fxsdk${n} ${R}build-cg-push${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
   are identical to other build commands. Typical workflows will always set -s
   (which requires libusb support in fxlink).
 
-${R}fxsdk${n} ${R}build-fx-as-cg${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
+${R}fxsdk${n} ${R}build-fxascg${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
 [${g}<ARGS>${n}...]
   Builds the current project for fx-CG 50 from a code source initially
-  targetting the fx-9860G. It will generate a .g3a add-in in lieu of a .g1a
+  targetting the fx-9860G(II). It will generate a .g3a add-in in lieu of a .g1a
   add-in. Upscaling of the screen will be performed to accomodate the higher
   resolution of the screen of the fx-CG 50 (396x224px) instead of one of the
   fx-9860G (128x64px).
@@ -135,10 +135,10 @@ fxsdk_new_project() {
   cp "$assets"/icon-cg-sel.png "$1"/assets-cg/icon-sel.png
 
   echo "Created a new project $NAME (build system: $generator)."
-  echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' or 'fxsdk build-fx-as-cg'"
+  echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' or 'fxsdk build-fxascg'"
   echo "to compile the program."
-  echo "Type 'fxsdk build-cg-push' or 'fxsdk build-fx-as-cg-push' to compile"
-  echo "a bin to be send to Add-In Push by circuit10"
+  echo "Type 'fxsdk build-cg-push' to compile a bin to be send to"
+  echo "Add-In Push by circuit10"
 }
 
 fxsdk_load_config() {
@@ -149,7 +149,7 @@ fxsdk_load_config() {
 
 
 fxsdk_build() {
-  [[ ! -e build-fx && ! -e build-cg ]]
+  [[ ! -e build-fx && ! -e build-cg && ! -e build-fxascg ]]
   none_exists=$?
 
   if [[ -e build-fx || $none_exists == 0 ]]; then
@@ -162,9 +162,9 @@ fxsdk_build() {
     fxsdk_build_cg "$@"
   fi
 
-  if [[ -e build-fx-as-cg || $none_exists == 0 ]]; then
-    echo "$TAG Making into build-fx-as-cg"
-    fxsdk_build_fx_as_cg "$@"
+  if [[ -e build-fxascg || $none_exists == 0 ]]; then
+    echo "$TAG Making into build-fxascg"
+    fxsdk_build_fxascg "$@"
   fi
 }
 
@@ -177,11 +177,8 @@ fxsdk_build_cg() {
 fxsdk_build_cg_push() {
   fxsdk_build_in "cg-push" "FXCG50" "$@"
 }
-fxsdk_build_fx_as_cg() {
-  fxsdk_build_in "fx-as-cg" "FX9860G_AS_CG" "$@"
-}
-fxsdk_build_fx_as_cg_push() {
-  fxsdk_build_in "fx-as-cg-push" "FX9860G_AS_CG" "$@"
+fxsdk_build_fxascg() {
+  fxsdk_build_in "fxascg" "FX9860G_AS_CG" "$@"
 }
 
 fxsdk_build_in() {
@@ -244,20 +241,20 @@ fxsdk_build_in() {
 }
 
 fxsdk_send() {
-  if [[ -e "build-fx" && ! -e "build-cg" ]]; then
+  if [[ -e "build-fx" && ! -e "build-cg" && ! -e "build-fx-as-cg" ]]; then
     fxsdk_send_fx
   fi
 
-  if [[ -e "build-cg" && ! -e "build-fx" ]]; then
+  if [[ -e "build-cg" && ! -e "build-fx" && ! -e "build-fx-as-cg" ]]; then
     fxsdk_send_cg
   fi
 
-  if [[ -e "build-fx-as-cg" && ! -e "build-fxascg" ]]; then
-    fxsdk_send_fx_as_cg
+  if [[ -e "build-fxascg" && ! -e "build-fx" && ! -e "build-cg" ]]; then
+    fxsdk_send_fxascg
   fi
 
   echo "either no or several platforms are targeted, use 'fxsdk send-fx' or"
-  echo "'fxsdk send-cg' or 'fxsdk send-fx-as-cg' to specify which calculator to send to."
+  echo "'fxsdk send-cg' or 'fxsdk send-fxascg' to specify which calculator to send to."
 }
 
 fxsdk_send_fx() {
@@ -293,7 +290,7 @@ fxsdk_send_cg-push() {
   fxlink -pw ${bin_files}
 }
 
-fxsdk_send_fx-as-cg() {
+fxsdk_send_fxascg() {
   echo "$TAG Installing for fx-CG using fxlink"
   if ! command -v fxlink >/dev/null 2>&1; then
     echo "error: fxlink is not installed or not available"
@@ -304,9 +301,6 @@ fxsdk_send_fx-as-cg() {
   fxlink -sw ${g3a_files}
 }
 
-fxsdk_send_fx-as-cg-push() {
-  fxsdk_send_cg-push
-}
 
 fxsdk_path() {
   case "$1" in
@@ -341,11 +335,8 @@ case "$1" in
     fxsdk_build_cg "${@:2}";;
   "build-cg-push"|"bcgp")
     fxsdk_build_cg_push "${@:2}";;
-  "build-fx-as-cg"|"bfxcg"|"bfcg")
-    fxsdk_build_fx_as_cg "${@:2}";;
-  "build-fx-as-cg-push"|"bfxcgp"|"bfcgp")
-    fxsdk_build_fx_as_cg_push "${@:2}";;
-
+  "build-fxascg"|"bfxcg"|"bfcg")
+    fxsdk_build_fxascg "${@:2}";;
 
   # Install
   "send"|"s")
