@@ -42,16 +42,25 @@ add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
   DEPENDS "${SRC}/fxsdk/fxsdk.sh")
 add_custom_target(fxsdk ALL DEPENDS "${BIN}/fxsdk.sh")
 
-# fxlink
-configure_file(fxlink/include/fxlink/config.h.in
+# libfxlink
+configure_file(libfxlink/include/fxlink/config.h.in
   "${BIN}/include/fxlink/config.h")
+add_library(libfxlink STATIC
+  libfxlink/defs.c
+  libfxlink/devices.c
+  libfxlink/filter.c
+  libfxlink/logging.c
+  libfxlink/protocol.c)
+target_link_libraries(libfxlink PUBLIC PkgConfig::libusb)
+target_include_directories(libfxlink PUBLIC
+  "${BIN}/include"
+  "${SRC}/libfxlink/include")
+set_target_properties(libfxlink PROPERTIES
+  OUTPUT_NAME "fxlink") # libfxlink.a
+
+# fxlink
 add_executable(fxlink
-  fxlink/defs.c
-  fxlink/devices.c
-  fxlink/filter.c
-  fxlink/logging.c
   fxlink/main.c
-  fxlink/protocol.c
   fxlink/modes/interactive.c
   fxlink/modes/list.c
   fxlink/modes/push.c
@@ -66,9 +75,8 @@ add_executable(fxlink
   fxlink/tui/render.c
   fxlink/tui/tui-interactive.c)
 target_link_libraries(fxlink
-  PkgConfig::libpng PkgConfig::libusb PkgConfig::ncurses -lm)
+  libfxlink PkgConfig::libpng PkgConfig::ncurses -lm)
 target_include_directories(fxlink PRIVATE
-  "${BIN}/include"
   "${SRC}/fxlink/include")
 if(NOT FXLINK_DISABLE_UDISKS2)
   target_link_libraries(fxlink PkgConfig::udisks2)
@@ -89,5 +97,5 @@ install(FILES "${BIN}/fxg1a" TYPE BIN)
 # fxconv
 install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
 install(FILES fxconv/fxconv.py TYPE BIN)
-#fxlink
+# fxlink
 install(TARGETS fxlink)

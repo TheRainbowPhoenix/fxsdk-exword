@@ -10,7 +10,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
-#include "fxlink.h"
 
 bool fxlink_message_is_apptype(struct fxlink_message const *msg,
     char const *application, char const *type)
@@ -260,9 +259,6 @@ struct fxlink_message *fxlink_transfer_finish_IN(struct fxlink_transfer *tr)
         return NULL;
     }
 
-    if(options.verbose)
-        log_("extracting completed message (%d bytes)\n", tr->msg.size);
-
     /* Shallow copy the malloc()'d data pointer */
     assert(tr->own_data && "Can't shallow copy data if we don't own it!");
     memcpy(msg, &tr->msg, sizeof *msg);
@@ -277,9 +273,6 @@ void fxlink_transfer_receive(struct fxlink_transfer *tr, void *data, int size)
         elog("message too long, dropping %d bytes\n", size - remaining_size);
         size = remaining_size;
     }
-
-    if(options.verbose)
-        log_("got %d bytes (out of %d left)\n", size, remaining_size);
 
     memcpy(tr->msg.data + tr->processed_size, data, size);
     tr->processed_size += size;
