@@ -399,10 +399,129 @@ static void handle_fxlink_log(int display_fmt, char const *str)
     wattroff(TUI.wLogs, attr);
 }
 
+bool TUI_core_update(bool allow_console, bool auto_refresh, bool *has_command)
+{
+    struct timeval zero_tv = { 0 };
+    struct timeval usb_timeout;
+    struct pollfd stdinfd = { .fd = STDIN_FILENO, .events = POLLIN };
+
+    int rc = libusb_get_next_timeout(TUI.ctx, &usb_timeout);
+    int timeout = -1;
+    if(rc > 0)
+        timeout = usb_timeout.tv_sec * 1000 + usb_timeout.tv_usec / 1000;
+    bool timeout_is_libusb = true;
+    /* Time out at least every 100 ms so we can handle SDL events */
+    if(timeout < 0 || timeout > 100) {
+        timeout = 100;
+        timeout_is_libusb = false;
+    }
+
+    if(has_command)
+        *has_command = false;
+
+    rc = fxlink_multipoll(timeout,
+        &stdinfd, 1, TUI.polled_fds.fds, TUI.polled_fds.count, NULL);
+
+    if(rc < 0 && errno != EINTR) {
+        elog("poll: %s\n", strerror(errno));
+        return false;
+    }
+    if(rc < 0 && errno == EINTR)
+        return false;
+
+    /* Handle SIGWINCH */
+    if(TUI.resize_needed) {
+        endwin();
+        refresh();
+        TUI_setup_windows();
+        TUI.resize_needed = false;
+        TUI_render_all(true);
+        TUI_refresh_all(true);
+        return false;
+    }
+
+    /* Determine which even source was activated */
+    bool stdin_activity = (stdinfd.revents & POLLIN) != 0;
+    bool usb_activity = false;
+    for(int i = 0; i < TUI.polled_fds.count; i++)
+        usb_activity |= (TUI.polled_fds.fds[i].revents != 0);
+
+    /* Determine what to do. We update the console on stdin activity. We
+       update libusb on USB activity or appropriate timeout. We update SDL
+       events on any timeout. */
+    bool update_console = stdin_activity;
+    bool update_usb = usb_activity || (rc == 0 && timeout_is_libusb);
+    bool update_sdl = (rc == 0);
+
+    if(allow_console && update_console) {
+        bool finished = fxlink_TUI_input_getch(&TUI.input, TUI.wLogs);
+        TUI_refresh_console();
+        if(has_command)
+            *has_command = finished;
+    }
+
+    if(update_usb) {
+        libusb_handle_events_timeout(TUI.ctx, &zero_tv);
+        fxlink_device_list_refresh(&TUI.devices);
+
+        for(int i = 0; i < TUI.devices.count; i++) {
+            struct fxlink_device *fdev = &TUI.devices.devices[i];
+
+            /* Check for devices ready to connect to */
+            if(fdev->status == FXLINK_FDEV_STATUS_IDLE && fdev->comm
+                    && fdev->comm->ep_bulk_IN != 0xff) {
+                if(fxlink_device_claim_fxlink(fdev))
+                    fxlink_device_start_bulk_IN(fdev);
+            }
+        }
+    }
+
+    if(update_sdl) {
+        fxlink_sdl2_handle_events();
+    }
+
+    bool refresh = update_console || update_usb;
+    if(auto_refresh) {
+        TUI_render_all(false);
+        TUI_refresh_all(false);
+    }
+    return refresh;
+}
+
+bool TUI_wait_message(struct fxlink_device *fdev,
+    char const *application, char const *type, struct fxlink_message **msg_ptr)
+{
+    if(*msg_ptr) {
+        fxlink_message_free(*msg_ptr, true);
+        fxlink_device_start_bulk_IN(fdev);
+        return false;
+    }
+
+    while(1) {
+        TUI_core_update(false, true, NULL);
+
+        /* Check for new messages */
+        struct fxlink_message *msg = fxlink_device_finish_bulk_IN(fdev);
+        if(msg) {
+            if(fxlink_message_is_apptype(msg, application, type)) {
+                *msg_ptr = msg;
+                return true;
+            }
+            else {
+                fxlink_interactive_handle_message(msg);
+                fxlink_message_free(msg, true);
+                fxlink_device_start_bulk_IN(fdev);
+            }
+        }
+    }
+}
+
 int main_tui_interactive(libusb_context *ctx)
 {
     if(!TUI_setup())
         return elog("error: failed to setup ncurses TUI o(x_x)o\n");
+
+    TUI.ctx = ctx;
 
     /* Redirect fxlink logs to the logging window in the TUI */
     fxlink_log_set_handler(handle_fxlink_log);
@@ -410,10 +529,6 @@ int main_tui_interactive(libusb_context *ctx)
     fxlink_device_list_track(&TUI.devices, ctx);
     /* Set up file descriptor tracking */
     fxlink_pollfds_track(&TUI.polled_fds, ctx);
-
-    struct timeval zero_tv = { 0 };
-    struct timeval usb_timeout;
-    struct pollfd stdinfd = { .fd = STDIN_FILENO, .events = POLLIN };
 
     /* Initial render */
     print(TUI.wConsole, "fxlink version %s (libusb/TUI interactive mode)\n",
@@ -424,112 +539,44 @@ int main_tui_interactive(libusb_context *ctx)
     TUI_render_all(true);
     TUI_refresh_all(true);
 
-    struct fxlink_TUI_input input;
-    fxlink_TUI_input_init(&input, TUI.wConsole, 16);
+    fxlink_TUI_input_init(&TUI.input, TUI.wConsole, 16);
 
     while(1) {
-        int rc = libusb_get_next_timeout(ctx, &usb_timeout);
-        int timeout = -1;
-        if(rc > 0)
-            timeout = usb_timeout.tv_sec * 1000 + usb_timeout.tv_usec / 1000;
-        bool timeout_is_libusb = true;
-        /* Time out at least every 100 ms so we can handle SDL events */
-        if(timeout < 0 || timeout > 100) {
-            timeout = 100;
-            timeout_is_libusb = false;
-        }
+        bool has_command;
+        bool activity = TUI_core_update(true, false, &has_command);
 
-        rc = fxlink_multipoll(timeout,
-            &stdinfd, 1, TUI.polled_fds.fds, TUI.polled_fds.count, NULL);
-
-        if(rc < 0 && errno != EINTR)
-            elog("poll: %s\n", strerror(errno));
-
-        /* Handle SIGWINCH */
-        if(TUI.resize_needed) {
-            endwin();
-            refresh();
-            TUI_setup_windows();
-            TUI.resize_needed = false;
-            TUI_render_all(true);
-            TUI_refresh_all(true);
-            continue;
-        }
-
-        /* Determine which even source was activated */
-        bool stdin_activity = (stdinfd.revents & POLLIN) != 0;
-        bool usb_activity = false;
-        for(int i = 0; i < TUI.polled_fds.count; i++)
-            usb_activity |= (TUI.polled_fds.fds[i].revents != 0);
-
-        /* Determine what to do. We update the console on stdin activity. We
-           update libusb on USB activity or appropriate timeout. We update SDL
-           events on any timeout. */
-        bool update_console = stdin_activity;
-        bool update_usb = usb_activity || (rc == 0 && timeout_is_libusb);
-        bool update_sdl = (rc == 0);
-
-        if(update_console) {
-            bool finished = fxlink_TUI_input_getch(&input, TUI.wLogs);
-            TUI_refresh_console();
-
-            if(finished) {
-                char *command = input.data;
-                bool refresh_all = false;
-
-                if(command[0] != 0)
-                    log_("command: '%s'\n", command);
-                if(!strcmp(command, ""))
-                    {}
-                else if(!strcmp(command, "q") || !strcmp(command, "quit"))
-                    break;
-                else {
-                    TUI_execute_command(command);
-                    refresh_all = true;
-                }
-
-                fxlink_TUI_input_free(&input);
-                print(TUI.wConsole, "%s", prompt);
-                fxlink_TUI_input_init(&input, TUI.wConsole, 16);
-
-                if(refresh_all) {
-                    TUI_render_all(false);
-                    TUI_refresh_all(false);
-                }
-                else
-                    TUI_refresh_console();
+        /* Check for devices with finished transfers */
+        for(int i = 0; i < TUI.devices.count; i++) {
+            struct fxlink_device *fdev = &TUI.devices.devices[i];
+            struct fxlink_message *msg = fxlink_device_finish_bulk_IN(fdev);
+            if(msg) {
+                fxlink_interactive_handle_message(msg);
+                fxlink_message_free(msg, true);
+                fxlink_device_start_bulk_IN(fdev);
             }
         }
 
-        if(update_usb) {
-            libusb_handle_events_timeout(ctx, &zero_tv);
-            fxlink_device_list_refresh(&TUI.devices);
+        /* Check for console commands */
+        if(has_command) {
+            char *command = TUI.input.data;
 
-            for(int i = 0; i < TUI.devices.count; i++) {
-                struct fxlink_device *fdev = &TUI.devices.devices[i];
+            if(command[0] != 0)
+                log_("command: '%s'\n", command);
+            if(!strcmp(command, ""))
+                {}
+            else if(!strcmp(command, "q") || !strcmp(command, "quit"))
+                break;
+            else
+                TUI_execute_command(command);
 
-                /* Check for devices ready to connect to */
-                if(fdev->status == FXLINK_FDEV_STATUS_IDLE && fdev->comm
-                        && fdev->comm->ep_bulk_IN != 0xff) {
-                    if(fxlink_device_claim_fxlink(fdev))
-                        fxlink_device_start_bulk_IN(fdev);
-                }
+            fxlink_TUI_input_free(&TUI.input);
+            print(TUI.wConsole, "%s", prompt);
+            fxlink_TUI_input_init(&TUI.input, TUI.wConsole, 16);
+        }
 
-                /* Check for devices with finished transfers */
-                struct fxlink_message *msg=fxlink_device_finish_bulk_IN(fdev);
-                if(msg) {
-                    fxlink_interactive_handle_message(msg);
-                    fxlink_message_free(msg, true);
-                    fxlink_device_start_bulk_IN(fdev);
-                }
-            }
-
+        if(activity) {
             TUI_render_all(false);
             TUI_refresh_all(false);
-        }
-
-        if(update_sdl) {
-            fxlink_sdl2_handle_events();
         }
     }
 

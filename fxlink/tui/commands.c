@@ -5,236 +5,269 @@
 //---------------------------------------------------------------------------//
 
 #include "tui.h"
+#include "command-util.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <stdarg.h>
+#include <assert.h>
 
 //---
-// Parsing utilities
+// Standard commands
 //---
 
-struct command {
-    int argc;
-    char const **argv;
-    char *data;
-};
-
-static struct command parse_command(char const *input)
+FXLINK_COMMAND("/echo", DEVICE(fdev), VARIADIC(argv))
 {
-    struct command cmd;
-    cmd.argc = 0;
-    cmd.argv = NULL;
-    cmd.data = malloc(strlen(input) + 1);
-    if(!cmd.data)
-        return cmd;
+    int l = 5, j = 5;
+    for(int i = 0; argv[i]; i++)
+        l += strlen(argv[i]) + 1;
 
-    char const *escapes1 = "\\nter";
-    char const *escapes2 = "\\\n\t\e\r";
+    char *concat = malloc(l + 1);
+    strcpy(concat, "echo ");
+    for(int i = 0; argv[i]; i++) {
+        strcpy(concat + j, argv[i]);
+        j += strlen(argv[i]);
+        concat[j++] = (argv[i+1] == NULL) ? '\n' : ' ';
+    }
+    concat[j] = '\0';
 
-    /* Whether a new word needs to be created at the next character */
-    bool word_finished = true;
-    /* Offset into cmd.data */
-    int i = 0;
+    fxlink_device_start_bulk_OUT(fdev,
+        "fxlink", "command", concat, l, true);
+    return 0;
+}
 
-    /* Read words eagerly, appending to cmd.data as we go */
-    for(int j = 0; input[j]; j++) {
-        int c = input[j];
+FXLINK_COMMAND("/identify", DEVICE(fdev))
+{
+    fxlink_device_start_bulk_OUT(fdev,
+        "fxlink", "command", "identify", 8, false);
+    return 0;
+}
 
-        /* Stop words at spaces */
-        if(isspace(c)) {
-            if(!word_finished)
-                cmd.data[i++] = 0;
-            word_finished = true;
-            continue;
-        }
+//---
+// gintctl commands
+//---
 
-        /* Translate escapes */
-        if(c == '\\') {
-            char *p = strchr(escapes1, input[j+1]);
-            if(p) {
-                c = escapes2[p - escapes1];
-                j++;
-            }
-        }
+static char const *lipsum =
+  "When the war of the beasts brings about the world's end,\n"
+  "The goddess descends from the sky.\n"
+  "Wings of light and dark spread afar,\n"
+  "She guides us to bliss, her gift everlasting.\n"
+  "\n"
+  "Infinite in mystery is the gift of the goddess.\n"
+  "We seek it thus, and take to the sky.\n"
+  "Ripples form on the water's surface;\n"
+  "The wandering soul knows no rest.\n"
+  "\n"
+  "There is no hate, only joy,\n"
+  "For you are beloved by the goddess.\n"
+  "Hero of the dawn, healer of worlds,\n"
+  "Dreams of the morrow hath the shattered soul.\n"
+  "Pride is lost -- wings stripped away, the end is nigh.\n"
+  "\n"
+  "My friend, do you fly away now?\n"
+  "To a world that abhors you and I?\n"
+  "All that awaits you is a somber morrow\n"
+  "No matter where the winds may blow.\n"
+  "My friend, your desire\n"
+  "Is the bringer of life, the gift of the goddess.\n"
+  "Even if the morrow is barren of promises,\n"
+  "Nothing shall forestall my return.\n"
+  "\n"
+  "My friend, the fates are cruel.\n"
+  "There are no dreams, no honor remains.\n"
+  "The arrow has left the bow of the goddess.\n"
+  "My soul, corrupted by vengeance,\n"
+  "Hath endured torment to find the end of the journey\n"
+  "In my own salvation and your eternal slumber.\n"
+  "Legend shall speak of sacrifice at world's end\n"
+  "The wind sails over the water's surface, quietly, but surely.\n"
+  "\n"
+  "Even if the morrow is barren of promises,\n"
+  "Nothing shall forestall my return.\n"
+  "To become the dew that quenches the lands,\n"
+  "To spare the sands, the seas, the skies,\n"
+  "I offer thee this silent sacrifice.\n";
 
-        /* Add a new word if necessary */
-        if(word_finished) {
-            cmd.argv = realloc(cmd.argv, (++cmd.argc) * sizeof *cmd.argv);
-            cmd.argv[cmd.argc - 1] = cmd.data + i;
-            word_finished = false;
-        }
-
-        /* Copy literals */
-        cmd.data[i++] = c;
+FXLINK_COMMAND("gintctl echo-bounds", DEVICE(fdev), INT(count))
+{
+    if(count < 0 || count > 8192) {
+        fprint(TUI.wConsole, FMT_RED, "error: ");
+        print(TUI.wConsole, "count should be 0..8192 (not %d)\n", count);
+        return 1;
     }
 
-    cmd.data[i++] = 0;
-    return cmd;
+    uint32_t *data = malloc(count * 4);
+    for(int i = 0; i < count; i++)
+        data[i] = i;
+    fxlink_device_start_bulk_OUT(fdev,
+        "gintctl", "echo-bounds", data, count * 4, true);
+    return 0;
 }
 
-static void dump_command(struct command const *cmd)
+FXLINK_COMMAND("gintctl garbage", DEVICE(fdev), INT(count))
 {
-    print(TUI.wConsole, "command(%d)", cmd->argc);
-    for(int i = 0; i < cmd->argc; i++) {
-        char const *arg = cmd->argv[i];
-        print(TUI.wConsole, " '%s'(%d)", arg, (int)strlen(arg));
+    if(count < 0 || count > 8192) {
+        fprint(TUI.wConsole, FMT_RED, "error: ");
+        print(TUI.wConsole, "count should be 0..8192 (not %d)\n", count);
+        return 1;
     }
-    print(TUI.wConsole, "\n");
+
+    uint32_t *data = malloc(count * 4);
+    for(int i = 0; i < count; i++)
+        data[i] = i + 0xdead0000;
+    fxlink_device_start_bulk_OUT(fdev,
+        "gintctl", "garbage", data, count * 4, true);
+    return 0;
 }
 
-static void free_command(struct command *cmd)
-{
-    free(cmd->argv);
-    free(cmd->data);
-}
-
-/* Parse a list of arguments into strings/integers/etc. The format is a string
-   of argument specifiers, which can be:
-     s   String
-     d   Integer
-     *   Other variadic arguments (integer holding first index)
-   (-- will probably be expanded later.)
-   Returns true if parsing succeeded, false otherwise (including if arguments
-   are missing) after printing an error message. */
-static bool parse_arguments(int argc, char const **argv, char const *fmt, ...)
+static void status(bool b, char const *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-
-    int i = 1;
-    char const *spec = fmt;
-
-    while(*spec) {
-        if(i >= argc) {
-            fprint(TUI.wConsole, FMT_RED, "error: ");
-            print(TUI.wConsole, "too few arguments\n");
-            goto failure;
-        }
-
-        /* Parse an argument specifier */
-        if(*spec == 's') {
-            char const **ptr = va_arg(args, char const **);
-            *ptr = argv[i];
-        }
-        else if(*spec == 'd') {
-            int *ptr = va_arg(args, int *);
-            char *endptr;
-            long l = strtol(argv[i], &endptr, 0);
-            if(*endptr) {
-                fprint(TUI.wConsole, FMT_RED, "error: ");
-                print(TUI.wConsole, "not a valid integer: '%s'\n", argv[i]);
-                goto failure;
-            }
-            *ptr = l;
-        }
-
-        spec++;
-    }
-
+    fprint(TUI.wConsole, b ? FMT_GREEN : FMT_RED, b ? "<PASSED> ":"<FAILED> ");
+    vw_printw(TUI.wConsole, fmt, args);
     va_end(args);
-    return true;
-
-failure:
-    va_end(args);
-    return false;
 }
 
-static bool run_no_device(int argc, char const **argv)
+static void unit_echo(struct fxlink_device *fdev, char const *str,
+    char const *description)
 {
-    (void)argc;
-    (void)argv;
-    return false;
-}
+    char *echo = malloc(5 + strlen(str) + 1);
+    strcpy(echo, "echo ");
+    strcat(echo, str);
 
-static void run_gintctl_command(int argc, char const **argv,
-    struct fxlink_device *fdev)
-{
-    if(!strcmp(argv[0], "read-long")) {
-        int count = 0;
-        if(!parse_arguments(argc, argv, "d", &count))
-            return;
-        if(count < 0 || count > 8192)
-            return;
+    fxlink_device_start_bulk_OUT(fdev,
+        "fxlink", "command", echo, strlen(echo), true);
 
-        uint32_t *data = malloc(count * 4);
-        for(int i = 0; i < count; i++)
-            data[i] = i;
-        fxlink_device_start_bulk_OUT(fdev,
-            "gintctl", "echo-bounds", data, count * 4, true);
+    struct fxlink_message *msg = NULL;
+    while(TUI_wait_message(fdev, "fxlink", "text", &msg)) {
+        bool success =
+            msg->size == strlen(str)
+            && !strncmp(msg->data, str, msg->size);
+        if(description)
+            status(success, "%s\n", description);
+        else
+            status(success, "echo of '%s': '%.*s' (%d)\n", str, msg->size,
+                (char *)msg->data, msg->size);
     }
 }
 
-static bool run_with_device(int argc, char const **argv,
-    struct fxlink_device *fdev)
+static void unit_echo_bounds(struct fxlink_device *fdev, int count)
 {
-    if(!strcmp(argv[0], "/echo")) {
-        int l = 5, j = 5;
-        for(int i = 1; i < argc; i++)
-            l += strlen(argv[i]) + 1;
+    char reference[256];
+    sprintf(reference, "first=%08x last=%08x total=%d B\n",
+        0, count-1, 4*count);
 
-        char *concat = malloc(l + 1);
-        strcpy(concat, "echo ");
-        for(int i = 1; i < argc; i++) {
-            strcpy(concat + j, argv[i]);
-            j += strlen(argv[i]);
-            concat[j++] = (i == argc - 1) ? '\n' : ' ';
-        }
-        concat[j] = '\0';
+    uint32_t *data = malloc(count * 4);
+    for(int i = 0; i < count; i++)
+        data[i] = i;
+    fxlink_device_start_bulk_OUT(fdev,
+        "gintctl", "echo-bounds", data, count * 4, true);
 
-        fxlink_device_start_bulk_OUT(fdev,
-            "fxlink", "command", concat, l, true);
+    struct fxlink_message *msg = NULL;
+    while(TUI_wait_message(fdev, "fxlink", "text", &msg)) {
+        bool success =
+            msg->size == strlen(reference)
+            && !strncmp(msg->data, reference, msg->size);
+
+        status(success, "echo bounds %d B\n", count * 4);
     }
-    else if(!strcmp(argv[0], "/identify")) {
-        fxlink_device_start_bulk_OUT(fdev,
-            "fxlink", "command", "identify", 8, false);
-    }
-    else if(!strcmp(argv[0], "gintctl")) {
-        if(argc <= 1) {
-            fprint(TUI.wConsole, FMT_RED, "error: ");
-            print(TUI.wConsole, "gintctl command needs sub-command\n");
-            return true;
-        }
-        run_gintctl_command(argc-1, argv+1, fdev);
-        return true;
-    }
-    else
-        return false;
-    return true;
 }
 
-void TUI_execute_command(char const *command)
+static void unit_read_unaligned(struct fxlink_device *fdev, char const *str,
+    int kind)
 {
-    struct command cmd = parse_command(command);
-    (void)dump_command;
+    char *payload = malloc(strlen(str) + 2);
+    sprintf(payload, "%c%s", kind, str);
 
-    /* Connected device (TODO: Use the "selected" device) */
-    struct fxlink_device *fdev = NULL;
-    for(int i = 0; i < TUI.devices.count; i++) {
-        if(TUI.devices.devices[i].status == FXLINK_FDEV_STATUS_CONNECTED) {
-            fdev = &TUI.devices.devices[i];
-            break;
-        }
-    }
+    fxlink_device_start_bulk_OUT(fdev,
+        "gintctl", "read-unaligned", payload, strlen(payload), true);
 
-    bool b = run_no_device(cmd.argc, cmd.argv);
-    if(b) {
-        free_command(&cmd);
-        return;
+    struct fxlink_message *msg = NULL;
+    while(TUI_wait_message(fdev, "fxlink", "text", &msg)) {
+        bool success =
+            msg->size == strlen(str)
+            && !strncmp(msg->data, str, msg->size);
+        if(strlen(str) < 20)
+            status(success, "unaligned echo type '%c' of '%s'\n", kind, str);
+        else
+            status(success, "unaligned echo type '%c' of %d-byte string\n",
+                kind, strlen(str));
     }
+}
 
-    /* The following commands require a connected device */
-    if(!fdev) {
-        print(TUI.wConsole, "no connected device!\n");
-        return;
-    }
-    print(TUI.wConsole, "using device %s (%s)\n",
-        fxlink_device_id(fdev), fdev->calc->serial);
+static void test_read_basic(struct fxlink_device *fdev)
+{
+    unit_echo(fdev, "123", NULL);
+    unit_echo(fdev, "1234", NULL);
+    unit_echo(fdev, "12345", NULL);
+    unit_echo(fdev, "123456", NULL);
+    unit_echo(fdev, lipsum, "echo of better lorem ipsum");
+}
 
-    b = run_with_device(cmd.argc, cmd.argv, fdev);
-    if(!b) {
-        fprint(TUI.wConsole, FMT_RED, "error: ");
-        print(TUI.wConsole, "unrecognized command '%s'\n", cmd.argv[0]);
-    }
-    free_command(&cmd);
+static void test_read_buffers(struct fxlink_device *fdev)
+{
+    /* 128 and 384 bytes -> less than a packet */
+    unit_echo_bounds(fdev, 32);
+    unit_echo_bounds(fdev, 96);
+    /* 512 bytes -> exactly one packet */
+    unit_echo_bounds(fdev, 128);
+    unit_echo_bounds(fdev, 128);
+    unit_echo_bounds(fdev, 128);
+    /* 516 and 768 -> one packet and a short one */
+    unit_echo_bounds(fdev, 129);
+    unit_echo_bounds(fdev, 192);
+    /* 1024 bytes -> exactly two packets */
+    unit_echo_bounds(fdev, 256);
+    /* 2044 bytes -> just shy of a full buffer */
+    unit_echo_bounds(fdev, 511);
+    /* 2048 bytes -> a full buffer */
+    unit_echo_bounds(fdev, 512);
+    unit_echo_bounds(fdev, 512);
+    /* 2300 bytes -> more than a full buffer */
+    unit_echo_bounds(fdev, 575);
+    /* 6000 bytes -> non-integral number of full buffers but more than 2 */
+    unit_echo_bounds(fdev, 1500);
+    /* 8192 bytes -> "large" amount of full buffers */
+    unit_echo_bounds(fdev, 2048);
+}
+
+static void test_read_unaligned(struct fxlink_device *fdev)
+{
+    char const *alpha = "aBcDeFgHiJkLmNoPqR";
+
+    for(int i = 1; i <= 9; i++)
+        unit_read_unaligned(fdev, alpha, '0' + i);
+    unit_read_unaligned(fdev, alpha, 'i');
+    unit_read_unaligned(fdev, alpha, 'r');
+
+    for(int i = 1; i <= 9; i++)
+        unit_read_unaligned(fdev, lipsum, '0' + i);
+    unit_read_unaligned(fdev, lipsum, 'i');
+    unit_read_unaligned(fdev, lipsum, 'r');
+}
+
+FXLINK_COMMAND("gintctl test read-basic", DEVICE(fdev))
+{
+    test_read_basic(fdev);
+    return 0;
+}
+
+FXLINK_COMMAND("gintctl test read-buffers", DEVICE(fdev))
+{
+    test_read_buffers(fdev);
+    return 0;
+}
+
+FXLINK_COMMAND("gintctl test read-unaligned", DEVICE(fdev))
+{
+    test_read_unaligned(fdev);
+    return 0;
+}
+
+FXLINK_COMMAND("gintctl test all", DEVICE(fdev))
+{
+    test_read_basic(fdev);
+    test_read_buffers(fdev);
+    test_read_unaligned(fdev);
+    return 0;
 }

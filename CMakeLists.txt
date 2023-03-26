@@ -60,6 +60,7 @@ add_executable(fxlink
   fxlink/tooling/sdl2.c
   fxlink/tooling/udisks2.c
   fxlink/tui/commands.c
+  fxlink/tui/command-util.c
   fxlink/tui/input.c
   fxlink/tui/layout.c
   fxlink/tui/render.c
