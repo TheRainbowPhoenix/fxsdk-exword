@@ -438,15 +438,15 @@ static void bulk_IN_callback(struct libusb_transfer *transfer)
     }
 }
 
-void fxlink_device_start_bulk_IN(struct fxlink_device *fdev)
+bool fxlink_device_start_bulk_IN(struct fxlink_device *fdev)
 {
     if(!fdev->comm || !fdev->comm->claimed || fdev->comm->tr_bulk_IN)
-        return;
+        return false;
 
     fdev->comm->tr_bulk_IN = libusb_alloc_transfer(0);
     if(!fdev->comm->tr_bulk_IN) {
         elog("allocation of bulk IN transfer failed\n");
-        return;
+        return false;
     }
 
     libusb_fill_bulk_transfer(fdev->comm->tr_bulk_IN,
@@ -462,11 +462,12 @@ void fxlink_device_start_bulk_IN(struct fxlink_device *fdev)
     if(rc < 0) {
         elog_libusb(rc, "bulk IN transfer failed to submit");
         fdev->status = FXLINK_FDEV_STATUS_ERROR;
-        return;
+        return false;
     }
 
     // hlog("calculators %s", fxlink_device_id(fdev));
     // log_("submitted new IN transfer (no timeout)\n");
+    return true;
 }
 
 struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
@@ -552,26 +553,26 @@ static void bulk_OUT_callback(struct libusb_transfer *transfer)
     }
 }
 
-void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
+bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     char const *app, char const *type, void const *data, int size,
     bool own_data)
 {
     struct fxlink_comm *comm = fdev->comm;
     if(!comm || !comm->claimed || comm->ftransfer_OUT)
-        return;
+        return false;
 
     comm->ftransfer_OUT =
         fxlink_transfer_make_OUT(app, type, data, size, own_data);
     if(!comm->ftransfer_OUT) {
         elog("allocation of OUT transfer (protocol) failed\n");
-        return;
+        return false;
     }
 
     comm->tr_bulk_OUT = libusb_alloc_transfer(0);
     if(!comm->tr_bulk_OUT) {
         elog("allocation of bulk OUT transfer (libusb) failed\n");
         free(comm->ftransfer_OUT);
-        return;
+        return false;
     }
 
     libusb_fill_bulk_transfer(comm->tr_bulk_OUT, fdev->dh,
@@ -588,8 +589,10 @@ void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     if(rc < 0) {
         elog_libusb(rc, "bulk OUT transfer failed to submit");
         fdev->status = FXLINK_FDEV_STATUS_ERROR;
-        return;
+        return false;
     }
+
+    return true;
 }
 
 //---

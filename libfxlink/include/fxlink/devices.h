@@ -201,7 +201,7 @@ bool fxlink_device_claim_fxlink(struct fxlink_device *fdev);
 
 /* Start an IN transfer on the device if none is currently running, so that the
    device structure is always ready to receive data from the calculator. */
-void fxlink_device_start_bulk_IN(struct fxlink_device *fdev);
+bool fxlink_device_start_bulk_IN(struct fxlink_device *fdev);
 
 /* Finish an IN transfer and obtain the completed message. This function should
    be checked every frame as it will return a non-NULL pointer as soon as the
@@ -212,7 +212,7 @@ struct fxlink_message *fxlink_device_finish_bulk_IN(
 
 /* Start an OUT transfer on the device. If `own_data` is set, the transfer will
    free(data) when it completes. */
-void fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
+bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     char const *app, char const *type, void const *data, int size,
     bool own_data);
 
