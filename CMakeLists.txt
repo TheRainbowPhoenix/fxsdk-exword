@@ -97,5 +97,11 @@ install(FILES "${BIN}/fxg1a" TYPE BIN)
 # fxconv
 install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
 install(FILES fxconv/fxconv.py TYPE BIN)
+# libfxlink
+install(FILES "${BIN}/include/fxlink/config.h" DESTINATION include/fxlink/)
+install(DIRECTORY libfxlink/include/ DESTINATION include
+  FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY libfxlink/cmake/ DESTINATION lib/cmake)
+install(TARGETS libfxlink DESTINATION lib)
 # fxlink
 install(TARGETS fxlink)
