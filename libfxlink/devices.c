@@ -142,10 +142,10 @@ static bool find_fxlink_endpoints(struct fxlink_device *fdev, bool quiet)
         int type = ed->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK;
 
         if(dir == LIBUSB_ENDPOINT_OUT
-                && type == LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK)
+                && type == LIBUSB_TRANSFER_TYPE_BULK)
             comm->ep_bulk_OUT = ed->bEndpointAddress;
         if(dir == LIBUSB_ENDPOINT_IN
-                && type == LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK)
+                && type == LIBUSB_TRANSFER_TYPE_BULK)
             comm->ep_bulk_IN = ed->bEndpointAddress;
     }
 
