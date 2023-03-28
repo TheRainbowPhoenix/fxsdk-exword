@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <unistd.h>
 
 /*
 Plan for the TUI command set.
