@@ -469,8 +469,8 @@ bool TUI_core_update(bool allow_console, bool auto_refresh, bool *has_command)
             struct fxlink_device *fdev = &TUI.devices.devices[i];
 
             /* Check for devices ready to connect to */
-            if(fdev->status == FXLINK_FDEV_STATUS_IDLE && fdev->comm
-                    && fdev->comm->ep_bulk_IN != 0xff) {
+            if(fxlink_device_ready_to_connect(fdev)
+            && fxlink_device_has_fxlink_interface(fdev)) {
                 if(fxlink_device_claim_fxlink(fdev))
                     fxlink_device_start_bulk_IN(fdev);
             }

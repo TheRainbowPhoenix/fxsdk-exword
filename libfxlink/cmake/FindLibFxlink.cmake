@@ -1,6 +1,5 @@
 # Locate the library file and includes
 
-message("test: $ENV{HOME}/.local/lib $ENV{FXSDK_PATH}/lib")
 find_library(
   LIBFXLINK_PATH "fxlink"
   HINTS "$ENV{HOME}/.local/lib" "$ENV{FXSDK_PATH}/lib"

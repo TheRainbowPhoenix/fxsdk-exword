@@ -280,10 +280,23 @@ void fxlink_device_analysis_2(struct fxlink_device *fdev)
     fdev->status = FXLINK_FDEV_STATUS_IDLE;
 }
 
+bool fxlink_device_ready_to_connect(struct fxlink_device const *fdev)
+{
+    bool status = (fdev->status == FXLINK_FDEV_STATUS_IDLE) ||
+                  (fdev->status == FXLINK_FDEV_STATUS_CONNECTED);
+    return fdev->calc && fdev->comm && status;
+}
+
+bool fxlink_device_has_fxlink_interface(struct fxlink_device const *fdev)
+{
+    return fdev->calc && fdev->comm && (fdev->comm->ep_bulk_IN != 0xff);
+}
+
 bool fxlink_device_claim_fxlink(struct fxlink_device *fdev)
 {
-    /* Only connect to calculators with an fxlink interface */
-    if(!fdev->comm || fdev->status != FXLINK_FDEV_STATUS_IDLE)
+    if(!fxlink_device_ready_to_connect(fdev) ||
+       !fxlink_device_has_fxlink_interface(fdev) ||
+       fdev->comm->claimed)
         return false;
 
     /* Allocate transfer data */

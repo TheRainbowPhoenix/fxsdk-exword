@@ -195,6 +195,16 @@ struct fxlink_comm {
     bool cancelled_OUT;
 };
 
+/* Check whether the device is ready to have interfaces claimed. This function
+   only checks that the device is a calculator and could be opened; it doesn't
+   guarantee that claiming the interfaces will succeed. This function returns
+   true even after an interface has been claimed since multiple interfaces can
+   be claimed at the same time. */
+bool fxlink_device_ready_to_connect(struct fxlink_device const *fdev);
+
+/* Check whether the device exposes an fxlink interface. */
+bool fxlink_device_has_fxlink_interface(struct fxlink_device const *fdev);
+
 /* Claim the fxlink interface (for a device that has one). Returns false and
    sets the status to ERROR on failure. */
 bool fxlink_device_claim_fxlink(struct fxlink_device *fdev);
