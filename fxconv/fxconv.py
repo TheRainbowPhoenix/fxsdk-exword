@@ -250,7 +250,7 @@ class ObjectData:
 		elif isinstance(other, Sym):
 			self.inner.append(other)
 		elif isinstance(other, ObjectData):
-			self.inner.append(other)
+			self.inner += other.inner
 		return self
 
 	@staticmethod
@@ -273,22 +273,10 @@ class ObjectData:
 		return padding
 
 	def link(self, symbol):
-		inner = []
+		inner = self.inner
 		outer = []
 		elements = []
-		size = 0
-
-		# First unfold all structures within [inner] as we accumulate the total
-		# size of the inner data
-		for el in self.inner:
-			if isinstance(el, ObjectData):
-				size += self.align(size, el.alignment, inner)
-				code, code_size = el.link(f"{symbol} + {size}")
-				inner.append((code, code_size))
-				size += code_size
-			else:
-				inner.append(el)
-				size += self.element_size(el)
+		size = sum(self.element_size(el) for el in inner)
 
 		# Then replace complex references with unfolded data appended at the
 		# end of the structure
