@@ -1174,6 +1174,14 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	Produces an output file and returns nothing.
 	"""
 
+	# Unfold ObjectData into data and assembly
+	if isinstance(data, ObjectData):
+		assembly = f".global {symbol}\n" + \
+		           f"{symbol}:\n" + \
+		           data.link(symbol)[0] + \
+		           (assembly or "")
+		data = None
+
 	# Toolchain parameters
 
 	if toolchain is None:
@@ -1194,16 +1202,9 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
 
-	# Unfold ObjectData into data and assembly
-	if isinstance(data, ObjectData):
-		asm =   ".section " + section.split(",",1)[0] + "\n"
-		asm += f".global {symbol}\n"
-		asm += f"{symbol}:\n"
-		asm += data.link(symbol)[0]
-		asm += (assembly or "")
-
-		data = None
-		assembly = asm
+	if assembly:
+		sec = ".section " + section.split(",",1)[0]
+		assembly = sec + "\n" + assembly
 
 	if data is None and assembly is None:
 		raise FxconvError("elf() but no data and no assembly")
@@ -1262,6 +1263,22 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		fp_obj.close()
 	if assembly:
 		fp_asm.close()
+
+def elf_multi(vars, output, assembly=None, **kwargs):
+	"""
+	Like elf(), but instead of one symbol/data pair, allows defining multiple
+	variables. vars should be a list [(symbol, ObjectData), ...]. Keyword
+	arguments are passed to elf().
+	"""
+
+	asm = ""
+	for symbol, objdata in vars:
+		asm += f".global {symbol}\n"
+		asm += f"{symbol}:\n"
+		asm += objdata.link(symbol)[0]
+	asm += assembly or ""
+
+	return elf(None, output, None, assembly=asm, **kwargs)
 
 #
 # Meta API
