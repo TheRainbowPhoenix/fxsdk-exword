@@ -174,14 +174,14 @@ def u16(x):
 def u32(x):
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
-def ref(base, offset=None, padding=None, prefix_underscore=True):
+def ref(base, offset=None, padding=None, prefix_underscore=True, align=None):
 	if isinstance(base, bytes) or isinstance(base, bytearray):
 		base = bytes(base)
 		if offset is not None:
 			raise FxconvError(f"reference to bytes does not allow offset")
 		if padding and len(base) % padding != 0:
 			base += bytes(padding - len(base) % padding)
-		return Ref("bytes", base)
+		return Ref("bytes", base, align or 4)
 
 	elif isinstance(base, str):
 		if padding is not None:
@@ -191,19 +191,24 @@ def ref(base, offset=None, padding=None, prefix_underscore=True):
 		if offset is not None:
 			offset = int(offset)
 			base = f"{base} + {offset}"
-		return Ref("name", base)
+		return Ref("name", base, align or 4)
 
 	elif isinstance(base, ObjectData):
-		if offset is not None or padding is not None:
-			raise FxconvError("reference to structure does not allow offset " +
-				"or padding")
-		return Ref("struct", base)
+		if offset is not None:
+			raise FxconvError("reference to structure does not allow offset")
+		if padding is not None:
+			raise FxconvError("reference to structure does not allow padding")
+		# Allow over-aligning the structure (but not more than 4)
+		align = max(base.alignment, align or 4)
+		if align > 4:
+			raise FxconvError(f"align {align} > 4 will not be honored (yet)")
+		return Ref("struct", base, align)
 
 	else:
 		raise FxconvError(f"invalid type {type(base)} for ref()")
 
-def ptr(base):
-	return ref(base)
+def ptr(*args, **kwargs):
+	return ref(*args, **kwargs)
 
 def chars(text, length, require_final_nul=True):
 	btext = bytes(text, 'utf-8')
@@ -221,7 +226,7 @@ def sym(name):
 #   "bytes"    -> target is a bytes(), we point to that data
 #   "name"     -> target is an str like "_sym+2", we point to that
 #   "struct"   -> target is an ObjectData
-Ref = collections.namedtuple("Ref", ["kind", "target"])
+Ref = collections.namedtuple("Ref", ["kind", "target", "align"])
 
 Sym = collections.namedtuple("Sym", ["name"])
 
@@ -282,13 +287,14 @@ class ObjectData:
 		# end of the structure
 		for el in inner:
 			if isinstance(el, Ref) and el.kind == "bytes":
-				elements.append(Ref("name", f"{symbol} + {size}"))
+				size += self.align(size, el.align, outer)
+				elements.append(Ref("name", f"{symbol} + {size}", None))
 				outer.append(el.target)
 				size += self.element_size(el.target)
 
 			elif isinstance(el, Ref) and el.kind == "struct":
 				size += self.align(size, el.target.alignment, outer)
-				elements.append(Ref("name", f"{symbol} + {size}"))
+				elements.append(Ref("name", f"{symbol} + {size}", None))
 				code, code_size = el.target.link(f"{symbol} + {size}")
 				outer.append((code, code_size))
 				size += code_size
