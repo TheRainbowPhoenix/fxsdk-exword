@@ -15,7 +15,7 @@ __all__ = [
 	# Color names
 	"FX_BLACK", "FX_DARK", "FX_LIGHT", "FX_WHITE", "FX_ALPHA",
 	# Conversion mechanisms
-	"ObjectData", "u8", "u16", "u32", "ref", "sym",
+	"ObjectData", "u8", "u16", "u32", "i8", "i16", "i32", "ref", "sym",
 	# Functions
 	"quantize", "convert", "elf",
 	# Reusable classes
@@ -167,11 +167,30 @@ FX_CHARSETS = {
 # Conversion mechanisms
 #
 
-def u8(x):
+def u8(x, check=False):
+    if check and not (0 <= x < 2**8):
+        raise FxconvError(f"integer {x} out of range for u8")
     return bytes([ x & 255 ])
-def u16(x):
+def u16(x, check=False):
+    if check and not (0 <= x < 2**16):
+        raise FxconvError(f"integer {x} out of range for u8")
     return bytes([ (x >> 8) & 255, x & 255 ])
-def u32(x):
+def u32(x, check=False):
+    if check and not (0 <= x < 2**32):
+        raise FxconvError(f"integer {x} out of range for u8")
+    return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+
+def i8(x, check=True):
+    if check and not (-2**7 <= x < 2**7):
+        raise FxconvError(f"integer {x} out of range for u8")
+    return bytes([ x & 255 ])
+def i16(x, check=True):
+    if check and not (-2**15 <= x < 2**15):
+        raise FxconvError(f"integer {x} out of range for u8")
+    return bytes([ (x >> 8) & 255, x & 255 ])
+def i32(x, check=True):
+    if check and not (-2**31 <= x < 2**31):
+        raise FxconvError(f"integer {x} out of range for u8")
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 def ref(base, offset=None, padding=None, prefix_underscore=True, align=None):
