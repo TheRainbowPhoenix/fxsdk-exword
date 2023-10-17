@@ -173,24 +173,24 @@ def u8(x, check=False):
     return bytes([ x & 255 ])
 def u16(x, check=False):
     if check and not (0 <= x < 2**16):
-        raise FxconvError(f"integer {x} out of range for u8")
+        raise FxconvError(f"integer {x} out of range for u16")
     return bytes([ (x >> 8) & 255, x & 255 ])
 def u32(x, check=False):
     if check and not (0 <= x < 2**32):
-        raise FxconvError(f"integer {x} out of range for u8")
+        raise FxconvError(f"integer {x} out of range for u32")
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 def i8(x, check=True):
     if check and not (-2**7 <= x < 2**7):
-        raise FxconvError(f"integer {x} out of range for u8")
+        raise FxconvError(f"integer {x} out of range for i8")
     return bytes([ x & 255 ])
 def i16(x, check=True):
     if check and not (-2**15 <= x < 2**15):
-        raise FxconvError(f"integer {x} out of range for u8")
+        raise FxconvError(f"integer {x} out of range for i16")
     return bytes([ (x >> 8) & 255, x & 255 ])
 def i32(x, check=True):
     if check and not (-2**31 <= x < 2**31):
-        raise FxconvError(f"integer {x} out of range for u8")
+        raise FxconvError(f"integer {x} out of range for i32")
     return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 def ref(base, offset=None, padding=None, prefix_underscore=True, align=None):
