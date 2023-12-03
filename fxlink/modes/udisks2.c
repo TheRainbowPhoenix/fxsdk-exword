@@ -53,7 +53,7 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
 		printf("Mounted %s to %s.\n", dev, folder);
 	}
 	else {
-		folder = strdup(mount_points[0]);
+		folder = mount_points[0];
 		printf("Already mounted at %s.\n", folder);
 	}
 
@@ -113,7 +113,6 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
 		printf("Ejected %s.\n", dev);
 
 end:
-	free(folder);
 	if(argv) free(argv);
 	if(fs) g_object_unref(fs);
 	if(drive) g_object_unref(drive);
