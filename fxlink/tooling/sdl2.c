@@ -46,18 +46,31 @@ static void quit(void)
 
 /* Generate an RGB888 surface from image data. */
 static SDL_Surface *surface_for_image(uint8_t **RGB888_rows, int width,
-    int height)
+    int height, int scale)
 {
     /* Little endian setup for RGB */
-    SDL_Surface *s = SDL_CreateRGBSurface(0, width, height, 24,
+    SDL_Surface *s = SDL_CreateRGBSurface(0, width*scale, height*scale, 24,
         0x000000ff, 0x0000ff00, 0x0000ff00, 0);
     if(!s) {
         elog("cannot create surface for image\n");
         return NULL;
     }
 
-    for(int i = 0; i < height; i++)
-        memcpy(s->pixels + i * s->pitch, RGB888_rows[i], width * 3);
+    for(int y = 0; y < height; y++) {
+        for(int dy = 0; dy < scale; dy++) {
+            uint8_t *src = RGB888_rows[y];
+            uint8_t *dst = s->pixels + (y*scale+dy) * s->pitch;
+            for(int x = 0; x < width; x++) {
+                for(int dx = 0; dx < scale; dx++) {
+                    dst[0] = src[0];
+                    dst[1] = src[1];
+                    dst[2] = src[2];
+                    dst += 3;
+                }
+                src += 3;
+            }
+        }
+    }
 
     return s;
 }
@@ -68,11 +81,14 @@ void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw)
         return;
 
     int current_w, current_h;
-    SDL_GetWindowSize(window, &current_w, &current_h);
-    if(current_w != raw->width || current_h != raw->height)
-        SDL_SetWindowSize(window, raw->width, raw->height);
+    int scale = 1;
 
-    SDL_Surface *src = surface_for_image(raw->data, raw->width, raw->height);
+    SDL_GetWindowSize(window, &current_w, &current_h);
+    if(current_w != raw->width * scale || current_h != raw->height * scale)
+        SDL_SetWindowSize(window, raw->width * scale, raw->height * scale);
+
+    SDL_Surface *src =
+        surface_for_image(raw->data, raw->width, raw->height, scale);
     if(!src)
         return;
 
