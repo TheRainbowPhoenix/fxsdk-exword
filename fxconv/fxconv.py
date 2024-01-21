@@ -514,7 +514,10 @@ def convert_bopti_fx(input, params):
 				n += 1
 
 	# Generate the object file
-	return header + data
+	o = ObjectData()
+	o += header
+	o += ptr(data)
+	return o
 
 def _image_project(img, f):
 	# New width and height
