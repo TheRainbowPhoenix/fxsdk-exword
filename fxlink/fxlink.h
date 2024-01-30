@@ -28,7 +28,8 @@ int main_list(struct fxlink_filter *filter, delay_t *delay,
 int main_blocks(struct fxlink_filter *filter, delay_t *delay);
 
 /* Main function for -s */
-int main_send(struct fxlink_filter *filter, delay_t *delay, char **files);
+int main_send(struct fxlink_filter *filter, delay_t *delay, char **files,
+	char *outfolder);
 
 /* Main function for -i */
 int main_interactive(struct fxlink_filter *filter, delay_t *delay,

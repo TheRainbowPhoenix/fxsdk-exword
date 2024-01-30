@@ -16,7 +16,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
+int main_send(struct fxlink_filter *filter, delay_t *delay, char **files,
+	char *outfolder)
 {
 	fxlink_filter_clean_udisks2(filter);
 	GError *error = NULL;
@@ -57,6 +58,10 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
 		printf("Already mounted at %s.\n", folder);
 	}
 
+	gchar *outpath = folder;
+	if(outfolder)
+		asprintf(&outpath, "%s/%s/", folder, outfolder);
+
 	/* Copy files with external cp(1) */
 	int file_count = 0;
 	while(files[file_count]) file_count++;
@@ -69,7 +74,7 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
 	argv[0] = "cp";
 	for(int i = 0; files[i]; i++)
 		argv[i+1] = files[i];
-	argv[file_count+1] = folder;
+	argv[file_count+1] = outpath;
 	argv[file_count+2] = NULL;
 
 	/* Print command */
@@ -96,6 +101,9 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files)
 			elog("process terminated with error %d\n", WEXITSTATUS(wstatus));
 		}
 	}
+
+	if(outfolder)
+		free(outpath);
 
 	/* Unmount the filesystem and eject the device */
 	GVariant *args = g_variant_new("a{sv}", NULL);

@@ -44,11 +44,13 @@ static void handle_new_message(struct fxlink_device *fdev,
 		if(options.verbose)
 			printf("------------------\n");
 		fwrite(str, 1, msg->size, stdout);
+#if 0
 		if(str[msg->size - 1] != '\n') {
 			if(!options.verbose)
 				printf("\e[30;47m%%\e[0m");
 			printf("\n");
 		}
+#endif
 		if(options.verbose) {
 			printf("------------------\n");
 		}

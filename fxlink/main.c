@@ -20,7 +20,7 @@ static const char *help_string =
 "usage: %1$s (-l|-b|-t) [General options]\n"
 "       %1$s -i [-r] [--fxlink-log[=<FILE>]] [General options]\n"
 "       %1$s -p <FILE> [General options]\n"
-"       %1$s -s <FILES>... [General options]\n"
+"       %1$s -s <FILES>... [--folder=OUTFOLDER] [General options]\n"
 "\n"
 "fxlink interacts with CASIO calculators of the fx and fx-CG families over\n"
 "the USB port, using libusb. It can also transfer files for Mass Storage\n"
@@ -47,6 +47,7 @@ static const char *help_string =
 "  --fxlink-log[=FILE] -i: Append fxlink text messages to FILE. Without\n"
 "                          argument, a unique name is generated.\n"
 "  -r, --repeat        -i: Reconnect if the calc disconnects (implies -w)\n"
+"  --folder=FOLDER     -s: Select destination folder for files\n"
 "\n"
 "Device filters:\n"
 "  A device filter narrows down what devices we list or connect to by\n"
@@ -67,6 +68,7 @@ int main(int argc, char **argv)
 	delay_t delay = delay_seconds(0);
 	struct fxlink_filter *filter = NULL;
 	bool repeat = false;
+	char *outfolder = NULL;
 
 	options.log_file = NULL;
 	options.verbose = false;
@@ -77,7 +79,7 @@ int main(int argc, char **argv)
 	// Command-line argument parsing
 	//---
 
-	enum { LIBUSB_LOG=1, LOG_TO_FILE=2 };
+	enum { LIBUSB_LOG=1, LOG_TO_FILE=2, OUT_FOLDER=3 };
 	const struct option longs[] = {
 		{ "help",        no_argument,       NULL, 'h' },
 		{ "list",        no_argument,       NULL, 'l' },
@@ -90,6 +92,7 @@ int main(int argc, char **argv)
 		{ "fxlink-log",  optional_argument, NULL, LOG_TO_FILE },
 		{ "repeat",      no_argument,       NULL, 'r' },
 		{ "verbose",     no_argument,       NULL, 'v' },
+		{ "folder",      required_argument, NULL, OUT_FOLDER },
 		/* Deprecated options ignored for compatibility: */
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "unmount",     no_argument,       NULL, 'u' },
@@ -165,6 +168,9 @@ int main(int argc, char **argv)
 	case 'f':
 		filter = fxlink_filter_parse(optarg);
 		break;
+	case OUT_FOLDER:
+		outfolder = strdup(optarg);
+		break;
 	case '?':
 		error = 1;
 	}
@@ -219,7 +225,7 @@ int main(int argc, char **argv)
 	}
 	else if(mode == 's') {
 		#ifndef FXLINK_DISABLE_UDISKS2
-		rc = main_send(filter, &delay, argv + optind);
+		rc = main_send(filter, &delay, argv + optind, outfolder);
 		#else
 		rc = elog("this fxlink was built without UDisks2; -s is disabled");
 		#endif
