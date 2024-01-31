@@ -69,7 +69,7 @@ FX_PROFILES = [
 	FxProfile(0x0, "mono", { FX_BLACK, FX_WHITE }, [
 		lambda c: (c == FX_BLACK),
 	]),
-    # Black-and-white with transparency, equivalent of two bitmaps in ML
+	# Black-and-white with transparency, equivalent of two bitmaps in ML
 	FxProfile(0x1, "mono_alpha", { FX_BLACK, FX_WHITE, FX_ALPHA }, [
 		lambda c: (c != FX_ALPHA),
 		lambda c: (c == FX_BLACK),
@@ -159,7 +159,7 @@ FX_CHARSETS = {
 	"ascii":    [ (0x00, 128) ],
 	# Custom Unicode block intervals
 	"unicode":  [],
-    # Single block 0x00-0xff (does not imply single-byte encoding)
+	# Single block 0x00-0xff (does not imply single-byte encoding)
 	"256chars": [ (0x00, 256) ],
 }
 
@@ -168,30 +168,30 @@ FX_CHARSETS = {
 #
 
 def u8(x, check=False):
-    if check and not (0 <= x < 2**8):
-        raise FxconvError(f"integer {x} out of range for u8")
-    return bytes([ x & 255 ])
+	if check and not (0 <= x < 2**8):
+		raise FxconvError(f"integer {x} out of range for u8")
+	return bytes([ x & 255 ])
 def u16(x, check=False):
-    if check and not (0 <= x < 2**16):
-        raise FxconvError(f"integer {x} out of range for u16")
-    return bytes([ (x >> 8) & 255, x & 255 ])
+	if check and not (0 <= x < 2**16):
+		raise FxconvError(f"integer {x} out of range for u16")
+	return bytes([ (x >> 8) & 255, x & 255 ])
 def u32(x, check=False):
-    if check and not (0 <= x < 2**32):
-        raise FxconvError(f"integer {x} out of range for u32")
-    return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+	if check and not (0 <= x < 2**32):
+		raise FxconvError(f"integer {x} out of range for u32")
+	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 def i8(x, check=True):
-    if check and not (-2**7 <= x < 2**7):
-        raise FxconvError(f"integer {x} out of range for i8")
-    return bytes([ x & 255 ])
+	if check and not (-2**7 <= x < 2**7):
+		raise FxconvError(f"integer {x} out of range for i8")
+	return bytes([ x & 255 ])
 def i16(x, check=True):
-    if check and not (-2**15 <= x < 2**15):
-        raise FxconvError(f"integer {x} out of range for i16")
-    return bytes([ (x >> 8) & 255, x & 255 ])
+	if check and not (-2**15 <= x < 2**15):
+		raise FxconvError(f"integer {x} out of range for i16")
+	return bytes([ (x >> 8) & 255, x & 255 ])
 def i32(x, check=True):
-    if check and not (-2**31 <= x < 2**31):
-        raise FxconvError(f"integer {x} out of range for i32")
-    return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+	if check and not (-2**31 <= x < 2**31):
+		raise FxconvError(f"integer {x} out of range for i32")
+	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
 
 def ref(base, offset=None, padding=None, prefix_underscore=True, align=None):
 	if isinstance(base, bytes) or isinstance(base, bytearray):
@@ -1170,9 +1170,9 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	The symbol name must have a leading underscore if it is to be declared and
 	used from a C program.
 
-    The toolchain can be any target triplet for which the compiler is
-    available. The architecture is deduced from some typical triplets;
-    otherwise it can be set, usually as "sh3" or "sh4-nofpu". This affects the
+	The toolchain can be any target triplet for which the compiler is
+	available. The architecture is deduced from some typical triplets;
+	otherwise it can be set, usually as "sh3" or "sh4-nofpu". This affects the
 	--binary-architecture flag of objcopy. If arch is set to "fx" or "cg", this
 	function tries to be smart and:
 
