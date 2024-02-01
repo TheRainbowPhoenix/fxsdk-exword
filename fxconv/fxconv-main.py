@@ -23,6 +23,7 @@ When TYPE is specified (one-shot conversion), it should be one of:
   --libimg-image  Convert to the libimg image format
   --custom        Use a custom converter; you might want to specify an explicit
                   type by adding "custom-type:your_custom_type" (see below)
+Custom converters can be specified by:
   --converters    Semicolon-separated list of custom converters (converters.py
                   in the current directory is detected as one per legacy)
 
@@ -31,8 +32,13 @@ syntax (names can contain dots). For example:
   fxconv -f myfont.png -o myfont.o charset:ascii grid.padding:1 height:7
 
 Some formats differ between platforms so you should specify it when possible:
-  --fx   Casio fx-9860G family (black-and-white calculators)
-  --cg   Casio fx-CG 50 family (16-bit color calculators)
+  --fx            CASIO fx-9860G family (black-and-white calculators)
+  --cg            CASIO fx-CG 50 family (16-bit color calculators)
+
+Finally, there is some support (non-final) for PythonExtra, in which case the
+output file is as Python file instead of an object file.
+  --py            Convert for PythonExtra (some types supported)
+  --py-compact    Use compact bytes notation (shorter, but non-printable)
 """.strip()
 
 # Simple error-warnings system
@@ -60,6 +66,7 @@ def main():
 	target = { 'toolchain': None, 'arch': None, 'section': None }
 	use_custom = False
 	converter_paths = []
+	py = { 'enabled': False, 'compact': False }
 
 	# Parse command-line arguments
 
@@ -69,7 +76,7 @@ def main():
 
 	try:
 		longs = ["help", "output=", "toolchain=", "arch=", "section=", "fx",
-			     "cg", "converters="] + types.split()
+			     "cg", "converters=", "py", "py-compact"] + types.split()
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs)
 	except getopt.GetoptError as error:
 		return err(error)
@@ -94,6 +101,10 @@ def main():
 			mode = "custom"
 		elif name == "--converters":
 			converter_paths = [path for path in value.split(";") if path]
+		elif name == "--py":
+			py['enabled'] = True
+		elif name == "--py-compact":
+			py['compact'] = True
 		# Other names are modes
 		else:
 			mode = name[1] if len(name)==2 else name[2:]
@@ -144,6 +155,7 @@ def main():
 		spec.loader.exec_module(module)
 		converters.append(module.convert)
 
+	params["py"] = py
 	fxconv.convert(input, params, target, output, model, converters)
 
 if __name__ == "__main__":

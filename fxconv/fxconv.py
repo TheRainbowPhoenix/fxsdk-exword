@@ -513,6 +513,11 @@ def convert_bopti_fx(input, params):
 				data[n] = layer[4 * longword + i]
 				n += 1
 
+	if params["py"]["enabled"]:
+		w, h = img.size
+		return ["import gint\n",
+			f"{params['name']} = gint.image({p.id}, {w}, {h}, ", data, ")\n"]
+
 	# Generate the object file
 	o = ObjectData()
 	o += header
@@ -1155,8 +1160,12 @@ def convert(input, params, target, output=None, model=None, custom=None):
 	else:
 		raise FxconvError(f'unknown resource type \'{t}\'')
 
+	# PythonExtra conversion: output a file
+	if params["py"]["enabled"]:
+		pyout(o, output, params)
 	# Standard conversions: save to ELF in the natural way
-	elf(o, output, "_" + params["name"], **target)
+	else:
+		elf(o, output, "_" + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None):
@@ -1307,6 +1316,35 @@ def elf_multi(vars, output, assembly=None, **kwargs):
 	asm += assembly or ""
 
 	return elf(None, output, None, assembly=asm, **kwargs)
+
+def pyout(bits, output, params):
+	# Compact into byte strings to avoid building tuples in the heap;
+	# MicroPython allows basically anything in literal strings (including
+	# NUL!), we just have to escape \, \n, \r, and ".
+	def byteify(c):
+		if c == ord('"'):
+			return b'\\"'
+		if c == ord('\n'):
+			return b'\\n'
+		if c == ord('\r'):
+			return b'\\r'
+		if c == ord('\\'):
+			return b'\\\\'
+		return bytes([c])
+
+	with open(output, "wb") as fp:
+		for section in bits:
+			if isinstance(section, bytearray):
+				section = bytes(section)
+			if isinstance(section, bytes):
+				if params["py"]["compact"]:
+					fp.write(b'b"')
+					fp.write(section)
+					fp.write(b'"')
+				else:
+					fp.write(repr(section).encode("utf-8"))
+			else:
+				fp.write(section.encode("utf-8"))
 
 #
 # Meta API
