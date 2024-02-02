@@ -602,6 +602,17 @@ def convert_image_cg(input, params):
 
 	data, stride, palette, color_count = image_encode(img, format)
 
+	if params["py"]["enabled"]:
+		w, h = img.size
+		return [
+			"import gint\n",
+			f"{params['name']} = gint.image({format.id}, {color_count}, ",
+			f"{img.width}, {img.height}, {stride}, ",
+			data,
+			", ",
+			"None" if palette is None else palette,
+			")\n"]
+
 	o = ObjectData()
 	o += u8(format.id)
 	o += u8(3) # DATA_RO, PALETTE_RO
@@ -1162,6 +1173,8 @@ def convert(input, params, target, output=None, model=None, custom=None):
 
 	# PythonExtra conversion: output a file
 	if params["py"]["enabled"]:
+		if isinstance(o, ObjectData):
+			raise FxconvError(f'conversion doe not support Python output')
 		pyout(o, output, params)
 	# Standard conversions: save to ELF in the natural way
 	else:
