@@ -1339,7 +1339,8 @@ def pyout(bits, output, params):
 			if isinstance(section, bytes):
 				if params["py"]["compact"]:
 					fp.write(b'b"')
-					fp.write(section)
+					for byte in section:
+						fp.write(byteify(byte))
 					fp.write(b'"')
 				else:
 					fp.write(repr(section).encode("utf-8"))
