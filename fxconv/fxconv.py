@@ -807,6 +807,19 @@ def convert_topti(input, params):
 	#  Object file generation
 	#---
 
+	if params["py"]["enabled"]:
+		l = [ "import gint\n",
+			f"{params['name']} = gint.font({title or None}, {flags}, ",
+			f"{line_height}, {grid.h}, {len(blocks)}, {glyph_count}, ",
+			f"{char_spacing}, ",
+			data_blocks,
+			data_glyphs ]
+		if proportional:
+			l += [data_index, data_width]
+		else:
+			l += [f"{grid.w}, {(grid.w * grid.h + 31) >> 5}"]
+		return l + [")\n"]
+
 	# Base data: always put the raw data and blocks first since they are
 	# 4-aligned, to preserve alignment on the rest of the references.
 	o = ObjectData()
