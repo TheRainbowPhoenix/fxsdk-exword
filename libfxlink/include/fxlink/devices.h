@@ -184,8 +184,6 @@ struct fxlink_comm {
     struct fxlink_transfer *ftransfer_IN;
     /* Cancellation flag */
     bool cancelled_IN;
-    /* Completed transfer objects (to be checked by user every frame) */
-    struct fxlink_message *message_IN;
 
     /* Current OUT transfer */
     struct libusb_transfer *tr_bulk_OUT;
