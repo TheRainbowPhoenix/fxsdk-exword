@@ -10,6 +10,8 @@
 #include <string.h>
 #include <assert.h>
 
+static void fxlink_device_queue_finished_IN(struct fxlink_device *fdev);
+
 char const *fxlink_device_id(struct fxlink_device const *fdev)
 {
     static char str[32];
@@ -401,17 +403,18 @@ static void bulk_IN_callback(struct libusb_transfer *transfer)
 
     switch(transfer->status) {
     case LIBUSB_TRANSFER_COMPLETED:
-        /* Start or continue an fxlink transfer. When finished, don't resubmit,
-           instead have the user pick up the message before continuing. */
+        // log_("bulk_IN_callback: got %d bytes (comm->ftransfer_IN=%p)\n",
+        //     data_size, comm->ftransfer_IN);
+        // fxlink_hexdump(data, data_size, stderr);
+        /* Start or continue an fxlink transfer. */
         resubmit = true;
-        if(comm->ftransfer_IN) {
+        if(comm->ftransfer_IN)
             fxlink_transfer_receive(comm->ftransfer_IN, data, data_size);
-            if(fxlink_transfer_complete(comm->ftransfer_IN))
-                resubmit = false;
-        }
-        else {
+        else
             comm->ftransfer_IN = fxlink_transfer_make_IN(data, data_size);
-        }
+
+        if(fxlink_transfer_complete(comm->ftransfer_IN))
+            fxlink_device_queue_finished_IN(fdev);
         break;
 
     /* Error: drop data and don't resubmit */
@@ -483,18 +486,16 @@ bool fxlink_device_start_bulk_IN(struct fxlink_device *fdev)
     return true;
 }
 
-struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
+static void fxlink_device_queue_finished_IN(struct fxlink_device *fdev)
 {
     struct fxlink_comm *comm = fdev->comm;
 
     if(!comm || !comm->ftransfer_IN)
-        return NULL;
-    if(!fxlink_transfer_complete(comm->ftransfer_IN))
-        return NULL;
+        return;
 
     struct fxlink_message *msg = fxlink_transfer_finish_IN(comm->ftransfer_IN);
     if(!msg)
-        return NULL;
+        return;
 
     int version_major = (msg->version >> 8) & 0xff;
     int version_minor = msg->version & 0xff;
@@ -505,6 +506,28 @@ struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
         msg->application, msg->type, fxlink_size_string(msg->size));
 
     comm->ftransfer_IN = NULL;
+
+    if(comm->queue_IN.size >= FXLINK_DEVICE_IN_QUEUE_SIZE) {
+        elog("device queue full (how?!), dropping above message");
+        fxlink_message_free(msg, true);
+        return;
+    }
+
+    comm->queue_IN.messages[comm->queue_IN.size++] = msg;
+}
+
+struct fxlink_message *fxlink_device_finish_bulk_IN(struct fxlink_device *fdev)
+{
+    struct fxlink_comm *comm = fdev->comm;
+    if(!comm || comm->queue_IN.size <= 0)
+        return NULL;
+
+    struct fxlink_message *msg = comm->queue_IN.messages[0];
+    for(int i = 1; i < comm->queue_IN.size; i++)
+        comm->queue_IN.messages[i-1] = comm->queue_IN.messages[i];
+    comm->queue_IN.size--;
+    comm->queue_IN.messages[comm->queue_IN.size] = 0;
+
     return msg;
 }
 

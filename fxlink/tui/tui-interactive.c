@@ -549,8 +549,8 @@ int main_tui_interactive(libusb_context *ctx)
         /* Check for devices with finished transfers */
         for(int i = 0; i < TUI.devices.count; i++) {
             struct fxlink_device *fdev = &TUI.devices.devices[i];
-            struct fxlink_message *msg = fxlink_device_finish_bulk_IN(fdev);
-            if(msg) {
+            struct fxlink_message *msg;
+            while((msg = fxlink_device_finish_bulk_IN(fdev))) {
                 fxlink_interactive_handle_message(msg);
                 fxlink_message_free(msg, true);
                 fxlink_device_start_bulk_IN(fdev);

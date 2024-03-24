@@ -11,6 +11,7 @@
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>
+#include <ctype.h>
 
 char const *fmt_to_ANSI(int format)
 {
@@ -145,4 +146,27 @@ bool delay_cycle(delay_t *delay)
 
     if(*delay > 0) (*delay)--;
     return false;
+}
+
+void fxlink_hexdump(char const *data, int size, FILE *fp)
+{
+    for(int read = 0; read < size; read += 16) {
+        for(int i = 0; i < 16; i++) {
+            if(read + i < size) {
+                int byte = data[read + i] & 0xff;
+                fprintf(fp, " %02x", byte);
+            }
+            else {
+                fprintf(fp, "   ");
+            }
+        }
+
+        fprintf(fp, " | ");
+        for(int i = 0; i < 16 && read + i < size; i++) {
+            int byte = data[read + i] & 0xff;
+            fprintf(fp, "%c", isprint(byte) ? byte : '.');
+        }
+
+        fprintf(fp, "\n");
+    }
 }

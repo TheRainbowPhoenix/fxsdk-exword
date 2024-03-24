@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <poll.h>
 
 static inline int min(int x, int y)
@@ -89,6 +90,9 @@ int fxlink_multipoll(int timeout, struct pollfd *fds1, int count1, ...);
 /* Write out the given size (in bytes) in a human-readable form. Returns a
    pointer to a statically-allocated string. */
 char const *fxlink_size_string(int bytes);
+
+/* Hexdump a data buffer to FILE. */
+void fxlink_hexdump(char const *data, int size, FILE *fp);
 
 //---
 // Delay

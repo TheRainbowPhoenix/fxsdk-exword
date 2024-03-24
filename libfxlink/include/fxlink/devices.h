@@ -167,6 +167,10 @@ enum {
 /* Return a string representation of the calc determined system. */
 char const *fxlink_device_system_string(struct fxlink_device const *fdev);
 
+/* Size of the queue where received messages are stored between USB handling
+   and user code reading them. It almost never has more then one element. */
+#define FXLINK_DEVICE_IN_QUEUE_SIZE 16
+
 /* Device state tracked for communication targets. */
 struct fxlink_comm {
     /* Whether the fxlink interface could be claimed */
@@ -184,6 +188,11 @@ struct fxlink_comm {
     struct fxlink_transfer *ftransfer_IN;
     /* Cancellation flag */
     bool cancelled_IN;
+    /* Completed input message queue */
+    struct {
+      struct fxlink_message *messages[FXLINK_DEVICE_IN_QUEUE_SIZE];
+      int size;
+   } queue_IN;
 
     /* Current OUT transfer */
     struct libusb_transfer *tr_bulk_OUT;
@@ -211,10 +220,12 @@ bool fxlink_device_claim_fxlink(struct fxlink_device *fdev);
    device structure is always ready to receive data from the calculator. */
 bool fxlink_device_start_bulk_IN(struct fxlink_device *fdev);
 
-/* Finish an IN transfer and obtain the completed message. This function should
-   be checked every frame as it will return a non-NULL pointer as soon as the
-   message is completed and the device will only start a new bulk IN transfer
-   until the message is moved out by this function. */
+/* Get a pointer to a completed IN message. This function should be checked *in
+   a loop* at every frame as completed messages queue up in a small buffer and
+   the device device will only start a new bulk IN transfer until the message
+   is moved out by this function. In practice, the buffer will only ever hold
+   more than one message if two messages complete within a single libusb event
+   handling call. But that happens. */
 struct fxlink_message *fxlink_device_finish_bulk_IN(
     struct fxlink_device *fdev);
 
