@@ -1,5 +1,7 @@
 # fxSDK
 
+🌍 **English** | [简体中文](README_zhCN.md)
+
 *Topic on Planète Casio : [fxSDK, un SDK alternatif pour écrire des add-ins](https://www.planet-casio.com/Fr/forums/topic13164-last-fxsdk-un-sdk-alternatif-pour-ecrire-des-add-ins.html)*
 
 The fxSDK is a development kit for CASIO graphing calculators in the fx-9860G and fx-CG series. It provides command-line tools, build systems and a cross-compilation setup for add-ins and libraries. It's designed to be used with the [gint unikernel](/Lephenixnoir/gint) which provides a powerful base runtime to build add-ins from.
