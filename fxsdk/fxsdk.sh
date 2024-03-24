@@ -285,6 +285,10 @@ fxsdk_send_cg-push() {
   fxlink -pw ${bin_files}
 }
 
+fxsdk_send_fxg3a() {
+  fxsdk_send_cg "$@"
+}
+
 fxsdk_path() {
   case "$1" in
     "sysroot")
