@@ -129,7 +129,7 @@ The second feature is sending files to fx-CG and G-III calculators (the ones tha
 
 ## 真的，爽！但是我想要代码提示！
 
-[如何在 Visual Studio Code 中获得代码提示](./VSCode_zhCN.md)
+[如何在 Visual Studio Code 中获得代码提示](/src/branch/master/VSCode_zhCN.md)
 
 ## 构建系统
 
