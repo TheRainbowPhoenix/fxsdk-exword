@@ -78,7 +78,7 @@ Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program.
 From that folder, you can build the add-in with the `fxsdk build-*` commands:
 
 ```bash
-# Build the add-in for fx-98600G-series calculators (.g1a):
+# Build the add-in for fx-9860G-series calculators (.g1a):
 % fxsdk build-fx
 # Build the add-in for fx-CG-series calculators (.g3a):
 % fxsdk build-cg
