@@ -43,15 +43,15 @@ fxSDK 主要使用 CMake 来构建程序和库。有个老的 Makefile 模板仍
 
 ## 如何安装
 
-The following options are all for installing the entire fxSDK including the cross-compiler, libraries, etc. not just this repository.
+这里说明的安装方法不仅仅适用这个仓库，还包括 fxSDK 里的所有东西。
 
 **方法一：使用 GiteaPC（新手推荐，虽然现在不叫这个了）**
 
-[GiteaPC](https://gitea.planet-casio.com/Lephenixnoir/GiteaPC) is a package-manager-like set of scripts to clone, build and install repositories from Planète Casio's Gitea forge. It automates basically the entire process, and is the recommended way to get the fxSDK up and running. See the instructions on the repository's README.
+[GiteaPC](https://gitea.planet-casio.com/Lephenixnoir/GiteaPC) 是一个类似包管理器一样的东西，专门用来下载、构建及安装来自 Planète Casio 仓库的东西。整个过程是自动的，所以推荐在安装 fxSDK 的时候使用。
 
 **方法二：在 Arch Linux 发行版里使用 AUR**
 
-[Dark Storm](https://www.planet-casio.com/Fr/compte/voir_profil.php?membre=Dark%20Storm) maintains a package repository for Arch called [MiddleArch](https://www.planet-casio.com/Fr/forums/topic16790-1-middlearch-un-depot-communautaire.html) which includes consistently up-to-date versions of the fxSDK.
+[Dark Storm](https://www.planet-casio.com/Fr/compte/voir_profil.php?membre=Dark%20Storm) 为 Arch Linux 维护了一个叫 [MiddleArch](https://www.planet-casio.com/Fr/forums/topic16790-1-middlearch-un-depot-communautaire.html) 的仓库，包含了最新版本的 fxSDK。
 
 **方法三：手动构建（如果您是专家）**
 
@@ -59,49 +59,53 @@ You can build the fxSDK and its tools manually by following the instructions in 
 
 ## 命令行工具
 
-When developing add-ins with the fxSDK, you mainly interact with command-line tools and the fxSDK's build system. Let's first have a look at the command-line tools. You can get the command-line help for any tool by invoking it without arguments, eg `fxsdk` or `fxgxa`.
+当你用 fxSDK 开发程序的时候，你主要会使用命令行工具和 fxSDK 的构建系统。先来看看命令行工具吧。当你不传任何的参数直接调用工具的时候会显示帮助。例如 `fxsdk` 或 `fxgxa`。
 
 *Note: A tool called `fxos` used to live here and has now moved to [its own repository](/Lephenixnoir/fxos).*
 
 使用 `fxsdk` 来**管理项目**
 
-Use the `fxsdk` command to manage projects. You can create an empty add-in project with `fxsdk new` and a name for a new folder:
+你可以用 `fxsdk new` 来创建一个新项目，并指定名字。本例为“MyAddin”：
 
-```
-% fxsdk new MyAddin
-Created a new project MyAddin (build system: CMake).
-Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program.
+```sh
+fxsdk new MyAddin
 ```
 
-From that folder, you can build the add-in with the `fxsdk build-*` commands:
+然后进入这个文件夹：
 
 ```bash
-# Build the add-in for fx-98600G-series calculators (.g1a):
-% fxsdk build-fx
-# Build the add-in for fx-CG-series calculators (.g3a):
-% fxsdk build-cg
+cd MyAddin
 ```
 
-You can then send the add-in through your preferred method. Some shortcuts are provided:
+进入新创建的文件夹之后，就可以用 `fxsdk build-*` 来构建程序：
 
-* `fxsdk send-fx` will send the g1a file with [p7](https://gitea.planet-casio.com/cake/p7utils) (which is like FA-124/xfer9860) if it's installed. This works for every fx-9860G-series models except the fx-975G0G III and fx-9860G III.
-* `fxsdk send-cg` will send the g3a file with fxlink using UDisks2, replicating the process of copying with the file manager. See below for details about fxlink.
+```bash
+# 构建 fx-9860G 系列计算器的程序（后缀 .g1a）：
+fxsdk build-fx
+# 构建 fx-CG 系列计算器的程序（后缀 .g3a）：
+fxsdk build-cg
+```
 
-The command `fxsdk path` reports the folders in which the important files of the SDK (mainly the cross-compiler) are located.
+然后你就可以把这个程序用你喜欢的方式发到计算器上了。但是这里有些更简单的方法：
+
+* `fxsdk send-fx` 会使用 [p7](/cake/p7utils) 来发送 g1a 程序，就像 FA-124 和 xfer9860 那样。除了 fx-975G0G III 和 fx-9860G III，所有 fx-9860G 系列的型号都可以用。
+* `fxsdk send-cg` 会使用 UDisks2 来发送 g3a 程序，其实就相当与您在文件资源管理器里面操作一样。下面具体有写 fxlink 做了什么。
+
+`fxsdk path` 会告诉你 SDK 里面的一些重要文件（主要是跨平台编译器）的位置。
 
 使用 `fxgxa` 来**生成 G1A 和 G3A 文件**
 
-`fxgxa` is a versatile g1a/g3a file editor that creates, edits and dumps the header of add-ins files. The build system calls it as part of `fxsdk build-*` so you only need to use it directly when you want to inspect existing add-ins.
+`fxgxa` 是一个多功能的 g1a 与 g3a 文件编辑器，可以创建、编辑与导出程序的头部。实际上，在运行 `fxsdk build-*` 这个命令的时候，您也间接调用了 `fxgxa`。所以这个只有在您想要查看已经编译好的程序的内容的时候才会用得到。
 
-It supports using and dumping PNG icons of any formats, validating header checksums, repairing broken headers and dumping add-in details. Here are the main commands:
+这可以用来导出 PNG 格式的图标、执行校验和、修复损坏的头部以及导出程序的其他信息。主要是这些命令：
 
-* `fxgxa --g1a|--g3a`: Generate g1a/g3a files
-* `fxgxa -e`: Edit g1a/g3a files
-* `fxgxa -d`: Dump metadata, checksum, and icon
-* `fxgxa -r`: Repair control bytes and checksums for broken files
-* `fxgxa -x`: Extract icons into PNG files
+* `fxgxa --g1a|--g3a`：生成 g1a 或 g3a 文件
+* `fxgxa -e`：编辑 g1a 或 g3a 文件
+* `fxgxa -d`：提取元数据、校验和，以及图标
+* `fxgxa -r`：修复破损文件的控制字节与校验和
+* `fxgxa -x`：以 PNG 格式提取图标
 
-`fxgxa` has an alias, `fxg1a`, for compatibility with fxSDK up to 2.7 for which there was no g3a file editor in the fxSDK.
+`fxgxa` 有另一个名字 `fxg1a`。这是为了兼容 2.7 版本以前的 fxSDK，因为在那时还不能生成 g3a 程序。
 
 使用 `fxconv` 来**转换素材格式**
 
@@ -122,6 +126,10 @@ Note: `fxlink` does not work within WSL machines on Windows, see [this bug](http
 The first feature is interactive communication with add-ins using libusb. This allows add-ins to send text, screenshots, and video captures of their output to a computer in real-time.
 
 The second feature is sending files to fx-CG and G-III calculators (the ones that behave like USB drives) using UDisks2. `fxlink` can mount the calculators, copy files and unmount them from the command-line without root access.
+
+## 真的，爽！但是我想要代码提示！
+
+[如何在 Visual Studio Code 中获得代码提示](VSCode_zhCN.md)
 
 ## 构建系统
 
@@ -144,7 +152,7 @@ The original Makefile used to build add-ins is still available. A Makefile-based
 
 ## 手动构建
 
-The following instructions are part of the manual install process for the fxSDK. You should install this repository first. If you previously had an fxSDK setup, cross-compiler, etc. then you should probably remove them before installing the new one to avoid interference.
+下面是手动安装 fxSDK 的步骤。一开始，您应该先安装本仓库。如果您之前已经安装过 fxSDK 或者跨平台编译器之类的，为了避免冲突，您应该先把它们删掉之后再来安装。
 
 这个仓库的依赖:
 
