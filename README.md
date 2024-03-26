@@ -1,6 +1,6 @@
 # fxSDK
 
-🌍 **English** | [简体中文](README_zhCN.md)
+🌍 **English** | [简体中文](README_zh.md)
 
 *Topic on Planète Casio : [fxSDK, un SDK alternatif pour écrire des add-ins](https://www.planet-casio.com/Fr/forums/topic13164-last-fxsdk-un-sdk-alternatif-pour-ecrire-des-add-ins.html)*
 
