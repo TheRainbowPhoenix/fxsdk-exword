@@ -4,6 +4,8 @@
 
 *Translated by 陈湛明 (Chén Zhànmíng) on 2024-03-26*
 
+*下文中的“程序”指的不是 BASIC 程序，而是带有图标且可以在主菜单打开的 add-in。*
+
 *Planète Casio 上的一个帖子：[fxSDK 是另外一套开发计算器程序的工具链（法语帖子）](https://www.planet-casio.com/Fr/forums/topic13164-last-fxsdk-un-sdk-alternatif-pour-ecrire-des-add-ins.html)*
 
 fxSDK 是一套开发卡西欧图形计算器里的程序的工具，里面提供了命令行工具、构建系统以及一个跨平台编译器，用来开发程序以及库。这套工具需要和 [gint 内核](/Lephenixnoir/gint) 一起使用，因为这个内核提供的运行时非常之厉害。
@@ -38,7 +40,7 @@ fxSDK，或者说 gint，支持卡西欧 fx-9860G 系列几乎所有的型号，
 
 * C 语言：支持最新版 GCC，目前是 C11 或者 C2X。标准库 [fxlibc](https://gitea.planet-casio.com/Vhex-Kernel-Core/fxlibc/) 是我们自行构建的，大致遵循 C99。使用其他的标准库也是可以的。
 * C++：支持最新版 GCC，目前是 C++20 或者 C++23。标准库 [libstdc++](https://gcc.gnu.org/onlinedocs/libstdc++/) 也是最新的。
-* 汇编语言：卡西欧计算器的处理器为 SuperH 架构，其中数 SH4AL-DSP 最多。二进制工具里面提供的汇编器可供使用。
+* 汇编语言：卡西欧计算器的处理器为 SuperH 架构，其中数 SH4AL-DSP 最多。binutils 里面提供的汇编器可供使用。
 * 还想要其他的语言？只要能编译到 C 就行，比如 [fxtran for Fortran](https://www.planet-casio.com/Fr/forums/topic17064-1-fxtran-codez-en-fortran-pour-votre-casio.html)。其他的 GCC 支持的前端语言也可以，比如 [the D compiler builds](https://www.planet-casio.com/Fr/forums/topic17037-last-omegafail-dlang-et-gint.html)。对于那些基于 LLVM 的语言（比如 Rust）不在考虑范围内，因为 LLVM 没有 SuperH 后端。
 
 **构建系统**
