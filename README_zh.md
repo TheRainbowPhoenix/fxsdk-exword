@@ -131,7 +131,7 @@ fxsdk build-cg
 
 ## 代码提示
 
-[如何在 Visual Studio Code 中获得代码提示](VSCode_zhCN.md)
+[如何在 Visual Studio Code 中获得代码提示](VSCode_zh.md)
 
 ## 构建系统
 
