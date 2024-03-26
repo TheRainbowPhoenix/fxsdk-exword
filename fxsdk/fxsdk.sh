@@ -100,7 +100,7 @@ fxsdk_new_project() {
 
   # Copy initial files to project folder
   assets="$PREFIX/share/fxsdk/assets"
-  mkdir -p "$1"/{,src,assets-fx,assets-cg}
+  mkdir -p "$1"/{,src,assets-fx,assets-cg,.vscode}
 
   case "$generator" in
     "Makefile")
@@ -125,6 +125,7 @@ fxsdk_new_project() {
   cp "$assets"/icon-fx.png "$1"/assets-fx/icon.png
   cp "$assets"/icon-cg-uns.png "$1"/assets-cg/icon-uns.png
   cp "$assets"/icon-cg-sel.png "$1"/assets-cg/icon-sel.png
+  cp "$assets"/vscode/c_cpp_properties.json "$1"/.vscode/c_cpp_properties.json
 
   echo "Created a new project $NAME (build system: $generator)."
   echo "Type 'fxsdk build-fx' or 'fxsdk build-cg' to compile the program."
