@@ -10,25 +10,13 @@
 
 首先安装来自微软的 [C/C++ 插件](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)。或者直接在“扩展”中搜索 `C/C++` 也可以。
 
-## 告诉插件真正要用的编译器
+## 选择计算器型号
 
-一般情况下，我们是开发在电脑上运行的程序。但是这下不一样了，需要使用 fxSDK 的跨平台编译器。
+我们知道，彩屏计算器可以显示彩色（废话），但是单色屏的计算器只能显示黑白，所以您在写程序的时候，能用的颜色取决于您选择的计算器型号。所以在开始之前，得选择一下：
 
-打开命令面板（CTRL/CMD + Shift + P），输入 `C/C++: Edit Configurations (UI)` 并按回车。
-
-将下面的路径填入“编译器路径”一栏。
-
-```
-/home/你的用户名/.local/bin/sh-elf-gcc
-```
-
-譬如我的用户名为 `chenzhanming`，我就写：
-
-```
-/home/chenzhanming/.local/bin/sh-elf-gcc
-```
-
-## 看看效果
+1. 打开命令面板 (CTRL/CMD + Shift + P)
+2. 输入 `C/C++: Select a Configuration...`，您不需要打得跟这个完全一样，因为 VSCode 会自动补全。如果是我的话，会输入 `c sel a conf`。
+3. 按下回车，然后选择您想要的计算器型号：fx-9860G 或者 fx-CG50。
 
 打开 `src/main.c` 文件，输入以下代码，看看代码提示是否有正常工作。
 
@@ -56,87 +44,35 @@ int main(void)
 }
 ```
 
-如果一切正常的话你会发现，上方的 `C_WHITE` 的 `C_BLACK` 出现错误，因为目前编辑器不知道您是在给彩屏还是黑白屏的计算器写程序。如果您希望使用这些颜色，需要用宏定义计算器型号。`FXCG50` 是彩屏计算器，`FX9860G` 是黑白屏计算器。
+## 对不同的型号分别考虑
 
-现在，姑且先让它在黑白屏上跑吧。下方的代码如果尝试编译成彩屏计算器的程序，将不会看到任何输出。
+如果您希望在不同的型号中做一些不同的事，需要使用以下两个宏来判断。
 
-```c
-#include <gint/display.h>
-#include <gint/keyboard.h>
+* `FX9860G` 黑白屏
+* `FXCG50` 彩屏
 
-int main(void)
-{
-    // 如果是黑白屏幕
-	#ifdef FX9860G
-        dclear(C_WHITE);
-        dtext(1, 1, C_BLACK, "Hello world!");
-        dupdate();
-	#endif
-
-	getkey();
-	
-    return 1;
-}
-```
-
-然后您会发现没有报错了。因为 gint 内核要求先定义计算器型号，才可以使用颜色。
-
-需要注意的是，在调用 `fxsdk` 来编译的时候，**这个工具会主动告诉编译器计算器的型号是什么**，所以在编译的时候，**就算您不定义宏也不会报错**。这里只是为了在开发的时候能够获取正确的代码提示罢了。
-
-但是您可能已经发现，不管是黑白屏还是彩色屏，应该都有黑色和白色才对，那为什么还是需要定义宏才可以用呢？这是因为，这两个颜色在不同的宏定义下的枚举里面的值是不一样的。请看下方的内核头文件：
-
-使用 `FX9860G` 的 `display-fx.h`
-```c
-typedef enum
-{
-	/* Opaque colors */
-	C_WHITE    = 0,
-	C_LIGHT    = 1,
-	C_DARK     = 2,
-	C_BLACK    = 3,
-
-	/* Monochrome operators */
-	C_NONE     = 4,
-	C_INVERT   = 5,
-
-	/* Gray operators */
-	C_LIGHTEN  = 6,
-	C_DARKEN   = 7,
-
-} color_t;
-```
-
-使用 `FXCG50` 的 `display-cg.h`
-```c
-enum {
-	/* Compatibility with fx9860g color names */
-	C_WHITE = 0xffff,
-	C_LIGHT = 0xad55,
-	C_DARK  = 0x528a,
-	C_BLACK = 0x0000,
-
-	/* Other colors */
-	C_RED   = 0xf800,
-	C_GREEN = 0x07e0,
-	C_BLUE  = 0x001f,
-
-	C_NONE = -1,
-	C_INVERT = -2,
-};
-```
-
-现在回到一开始的程序上，如果您下定决心只在黑白屏或者彩色屏上写程序，那您就可以把这个定义放在程序的最顶端：
+譬如我想要在不同的型号上显示不同的文字：
 
 ```c
-#define FX9860G
 #include <gint/display.h>
 #include <gint/keyboard.h>
 
 int main(void)
 {
 	dclear(C_WHITE);
-	dtext(1, 1, C_BLACK, "Hello world!");
-    dupdate();
+	
+	dtext(1, 1, C_BLACK,
+        // 如果是黑白屏
+		#ifdef FX9860G
+			"9860G: Hello world!"
+		#endif
+        // 如果是彩屏
+		#ifdef FXCG50
+			"CG50: Hello world!"
+		#endif
+	);
+
+	dupdate();
 
 	getkey();
 	
@@ -144,15 +80,13 @@ int main(void)
 }
 ```
 
-这样同样也不会有报错。但是如果您实在是不想这么写，可以让告诉编译器，默认使用黑白屏。
+这样，在黑白屏上就会显示 `9860G: Hello world!`，而在彩屏上就会显示 `CG50: Hello world!`。您也许还发现了，这两个字符串有一个的颜色比其他的淡一点，这代表了这个字符串不会在您刚才选择的计算器型号上显示。刚刚讲到了您可以在两种型号之间切换，所以在切换的时候您也应该可以看到两个字符串的颜色深浅发生了变化。
 
-请再一次用命令面板打开 `C/C++: Edit Configurations (UI)`，并在“编译器参数”一栏写下：
+同时，在彩屏和黑白屏上能使用的颜色也是不一样的。感兴趣的话，去看看 `gint/display.h` 里面的定义吧！
 
-```
--D FX9860G
-```
+## 救命！我看不到代码提示！
 
-这样一来，最开始的那份代码也不会有报错了。
+先检查一下在 `~/.local/bin` 这个文件夹下有没有 `sh-elf-gcc` 这个跨平台编译器。如果没有，您需要重新安装 fxSDK。
 
 ## 结语
 
