@@ -51,6 +51,11 @@ ${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n})
   externally) for the fx-9860G, and fxlink for the fx-CG. For the G-III series,
   call fxlink directly instead of this command.
 
+${R}fxsdk${n} ${R}gdb${n} [${g}<OPTIONS>${n}...] [${R}--${n} ${g}<GDB OPTIONS>${n}...]
+  Starts the GDB bridge and GDB itself. In general, you'll want at least one
+  GDB option--the path to the executable file to debug.
+  With --bridge-only, don't start GDB and instead enable bridge logs.
+
 ${R}fxsdk${n} ${R}path${n} (${R}sysroot${n}|${R}include${n}|${R}lib${n})
   Prints commonly-used paths in the SuperH sysroot:
     ${R}sysroot${n}    The root folder of the SuperH toolchain and libraries
@@ -335,6 +340,8 @@ case "$1" in
     fxsdk_send_cg;;
 
   # Utilities
+  "gdb")
+    fxsdk-gdb-bridge "${@:2}";;
   "path")
     fxsdk_path "${@:2}";;
 
