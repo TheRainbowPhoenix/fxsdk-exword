@@ -85,12 +85,19 @@ if(NOT FXLINK_DISABLE_SDL2)
   target_link_libraries(fxlink PkgConfig::sdl2)
 endif()
 
+# fxsdk-gdb-bridge
+add_executable(fxsdk-gdb-bridge fxsdk/gdb-bridge.c)
+target_link_libraries(fxsdk-gdb-bridge libfxlink)
+target_include_directories(fxsdk-gdb-bridge PRIVATE
+  "${SRC}/fxlink/include")
+
 # Install rules
 
 # fxsdk
 install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
 install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
 install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
+install(TARGETS fxsdk-gdb-bridge)
 # fxgxa, fxg1a
 install(TARGETS fxgxa)
 install(FILES "${BIN}/fxg1a" TYPE BIN)
