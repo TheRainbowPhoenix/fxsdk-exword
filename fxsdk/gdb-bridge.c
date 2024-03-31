@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 		goto end;
 
 	struct sigaction action = {
-		.sa_handler = SIGINT_SIGCHLD_handler,
+		.sa_handler = opts.bridge_only ? SIGINT_SIGCHLD_handler : SIG_IGN,
 	};
 	sigaction(SIGINT, &action, NULL);
 
