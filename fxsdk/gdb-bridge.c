@@ -125,9 +125,9 @@ static pid_t fork_gdb(char **user_argv, char const *socket_path)
 	argv[0] = "sh-elf-gdb";
 	argv[1] = "-q";
 	argv[2] = "-ex";
-	argv[3] = target_command;
+	argv[3] = "set architecture sh4al-dsp";
 	argv[4] = "-ex";
-	argv[5] = "set architecture sh4a-nofpu";
+	argv[5] = target_command;
 	memcpy(argv+6, user_argv, (n+1) * sizeof *argv);
 
 	struct sigaction action = {
