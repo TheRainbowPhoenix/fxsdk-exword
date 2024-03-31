@@ -121,12 +121,14 @@ static pid_t fork_gdb(char **user_argv, char const *socket_path)
 	char target_command[256];
 	sprintf(target_command, "target remote %s", socket_path);
 
-	char **argv = malloc((n + 5) * sizeof *argv);
+	char **argv = malloc((n + 7) * sizeof *argv);
 	argv[0] = "sh-elf-gdb";
 	argv[1] = "-q";
 	argv[2] = "-ex";
 	argv[3] = target_command;
-	memcpy(argv+4, user_argv, (n+1) * sizeof *argv);
+	argv[4] = "-ex";
+	argv[5] = "set architecture sh4a-nofpu";
+	memcpy(argv+6, user_argv, (n+1) * sizeof *argv);
 
 	struct sigaction action = {
 		.sa_handler = SIGINT_SIGCHLD_handler,
