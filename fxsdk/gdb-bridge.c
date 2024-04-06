@@ -191,6 +191,7 @@ int main(int argc, char **argv)
 	libusb_context *context = NULL;
 	struct fxlink_device *fdev = NULL;
 	struct fxlink_pollfds fxlink_polled_fds = { 0 };
+	struct fxlink_device_list device_list = { 0 };
 	char socket_path[256] = { 0 };
 	pid_t gdb_pid = -1;
 	int ret = 1;
@@ -238,6 +239,9 @@ int main(int argc, char **argv)
 	};
 	fxlink_pollfds_track(&fxlink_polled_fds, context);
 
+	/* Track devices to find out when our device is removed */
+	fxlink_device_list_track(&device_list, context);
+
 	while(!interrupted_flag && !gdb_terminated_flag) {
 		int err = fxlink_multipoll(-1,
 			fxlink_polled_fds.fds, fxlink_polled_fds.count,
@@ -250,6 +254,18 @@ int main(int argc, char **argv)
 
 		struct timeval zero = {0};
 		libusb_handle_events_timeout(context, &zero);
+
+		/* Check if our device is still in the list */
+		fxlink_device_list_refresh(&device_list);
+		bool still_there = false;
+		for(int i = 0; i < device_list.count; i++)
+			still_there = still_there || device_list.devices[i].dp == fdev->dp;
+		if(!still_there) {
+			hlog("gdb");
+			log_("device disconnected\n");
+			send(client_socket, "$W00#b7", 7, 0);
+			break;
+		}
 
 		struct fxlink_message *msg;
 		while((msg = fxlink_device_finish_bulk_IN(fdev)) != NULL) {
@@ -304,6 +320,8 @@ end:
 		waitpid(gdb_pid, NULL, 0);
 	if(socket_path[0])
 		unlink(socket_path);
+	if(device_list.ctx)
+		fxlink_device_list_stop(&device_list);
 	if(fxlink_polled_fds.ctx)
 		fxlink_pollfds_stop(&fxlink_polled_fds);
 	if(fdev) {
