@@ -163,20 +163,24 @@ static int accept_gdb(int listen_socket)
 
 struct options {
 	bool bridge_only;
+	bool log_packets;
 };
 
 /* Parse options, returns positional arguments to forward to gdb. */
 static char **parse_argv(int argc, char **argv, struct options *opts)
 {
 	int bridge_only = 0;
+	int log_packets = 0;
 	struct option longs[] = {
 		{ "bridge-only", no_argument, &bridge_only, 1 },
+		{ "log-packets", no_argument, &log_packets, 1 },
 		{ NULL },
 	};
 
 	getopt_long(argc, argv, "", longs, NULL);
 
 	opts->bridge_only = (bridge_only != 0);
+	opts->log_packets = (log_packets != 0);
 	return argv + optind + (argv[optind] && !strcmp(argv[optind], "--"));
 }
 
@@ -193,6 +197,8 @@ int main(int argc, char **argv)
 	struct fxlink_pollfds fxlink_polled_fds = { 0 };
 	struct fxlink_device_list device_list = { 0 };
 	char socket_path[256] = { 0 };
+	char log_path[256] = { 0 };
+	FILE *log_fp = NULL;
 	pid_t gdb_pid = -1;
 	int ret = 1;
 
@@ -211,10 +217,23 @@ int main(int argc, char **argv)
 
 	sprintf(socket_path, "/tmp/fxsdk-gdb-bridge-%03d-%03d.socket",
 		fdev->busNumber, fdev->deviceAddress);
+	sprintf(log_path, "/tmp/fxsdk-gdb-bridge-%03d-%03d.txt",
+		fdev->busNumber, fdev->deviceAddress);
 
 	int listen_socket = setup_socket(socket_path);
 	if(listen_socket < 0)
 		goto end;
+
+	if(opts.log_packets) {
+		log_fp = fopen(log_path, "a");
+		if(!log_fp)
+			perror("cannot open packet log file");
+		else {
+			setvbuf(log_fp, NULL, _IOLBF, 0);
+			hlog("gdb");
+			log_("writing packets to %s\n", log_path);
+		}
+	}
 
 	if(!opts.bridge_only) {
 		gdb_pid = fork_gdb(gdb_argv, socket_path);
@@ -269,15 +288,25 @@ int main(int argc, char **argv)
 
 		struct fxlink_message *msg;
 		while((msg = fxlink_device_finish_bulk_IN(fdev)) != NULL) {
+			if(fxlink_message_is_apptype(msg, "fxlink", "text")) {
+				hlog("stub");
+				log_("%.*s", msg->size, (char *)msg->data);
+				fxlink_message_free(msg, true);
+				fxlink_device_start_bulk_IN(fdev);
+				continue;
+			}
 			if(!fxlink_message_is_apptype(msg, "gdb", "remote")) {
 				hlog("gdb");
 				wlog("dropped a message of type %.16s:%.16s\n",
 					msg->application, msg->type);
+				fxlink_message_free(msg, true);
 				fxlink_device_start_bulk_IN(fdev);
 				continue;
 			}
-			if(opts.bridge_only)
-				printf("CAL> %.*s\n", msg->size, (char *)msg->data);
+			if(opts.bridge_only || log_fp) {
+				fprintf(log_fp ? log_fp : stdout,
+					"CAL> %.*s\n", msg->size, (char *)msg->data);
+			}
 			ssize_t send_ret = send(client_socket, msg->data, msg->size, 0);
 			if(send_ret != msg->size) {
 				perror("send");
@@ -304,8 +333,10 @@ int main(int argc, char **argv)
 				perror("recv");
 				goto end;
 			}
-			if(opts.bridge_only)
-				printf("GDB> %.*s\n", (int)recv_ret, buf);
+			if(opts.bridge_only || log_fp) {
+				fprintf(log_fp ? log_fp : stdout,
+					"GDB> %.*s\n", (int)recv_ret, buf);
+			}
 			if(!fxlink_device_start_bulk_OUT(fdev, "gdb", "remote", buf, recv_ret, false)) {
 				elog("unable to start bulk OUT transfer\n");
 				goto end;
@@ -318,6 +349,8 @@ int main(int argc, char **argv)
 end:
 	if(gdb_pid != -1)
 		waitpid(gdb_pid, NULL, 0);
+	if(log_fp)
+		fclose(log_fp);
 	if(socket_path[0])
 		unlink(socket_path);
 	if(device_list.ctx)
