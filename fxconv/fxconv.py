@@ -513,7 +513,7 @@ def convert_bopti_fx(input, params):
 				data[n] = layer[4 * longword + i]
 				n += 1
 
-	if params["py"]["enabled"]:
+	if "py" in params and params["py"]["enabled"]:
 		w, h = img.size
 		return ["import gint\n",
 			f"{params['name']} = gint.image({p.id}, {w}, {h}, ", data, ")\n"]
@@ -602,7 +602,7 @@ def convert_image_cg(input, params):
 
 	data, stride, palette, color_count = image_encode(img, format)
 
-	if params["py"]["enabled"]:
+	if "py" in params and params["py"]["enabled"]:
 		w, h = img.size
 		return [
 			"import gint\n",
@@ -807,7 +807,7 @@ def convert_topti(input, params):
 	#  Object file generation
 	#---
 
-	if params["py"]["enabled"]:
+	if "py" in params and params["py"]["enabled"]:
 		l = [ "import gint\n",
 			f"{params['name']} = gint.font({title or None}, {flags}, ",
 			f"{line_height}, {grid.h}, {len(blocks)}, {glyph_count}, ",
@@ -1185,7 +1185,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		raise FxconvError(f'unknown resource type \'{t}\'')
 
 	# PythonExtra conversion: output a file
-	if params["py"]["enabled"]:
+	if "py" in params and params["py"]["enabled"]:
 		if isinstance(o, ObjectData):
 			raise FxconvError(f'conversion doe not support Python output')
 		pyout(o, output, params)
