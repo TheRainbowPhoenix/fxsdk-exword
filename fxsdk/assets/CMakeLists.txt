@@ -6,6 +6,7 @@ project(MyAddin)
 
 include(GenerateG1A)
 include(GenerateG3A)
+include(GenerateHH2Bin)
 include(Fxconv)
 find_package(Gint 2.9 REQUIRED)
 
@@ -41,4 +42,6 @@ elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fxCG50)
 elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fx9860G_G3A)
   generate_g3a(TARGET myaddin OUTPUT "MyAddin-fx.g3a"
     NAME "MyAddin-fx" ICONS assets-cg/icon-uns.png assets-cg/icon-sel.png)
+elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fxCP)
+  generate_hh2_bin(TARGET myaddin OUTPUT "MyAddin-hh2.bin")
 endif()

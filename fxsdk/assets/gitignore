@@ -1,8 +1,5 @@
 # Build files
-/build-fx
-/build-cg
-/build-cg-push
-/build-fxg3a
+/build*/
 /*.g1a
 /*.g3a
 

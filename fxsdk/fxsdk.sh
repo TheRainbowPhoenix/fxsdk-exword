@@ -22,7 +22,7 @@ ${R}fxsdk new${n} ${g}<FOLDER>${n} [${R}--makefile${n}|${R}--cmake${n}] \
   Create a new project in the specified folder. The default build system is
   CMake. Project name can be specified now or in the project files later.
 
-${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}) [${R}-c${n}] \
+${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}|${R}build-cp${n}) [${R}-c${n}] \
 [${R}-s${n}] [${R}--${n}] [${g}<ARGS>${n}...]
   Build the current project for fx-9860G (usually for .g1a add-ins) or fx-CG 50
   (usually for .g3a add-ins). The first form compiles in every existing build
@@ -46,7 +46,7 @@ ${R}fxsdk${n} ${R}build-fxg3a${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
   Builds the current project for fx-CG 50 (.g3a file) from a code source
   initially targeting the fx-9860G(II).
 
-${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n})
+${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n}|${R}send-cp${n})
   Sends the target file to the calculator. Uses p7 (which must be installed
   externally) for the fx-9860G, and fxlink for the fx-CG. For the G-III series,
   call fxlink directly instead of this command.
@@ -150,7 +150,7 @@ fxsdk_load_config() {
 
 
 fxsdk_build() {
-  [[ ! -e build-fx && ! -e build-cg && ! -e build-fxg3a ]]
+  [[ ! -e build-fx && ! -e build-cg && ! -e build-fxg3a && ! -e build-cp ]]
   none_exists=$?
 
   if [[ -e build-fx || $none_exists == 0 ]]; then
@@ -167,6 +167,11 @@ fxsdk_build() {
     echo "$TAG Making into build-fxg3a"
     fxsdk_build_fxg3a "$@"
   fi
+
+  if [[ -e build-cp || $none_exists == 0 ]]; then
+    echo "$TAG Making into build-cp"
+    fxsdk_build_cp "$@"
+  fi
 }
 
 fxsdk_build_fx() {
@@ -180,6 +185,9 @@ fxsdk_build_cg_push() {
 }
 fxsdk_build_fxg3a() {
   fxsdk_build_in "fxg3a" "FX9860G_G3A" "$@"
+}
+fxsdk_build_cp() {
+  fxsdk_build_in "cp" "FXCP" "$@"
 }
 
 fxsdk_build_in() {
@@ -242,20 +250,21 @@ fxsdk_build_in() {
 }
 
 fxsdk_send() {
-  if [[ -e "build-fx" && ! -e "build-cg" && ! -e "build-fxg3a" ]]; then
-    fxsdk_send_fx
-  fi
+  fx=$([[ ! -e "build-fx"    ]]; echo $?)
+  cg=$([[ ! -e "build-cg"    ]]; echo $?)
+  f3=$([[ ! -e "build-fxg3a" ]]; echo $?)
+  cp=$([[ ! -e "build-cp"    ]]; echo $?)
+  e=${fx}${cg}${f3}${cp}
 
-  if [[ -e "build-cg" && ! -e "build-fx" && ! -e "build-fxg3a" ]]; then
-    fxsdk_send_cg
-  fi
+  [[ $e = 1000 ]] && fxsdk_send_fx
+  [[ $e = 0100 ]] && fxsdk_send_cg
+  [[ $e = 0010 ]] && fxsdk_send_cg
+  [[ $e = 0001 ]] && fxsdk_send_cp
 
-  if [[ -e "build-fxg3a" && ! -e "build-fx" && ! -e "build-cg" ]]; then
-    fxsdk_send_cg
+  if [[ $(($fx + $cg + $f3 + $cp)) != 1 ]]; then
+    echo "either no or several platforms are targeted, use 'fxsdk send-*' to"
+    echo "specify which calculator to send to."
   fi
-
-  echo "either no or several platforms are targeted, use 'fxsdk send-fx' or"
-  echo "'fxsdk send-cg' to specify which calculator to send to."
 }
 
 fxsdk_send_fx() {
@@ -295,6 +304,17 @@ fxsdk_send_fxg3a() {
   fxsdk_send_cg "$@"
 }
 
+fxsdk_send_cp() {
+  echo "$TAG Installing for fx-CP using fxlink"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  hh2_bin_files=$(find -maxdepth 1 -name '*-hh2.bin')
+  echo "$TAG Running: fxlink -sw ${hh2_bin_files}"
+  fxlink -sw ${hh2_bin_files}
+}
+
 fxsdk_path() {
   case "$1" in
     "sysroot")
@@ -330,6 +350,8 @@ case "$1" in
     fxsdk_build_cg_push "${@:2}";;
   "build-fxg3a"|"bf3"|"bfx3")
     fxsdk_build_fxg3a "${@:2}";;
+  "build-cp"|"bcp")
+    fxsdk_build_cp "${@:2}";;
 
   # Install
   "send"|"s")
@@ -338,6 +360,8 @@ case "$1" in
     fxsdk_send_fx;;
   "send-cg"|"sc"|"scg")
     fxsdk_send_cg;;
+  "send-cp"|"scp")
+    fxsdk_send_cp;;
 
   # Utilities
   "gdb")

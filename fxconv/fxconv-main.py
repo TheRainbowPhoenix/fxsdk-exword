@@ -33,7 +33,7 @@ syntax (names can contain dots). For example:
 
 Some formats differ between platforms so you should specify it when possible:
   --fx            CASIO fx-9860G family (black-and-white calculators)
-  --cg            CASIO fx-CG 50 family (16-bit color calculators)
+  --cg, --cp      CASIO fx-CG 50 / fx-CP 400 family (16-bit color calcs)
 
 Finally, there is some support (non-final) for PythonExtra, in which case the
 output file is as Python file instead of an object file.
@@ -76,7 +76,7 @@ def main():
 
 	try:
 		longs = ["help", "output=", "toolchain=", "arch=", "section=", "fx",
-			     "cg", "converters=", "py", "py-compact"] + types.split()
+			     "cg", "cp", "converters=", "py", "py-compact"] + types.split()
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs)
 	except getopt.GetoptError as error:
 		return err(error)
@@ -90,6 +90,8 @@ def main():
 			output = value
 		elif name in [ "--fx", "--cg" ]:
 			model = name[2:]
+		elif name == "--cp":
+			model = "cg"
 		elif name == "--toolchain":
 			target['toolchain'] = value
 		elif name == "--arch":
