@@ -96,6 +96,7 @@ target_include_directories(fxsdk-gdb-bridge PRIVATE
 # fxsdk
 install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
 install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
+install(DIRECTORY fxsdk/scripts DESTINATION share/fxsdk USE_SOURCE_PERMISSIONS)
 install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
 install(TARGETS fxsdk-gdb-bridge)
 # fxgxa, fxg1a

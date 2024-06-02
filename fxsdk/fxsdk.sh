@@ -332,6 +332,10 @@ fxsdk_path() {
   esac
 }
 
+fxsdk_run_script() {
+  "$PREFIX/share/fxsdk/scripts/$1" "${@:2}"
+}
+
 # Parse command name
 
 case "$1" in
@@ -368,6 +372,8 @@ case "$1" in
     fxsdk-gdb-bridge "${@:2}";;
   "path")
     fxsdk_path "${@:2}";;
+  "script")
+    fxsdk_run_script "${@:2}";;
 
   # Misc
   -h|--help|-\?)
