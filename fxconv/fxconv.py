@@ -1178,7 +1178,13 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		o = convert_libimg_cg(input, params)
 	elif custom is not None:
 		for converter in custom:
-			if converter(input, output, params, target) == 0:
+			rc = converter(input, output, params, target)
+			# Old convention: 0 on success, 1 on failure
+			if rc == 0:
+				return
+			# New convention: bytes() or ObjectData() on success
+			if isinstance(rc, bytes) or isinstance(rc, ObjectData):
+				elf(rc, output, "_" + params["name"], **target)
 				return
 		raise FxconvError(f'unknown custom resource type \'{t}\'')
 	else:
