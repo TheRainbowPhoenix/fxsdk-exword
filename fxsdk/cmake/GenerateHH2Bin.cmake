@@ -29,8 +29,8 @@ function(generate_hh2_bin)
 
   add_custom_command(
     TARGET "${HH2_TARGET}" POST_BUILD
+    COMMAND fxsdk script patch_hh2_filename.py ${HH2_TARGET} ${HH2_OUTPUT}
     COMMAND ${OBJCOPY} -O binary -R .bss -R .gint_bss ${HH2_TARGET} ${HH2_OUTPUT}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMAND_EXPAND_LISTS
-  )
+    COMMAND_EXPAND_LISTS)
 endfunction()

@@ -8,7 +8,8 @@ import elftools.elf.elffile
 
 if len(sys.argv) != 2 or "-h" in sys.argv or "--help" in sys.argv:
     print(f"usage: {sys.argv[0]} <FOLDER>", file=sys.stderr)
-    print("Prints sections of *.o/*.obj files in the folder, sorted by size")
+    print("Prints sections of *.o/*.obj files in the folder, sorted by size",
+        file=sys.stderr)
     sys.exit(1)
 
 files  = glob.glob(sys.argv[1] + "/**/*.o", recursive=True)
