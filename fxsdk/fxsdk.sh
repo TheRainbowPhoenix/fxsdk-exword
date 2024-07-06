@@ -311,6 +311,14 @@ fxsdk_send_cp() {
     return 1
   fi
   hh2_bin_files=$(find -maxdepth 1 -name '*-hh2.bin')
+
+  # Sanity check for file size
+  size=$(du -bc ${hh2_bin_files} | tail -n 1 | cut -f1)
+  if [[ $size -gt 2000000 ]]; then
+    echo "$TAG WARNING: file (${hh2_bin_files}) is > 2 MB, is that a link bug?" >&2
+    return
+  fi
+
   echo "$TAG Running: fxlink -sw ${hh2_bin_files}"
   fxlink -sw ${hh2_bin_files}
 }
