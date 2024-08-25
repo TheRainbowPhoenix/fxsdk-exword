@@ -4,6 +4,9 @@
 //    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
 //---------------------------------------------------------------------------//
 
+#include <fxlink/config.h>
+#ifndef FXLINK_DISABLE_POLL
+
 #include "tui.h"
 #include "command-util.h"
 #include <string.h>
@@ -271,3 +274,5 @@ FXLINK_COMMAND("gintctl test all", DEVICE(fdev))
     test_read_unaligned(fdev);
     return 0;
 }
+
+#endif

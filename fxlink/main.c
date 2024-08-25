@@ -237,7 +237,9 @@ int main(int argc, char **argv)
 		while(repeat);
 	}
 	else if(mode == 't') {
+#ifndef FXLINK_DISABLE_POLL
 		rc = main_tui_interactive(context);
+#endif
 	}
 	else if(mode == 'p') {
 		rc = main_push(filter, &delay, context, argv + optind);

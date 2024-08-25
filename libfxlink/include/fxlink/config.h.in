@@ -13,5 +13,8 @@
 /* Disable SDL2 interfaces. */
 #cmakedefine FXLINK_DISABLE_SDL2
 
+/* Disable poll-based interfaces. */
+#cmakedefine FXLINK_DISABLE_POLL
+
 /* fxSDK version */
 #define FXLINK_VERSION "@CMAKE_PROJECT_VERSION@"

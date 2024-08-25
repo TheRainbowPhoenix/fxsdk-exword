@@ -635,6 +635,8 @@ bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
 // Polled file descriptor tracking
 //---
 
+#ifndef FXLINK_DISABLE_POLL
+
 static void generate_poll_fds(struct fxlink_pollfds *tracker)
 {
     /* Get the set of libusb file descriptors to poll for news */
@@ -704,6 +706,8 @@ void fxlink_pollfds_stop(struct fxlink_pollfds *tracker)
     free(tracker->fds);
     memset(tracker, 0, sizeof *tracker);
 }
+
+#endif /* FXLINK_DISABLE_POLL */
 
 //---
 // Device tracking

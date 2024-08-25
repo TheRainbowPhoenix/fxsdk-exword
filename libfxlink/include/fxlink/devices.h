@@ -48,8 +48,8 @@
 #pragma once
 #include <fxlink/protocol.h>
 #include <fxlink/filter.h>
+#include <fxlink/defs.h>
 #include <libusb.h>
-#include <poll.h>
 
 /* Device information tracked for every USB device. */
 struct fxlink_device {
@@ -255,6 +255,8 @@ void fxlink_device_cleanup(struct fxlink_device *fdev);
 // notification API.
 //---
 
+#ifndef FXLINK_DISABLE_POLL
+
 /* Tracker for libusb file descriptors to be polled in a main loop. */
 struct fxlink_pollfds {
     /* libusb context to be tracked (must remain constant) */
@@ -273,6 +275,8 @@ void fxlink_pollfds_track(struct fxlink_pollfds *tracker, libusb_context *ctx);
 /* Stop tracking file descriptors and free tracker's resources. This must be
    called before the tracker structure gets destroyed. */
 void fxlink_pollfds_stop(struct fxlink_pollfds *tracker);
+
+#endif /* FXLINK_DISABLE_POLL */
 
 //---
 // Device tracking

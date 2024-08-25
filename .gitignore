@@ -1,5 +1,6 @@
 # Build directory
 build/
+build-win64/
 
 # Documentation drafts
 doc/

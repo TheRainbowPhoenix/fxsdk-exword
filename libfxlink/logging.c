@@ -84,7 +84,11 @@ int hlog(char const *fmt, ...)
 {
     time_t t = time(NULL);
     struct tm tm;
+#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64)
+    tm = *localtime(&t);
+#else
     localtime_r(&t, &tm);
+#endif
 
     flog(FMT_WHITE | FMT_DIM, "[%02d:%02d] ", tm.tm_hour, tm.tm_min);
     LOG_VA_ARGS(fmt, flogv(FMT_YELLOW | FMT_DIM, fmt, _args));

@@ -4,6 +4,9 @@
 //    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
 //---------------------------------------------------------------------------//
 
+#include <fxlink/config.h>
+#ifndef FXLINK_DISABLE_POLL
+
 #include "../fxlink.h"
 #include "tui.h"
 #include <fxlink/tooling/libpng.h>
@@ -202,24 +205,24 @@ static void TUI_render_transfers(void)
         if(!comm)
             continue;
 
-        struct fxlink_transfer *IN = comm->ftransfer_IN;
-        struct fxlink_transfer *OUT = comm->ftransfer_OUT;
+        struct fxlink_transfer *in = comm->ftransfer_IN;
+        struct fxlink_transfer *out = comm->ftransfer_OUT;
 
-        if(IN) {
+        if(in) {
             mvwaddstr(win, y, 1, fxlink_device_id(fdev));
             mvwaddstr(win, y, 10, "IN");
-            mvwaddstr(win, y, 16, fxlink_size_string(IN->msg.size));
+            mvwaddstr(win, y, 16, fxlink_size_string(in->msg.size));
 
             wmove(win, y, 26);
-            progress_bar(win, 32, IN->processed_size, IN->msg.size);
+            progress_bar(win, 32, in->processed_size, in->msg.size);
 
             has_transfers = true;
             y++;
         }
-        if(OUT) {
+        if(out) {
             mvwaddstr(win, y, 1, fxlink_device_id(fdev));
             mvwaddstr(win, y, 10, "OUT");
-            mvwaddstr(win, y, 16, fxlink_size_string(OUT->msg.size));
+            mvwaddstr(win, y, 16, fxlink_size_string(out->msg.size));
             has_transfers = true;
             y++;
         }
@@ -259,10 +262,12 @@ static bool TUI_setup(void)
     memset(&TUI, 0, sizeof TUI);
 
     /* Set up the SINGWINCH handler */
+#if !defined(_WIN16) && !defined(_WIN32) && !defined(_WIN64)
     struct sigaction WINCH;
     sigaction(SIGWINCH, NULL, &WINCH);
     WINCH.sa_handler = TUI_SIGWINCH_handler;
     sigaction(SIGWINCH, &WINCH, NULL);
+#endif
 
     /* Initialize the main screen */
     initscr();
@@ -590,3 +595,5 @@ int main_tui_interactive(libusb_context *ctx)
     TUI_quit();
     return 0;
 }
+
+#endif

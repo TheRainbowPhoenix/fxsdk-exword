@@ -47,7 +47,11 @@ char *fxlink_gen_file_name(char const *path, char const *name,
     time_t time_raw;
     struct tm time_bd;
     time(&time_raw);
+#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64)
+    time_bd = *localtime(&time_raw);
+#else
     localtime_r(&time_raw, &time_bd);
+#endif
 
     while(1) {
         asprintf(&filename, "%s/fxlink-%.16s-%04d.%02d.%02d-%02dh%02d-%d%s",
@@ -67,6 +71,7 @@ char *fxlink_gen_file_name(char const *path, char const *name,
     return filename;
 }
 
+#ifndef FXLINK_DISABLE_POLL
 int fxlink_multipoll(int timeout, struct pollfd *fds1, int count1, ...)
 {
     /* Convenience macro to iterate on file descriptor arrays */
@@ -104,6 +109,7 @@ int fxlink_multipoll(int timeout, struct pollfd *fds1, int count1, ...)
     free(concat);
     return rc;
 }
+#endif /* FXLINK_DISABLE_POLL */
 
 char const *fxlink_size_string(int bytes)
 {

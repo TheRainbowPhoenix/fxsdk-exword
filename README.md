@@ -169,3 +169,24 @@ When configuring, you should set an install prefix that you have write access to
 ```
 
 You can then proceed to install the cross-compiler. If in doubt about the order in which you need to install repositories, refer to the [GiteaPC README](https://gitea.planet-casio.com/Lephenixnoir/GiteaPC) or check the `giteapc.make` files of each repository, where dependencies are listed.
+
+## Building for Windows from Arch Linux using a cross-compiler
+
+⚠️ This is experimental/not yet officially supported. Intended to build fxlink only.
+
+_Credits to [Cahute](https://cahuteproject.org/guides/build.html) from which this process is based._
+
+Install the cross-compiler and cross-libraries from AUR.
+
+```bash
+% yay -S python python-toml mingw-w64 \
+    mingw-w64-cmake mingw-w64-libusb mingw-w64-sdl2 mingw-w64-libpng \
+    mingw-w64-ncurses
+```
+
+Configure and build.
+
+```bash
+% x86_64-w64-mingw32-cmake -B build-win64 -DFXLINK_DISABLE_UDISKS2=1 -DFXLINK_DISABLE_POLL=1
+% make -C build-win64
+```
