@@ -16,6 +16,11 @@
 #include <errno.h>
 #include <locale.h>
 
+#ifndef FXLINK_DISABLE_SDL2
+/* Grab main()-related macros */
+#include <SDL2/SDL.h>
+#endif
+
 static const char *help_string =
 "usage: %1$s (-l|-b|-t) [General options]\n"
 "       %1$s -i [-r] [--fxlink-log[=<FILE>]] [General options]\n"
