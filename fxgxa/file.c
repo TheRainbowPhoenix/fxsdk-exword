@@ -19,7 +19,7 @@ static void invert_header(void *gxa)
 
 #define fail(msg, ...) {						\
 	fprintf(stderr, "error: " msg ": %m\n", ##__VA_ARGS__);		\
-	close(fd);							\
+	fclose(fp);							\
 	free(data);							\
 	return NULL;							\
 }
@@ -28,31 +28,31 @@ static void invert_header(void *gxa)
    Allocates a buffer with @prepend leading bytes initialized to zero. */
 static void *load(const char *filename, size_t *size, int header, int footer)
 {
-	int fd;
-	struct stat statbuf;
+	FILE *fp;
 	void *data = NULL;
-	size_t filesize;
+	long filesize;
 
-	fd = open(filename, O_RDONLY);
-	if(fd < 0) fail("cannot open %s", filename);
+	fp = fopen(filename, "rb");
+	if(!fp) fail("cannot open %s", filename);
 
-	int x = fstat(fd, &statbuf);
-	if(x > 0) fail("cannot stat %s", filename);
-
-	filesize = statbuf.st_size;
+	fseek(fp, 0, SEEK_END);
+	filesize = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	if(ftell(fp) != 0) fail("cannod rewind %s", filename);
 	data = malloc(header + filesize + footer);
 	if(!data) fail("cannot load %s", filename);
 
-	size_t remaining = filesize;
+	long remaining = filesize;
 	while(remaining > 0)
 	{
-		size_t offset = header + filesize - remaining;
-		ssize_t y = read(fd, data + offset, remaining);
+		long offset = header + filesize - remaining;
+		long y = fread(data + offset, 1, remaining, fp);
 
-		if(y < 0) fail("cannot read from %s", filename);
+		if(y <= 0) fail("cannot read from %s at offset %ld",
+			filename, offset);
 		remaining -= y;
 	}
-	close(fd);
+	fclose(fp);
 
 	memset(data, 0, header);
 	memset(data + header + filesize, 0, footer);
