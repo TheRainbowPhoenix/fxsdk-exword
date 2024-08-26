@@ -299,6 +299,9 @@ struct fxlink_device_list {
     libusb_context *ctx;
     /* Callback handle */
     libusb_hotplug_callback_handle hotplug_handle;
+    /* Whether the hotplug callback could be installed. If not, refreshes
+       will be made manually. */
+    bool hotplug_supported;
     /* Array of connected devices */
     struct fxlink_device *devices;
     /* Number of elements in `devices` */

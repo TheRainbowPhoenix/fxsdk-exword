@@ -817,13 +817,16 @@ bool fxlink_device_list_track(struct fxlink_device_list *list,
     libusb_context *ctx)
 {
     memset(list, 0, sizeof *list);
+    list->ctx = ctx;
 
     if(!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
         elog("libusb doesn't handle hotplug; devices may not be detected\n");
+        list->hotplug_supported = false;
+        enumerate_devices(ctx, list);
         return false;
     }
 
-    list->ctx = ctx;
+    list->hotplug_supported = true;
     libusb_hotplug_register_callback(ctx,
         /* Both arriving and departing devices */
         LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT,
@@ -839,6 +842,9 @@ bool fxlink_device_list_track(struct fxlink_device_list *list,
 
 void fxlink_device_list_refresh(struct fxlink_device_list *list)
 {
+    if(!list->hotplug_supported)
+        enumerate_devices(list->ctx, list);
+
     for(int i = 0; i < list->count; i++) {
         struct fxlink_device *fdev = &list->devices[i];
         /* Finish analysis */
