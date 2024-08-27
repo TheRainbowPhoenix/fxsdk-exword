@@ -17,6 +17,14 @@
 # include <poll.h>
 #endif
 
+#ifdef min
+# undef min
+#endif
+
+#ifdef max
+# undef max
+#endif
+
 static inline int min(int x, int y)
 {
     return (x < y) ? x : y;

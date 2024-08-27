@@ -108,25 +108,35 @@ endif()
 
 # Install rules
 
-# fxsdk
-install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
-install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
-install(DIRECTORY fxsdk/scripts DESTINATION share/fxsdk USE_SOURCE_PERMISSIONS)
-install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
-if(NOT WIN32)
-  install(TARGETS fxsdk-gdb-bridge)
+set(SYSROOT "")
+if(WIN32)
+  set(SYSROOT "x86_64-w64-mingw32/")
 endif()
-# fxgxa, fxg1a
-install(TARGETS fxgxa)
-install(FILES "${BIN}/fxg1a" TYPE BIN)
-# fxconv
-install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
-install(FILES fxconv/fxconv.py TYPE BIN)
+
+if(NOT WIN32)
+  # fxsdk
+  install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
+  install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
+  install(DIRECTORY fxsdk/scripts DESTINATION share/fxsdk USE_SOURCE_PERMISSIONS)
+  install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
+  install(TARGETS fxsdk-gdb-bridge)
+  # fxgxa, fxg1a
+  install(TARGETS fxgxa)
+  install(FILES "${BIN}/fxg1a" TYPE BIN)
+  # fxconv
+  install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
+  install(FILES fxconv/fxconv.py TYPE BIN)
+  # fxlink
+  install(TARGETS fxlink)
+else()
+  # fxlink
+  install(TARGETS fxlink DESTINATION "${SYSROOT}bin")
+endif()
+
 # libfxlink
-install(FILES "${BIN}/include/fxlink/config.h" DESTINATION include/fxlink/)
-install(DIRECTORY libfxlink/include/ DESTINATION include
+install(FILES "${BIN}/include/fxlink/config.h"
+  DESTINATION "${SYSROOT}include/fxlink/")
+install(DIRECTORY libfxlink/include/ DESTINATION "${SYSROOT}include"
   FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY libfxlink/cmake/ DESTINATION lib/cmake)
-install(TARGETS libfxlink DESTINATION lib)
-# fxlink
-install(TARGETS fxlink)
+install(DIRECTORY libfxlink/cmake/ DESTINATION "${SYSROOT}lib/cmake")
+install(TARGETS libfxlink DESTINATION "${SYSROOT}lib")

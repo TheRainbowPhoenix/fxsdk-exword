@@ -1,22 +1,37 @@
 # Locate the library file and includes
 
+if(WIN32)
+  set(SYSROOT "x86_64-w64-mingw32/")
+else()
+  set(SYSROOT)
+endif()
+
 find_library(
-  LIBFXLINK_PATH "fxlink"
-  HINTS "$ENV{HOME}/.local/lib" "$ENV{FXSDK_PATH}/lib"
+  LIBFXLINK_PATH "fxlink" "libfxlink.a"
+  HINTS "$ENV{HOME}/.local/${SYSROOT}lib" "$ENV{FXSDK_PATH}/${SYSROOT}lib"
 )
 if(LIBFXLINK_PATH STREQUAL "LIBFXLINK_PATH-NOTFOUND")
-  message(SEND_ERROR
-    "Could not find libfxlink.a!\n"
-    "You can specify the install path with the environment variable "
-    "FXSDK_PATH, such as FXSDK_PATH=$HOME/.local")
-else()
-  get_filename_component(LIBFXLINK_PATH "${LIBFXLINK_PATH}/../.." ABSOLUTE)
-  set(LIBFXLINK_LIB "${LIBFXLINK_PATH}/lib/libfxlink.a")
-  set(LIBFXLINK_INCLUDE "${LIBFXLINK_PATH}/include")
-
-  message("(libfxlink) Found libfxlink at: ${LIBFXLINK_LIB}")
-  message("(libfxlink) Will take includes from: ${LIBFXLINK_INCLUDE}")
+  # Try the paths directly
+  set(P1 "$ENV{HOME}/.local/${SYSROOT}lib/libfxlink.a")
+  set(P2 "$ENV{FXSDK_PATH}/${SYSROOT}lib/libfxlink.a")
+  if(EXISTS "${P1}")
+    set(LIBFXLINK_PATH "${P1}")
+  elseif(DEFINED "$ENV{FXSDK_PATH}" AND EXISTS "${P2}")
+    set(LIBFXLINK_PATH "${P2}")
+  else()
+    message(FATAL_ERROR
+      "Could not find libfxlink.a!\n"
+      "You can specify the install path with the environment variable "
+      "FXSDK_PATH, such as FXSDK_PATH=$HOME/.local")
+  endif()
 endif()
+
+get_filename_component(LIBFXLINK_PATH "${LIBFXLINK_PATH}/../.." ABSOLUTE)
+set(LIBFXLINK_LIB "${LIBFXLINK_PATH}/lib/libfxlink.a")
+set(LIBFXLINK_INCLUDE "${LIBFXLINK_PATH}/include")
+
+message("(libfxlink) Found libfxlink at: ${LIBFXLINK_LIB}")
+message("(libfxlink) Will take includes from: ${LIBFXLINK_INCLUDE}")
 
 # Find library version
 
