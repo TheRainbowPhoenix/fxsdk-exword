@@ -16,5 +16,8 @@
 /* Disable poll-based interfaces. */
 #cmakedefine FXLINK_DISABLE_POLL
 
+/* Disable printing ANSI escape sequences. */
+#cmakedefine FXLINK_DISABLE_ANSIESC
+
 /* fxSDK version */
 #define FXLINK_VERSION "@CMAKE_PROJECT_VERSION@"

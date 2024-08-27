@@ -227,7 +227,8 @@ void fxlink_device_analysis_1(struct fxlink_device *fdev, bool quiet)
 
     if(!quiet) {
         hlog("calculators %s", fxlink_device_id(fdev));
-        log_("%1$d interface%2$s, class code%2$s", calc->interface_count,
+        log_("%d interface%s, class code%s", calc->interface_count,
+            calc->interface_count != 1 ? "s" : "",
             calc->interface_count != 1 ? "s" : "");
 
         for(int i = 0; i < calc->interface_count; i++) {
@@ -842,9 +843,6 @@ bool fxlink_device_list_track(struct fxlink_device_list *list,
 
 void fxlink_device_list_refresh(struct fxlink_device_list *list)
 {
-    if(!list->hotplug_supported)
-        enumerate_devices(list->ctx, list);
-
     for(int i = 0; i < list->count; i++) {
         struct fxlink_device *fdev = &list->devices[i];
         /* Finish analysis */

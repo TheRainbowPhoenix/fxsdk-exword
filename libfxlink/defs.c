@@ -15,6 +15,9 @@
 
 char const *fmt_to_ANSI(int format)
 {
+#ifdef FXLINK_DISABLE_ANSIESC
+    return "";
+#else
     static char buf[64];
     int n = 0;
 
@@ -36,6 +39,7 @@ char const *fmt_to_ANSI(int format)
         strcpy(buf+n, "\e[3m"), n += 4;
 
     return buf;
+#endif
 }
 
 char *fxlink_gen_file_name(char const *path, char const *name,

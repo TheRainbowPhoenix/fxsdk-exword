@@ -187,6 +187,6 @@ Install the cross-compiler and cross-libraries from AUR.
 Configure and build. Install to get libfxlink.
 
 ```bash
-% x86_64-w64-mingw32-cmake -B build-win64 -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DFXLINK_DISABLE_UDISKS2=1 -DFXLINK_DISABLE_POLL=1
+% x86_64-w64-mingw32-cmake -B build-win64 -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DFXLINK_DISABLE_UDISKS2=1 -DFXLINK_DISABLE_POLL=1 -DFXLINK_DISABLE_ANSIESC=1
 % make -C build-win64 install
 ```
