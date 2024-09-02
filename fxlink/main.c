@@ -41,6 +41,7 @@ static const char *help_string =
 "  -w <SECONDS>        Wait this many seconds for a calculator to connect\n"
 "  -w                  Wait indefinitely for a calculator to connect\n"
 "  -f <FILTER>         Filter which calculators we connect to (see below)\n"
+"  -s <IN> <OUT>       Send received data to IN file and send data in OUT file to calculator\n"
 "  --libusb-log=LEVEL  libusb log level (NONE, ERROR, WARNING, INFO, DEBUG)\n"
 "\n"
 "Mode-specific options:\n"
@@ -62,6 +63,10 @@ static const char *help_string =
 /* Global options */
 struct fxlink_options options;
 
+/* Input/output socket filenames for -s option */
+char *socket_in;
+char *socket_out;
+
 int main(int argc, char **argv)
 {
 	int rc=1, mode=0, error=0, option=0, loglevel=LIBUSB_LOG_LEVEL_WARNING;
@@ -72,7 +77,7 @@ int main(int argc, char **argv)
 
 	options.log_file = NULL;
 	options.verbose = false;
-
+	options.write_to_socket = false;
 	setlocale(LC_ALL, "");
 
 	//---
@@ -108,6 +113,10 @@ int main(int argc, char **argv)
 	case 'l':
 	case 'b':
 	case 's':
+		options.write_to_socket = true;
+		socket_in = argv[optind];
+		socket_out = argv[optind+1];
+		break;
 	case 'i':
 	case 't':
 	case 'p':

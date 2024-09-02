@@ -39,10 +39,18 @@ static void handle_new_message(struct fxlink_device *fdev,
 	}
 
 	if(fxlink_message_is_fxlink_text(msg)) {
-		char const *str = msg->data;
-
+		char *str = msg->data;
+		str[msg->size] = '\0';
 		if(options.verbose)
 			printf("------------------\n");
+		if(options.write_to_socket)
+		{
+			FILE *fPtr;
+			fPtr = fopen(socket_in, "a");
+			fputs(str, fPtr);
+			fputs("\n\0",fPtr);
+			fclose(fPtr);
+		}
 		fwrite(str, 1, msg->size, stdout);
 #if 0
 		if(str[msg->size - 1] != '\n') {
@@ -120,8 +128,20 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 	static uint8_t buffer[2048];
 	/* Current message */
 	struct fxlink_transfer *tr = NULL;
-
+    FILE *fptr;
+	char c[100];
 	while(1) {
+		
+		if(options.write_to_socket)
+		{
+			if ((fptr = fopen(socket_out, "r"))) {
+					fscanf(fptr, "%[^\n]", c);
+					printf("%i",strlen(c));
+			    	fxlink_device_start_bulk_OUT(fdev,"fxlink", "text", &c, strlen(c), false);
+					remove(socket_out);
+			}
+		}
+
 		fxlink_sdl2_handle_events();
 
 		int transferred = -1;
@@ -140,6 +160,8 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 		}
 		if(transferred <= 0)
 			continue;
+    	
+
 
 		/* Either start a new message or continue an unfinished one */
 		if(tr == NULL)
@@ -156,7 +178,6 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 			tr = NULL;
 		}
 	}
-
 	/* Warning for unfinished transfer */
 	if(tr) {
 		wlog("unfinished transfer interrupted by disconnection\n");

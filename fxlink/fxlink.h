@@ -16,9 +16,14 @@ struct fxlink_options {
 	FILE *log_file;
 	/* Extra details (mainly interactive messages) */
 	bool verbose;
+	bool write_to_socket;
 };
 
 extern struct fxlink_options options;
+
+/* Input/output socket filename in case of -s option */
+extern char* socket_in;
+extern char* socket_out;
 
 /* Main function for -l */
 int main_list(struct fxlink_filter *filter, delay_t *delay,
