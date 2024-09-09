@@ -41,7 +41,8 @@ static const char *help_string =
 "  -w <SECONDS>        Wait this many seconds for a calculator to connect\n"
 "  -w                  Wait indefinitely for a calculator to connect\n"
 "  -f <FILTER>         Filter which calculators we connect to (see below)\n"
-"  -s <IN> <OUT>       Send received data to IN file and send data in OUT file to calculator\n"
+"  --filein <FILE>     Send received data to <FILE>"
+"  --fileout <FILE>    Send data in <FILE> to calculator\n"
 "  --libusb-log=LEVEL  libusb log level (NONE, ERROR, WARNING, INFO, DEBUG)\n"
 "\n"
 "Mode-specific options:\n"
@@ -63,6 +64,10 @@ static const char *help_string =
 /* Global options */
 struct fxlink_options options;
 
+/* In and out files */
+char* file_in;
+char* file_out;
+
 /* Input/output socket filenames for -s option */
 char *socket_in;
 char *socket_out;
@@ -77,14 +82,15 @@ int main(int argc, char **argv)
 
 	options.log_file = NULL;
 	options.verbose = false;
-	options.write_to_socket = false;
+	options.file_in = false;
+	options.file_out = false;
 	setlocale(LC_ALL, "");
 
 	//---
 	// Command-line argument parsing
 	//---
 
-	enum { LIBUSB_LOG=1, LOG_TO_FILE=2, OUT_FOLDER=3 };
+	enum { LIBUSB_LOG=1, LOG_TO_FILE=2, OUT_FOLDER=3 ,FILE_IN=4,FILE_OUT=5};
 	const struct option longs[] = {
 		{ "help",        no_argument,       NULL, 'h' },
 		{ "list",        no_argument,       NULL, 'l' },
@@ -98,6 +104,8 @@ int main(int argc, char **argv)
 		{ "repeat",      no_argument,       NULL, 'r' },
 		{ "verbose",     no_argument,       NULL, 'v' },
 		{ "folder",      required_argument, NULL, OUT_FOLDER },
+		{ "filein",     required_argument,       NULL, FILE_IN },
+		{ "fileout",     required_argument,       NULL, FILE_OUT },
 		/* Deprecated options ignored for compatibility: */
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "unmount",     no_argument,       NULL, 'u' },
@@ -112,10 +120,19 @@ int main(int argc, char **argv)
 		return 0;
 	case 'l':
 	case 'b':
-	case 's':
-		options.write_to_socket = true;
-		socket_in = argv[optind];
-		socket_out = argv[optind+1];
+	case FILE_IN:
+		if(optarg)
+		{
+			options.file_in = true;
+			file_in = optarg;
+		}
+		break;
+	case FILE_OUT:
+		if(optarg)
+		{
+			options.file_out = true;
+			file_out = optarg;
+		}
 		break;
 	case 'i':
 	case 't':

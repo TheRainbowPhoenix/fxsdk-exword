@@ -43,10 +43,10 @@ static void handle_new_message(struct fxlink_device *fdev,
 		str[msg->size] = '\0';
 		if(options.verbose)
 			printf("------------------\n");
-		if(options.write_to_socket)
+		if(options.file_in)
 		{
 			FILE *fPtr;
-			fPtr = fopen(socket_in, "a");
+			fPtr = fopen(file_in, "a");
 			fputs(str, fPtr);
 			fputs("\n\0",fPtr);
 			fclose(fPtr);
@@ -132,13 +132,13 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 	char c[100];
 	while(1) {
 		
-		if(options.write_to_socket)
+		if(options.file_out)
 		{
-			if ((fptr = fopen(socket_out, "r"))) {
+			if ((fptr = fopen(file_out, "r"))) {
 					fscanf(fptr, "%[^\n]", c);
 					printf("%i",strlen(c));
 			    	fxlink_device_start_bulk_OUT(fdev,"fxlink", "text", &c, strlen(c), false);
-					remove(socket_out);
+					remove(file_out);
 			}
 		}
 
