@@ -755,6 +755,9 @@ def convert_topti(input, params):
 	# Default character spacing to 1
 	char_spacing = int(params.get("char-spacing", "1"))
 
+	# Default line distance to line height + 1
+	line_distance = int(params.get("line-distance", line_height + 1))
+
 	#--
 	# Encoding blocks
 	#---
@@ -832,7 +835,7 @@ def convert_topti(input, params):
 
 	o += u8(flags) + u8(line_height) + u8(grid.h) + u8(len(blocks))
 	o += u32(glyph_count)
-	o += u8(char_spacing) + bytes(3)
+	o += u8(char_spacing) + u8(line_distance) + bytes(2)
 	o += ref(data_blocks)
 	o += ref(data_glyphs)
 
