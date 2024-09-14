@@ -15,9 +15,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 static void handle_new_message(struct fxlink_device *fdev,
-	struct fxlink_message *msg)
+	struct fxlink_message *msg,
+	int socket_fd,
+	const struct sockaddr_un *sockout_addr)
 {
 	char const *path = ".";
 
@@ -40,6 +46,11 @@ static void handle_new_message(struct fxlink_device *fdev,
 
 	if(fxlink_message_is_fxlink_text(msg)) {
 		char const *str = msg->data;
+
+		if(socket_fd >= 0 && sockout_addr != NULL &&
+		   sendto(socket_fd, msg->data, msg->size, 0, sockout_addr, sizeof(*sockout_addr)) < 0) {
+			perror("sendto");
+		}
 
 		if(options.verbose)
 			printf("------------------\n");
@@ -95,8 +106,77 @@ static void handle_new_message(struct fxlink_device *fdev,
     free(filename);
 }
 
+static int setup_socket(const struct sockaddr_un *sockin_addr,
+	const struct sockaddr_un *sockout_addr)
+{
+	if(sockin_addr == NULL && sockout_addr == NULL) {
+		/* -1 is used to indicate that no fd were opened but it's not a fatal error */
+		return -1;
+	}
+
+	int socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if(socket_fd < 0) {
+		perror("socket");
+		/* -2 is used to indicate an error */
+		return -2;
+	}
+
+	if(sockin_addr != NULL) {
+		unlink(sockin_addr->sun_path);
+
+		if (bind(socket_fd, (struct sockaddr*)sockin_addr, sizeof(*sockin_addr)) < 0) {
+			perror("bind");
+			close(socket_fd);
+			/* -2 is used to indicate an error */
+			return -2;
+		}
+	}
+
+	return socket_fd;
+}
+
+static void handle_input_socket(struct fxlink_device *fdev, int socket_fd)
+{
+	if(socket_fd < 0) {
+		return;
+	}
+
+	/* Don't start an OUT transfer if there's one in progress */
+	if(fdev->comm->ftransfer_OUT) {
+		return;
+	}
+
+	int dgram_len;
+	if(ioctl(socket_fd, FIONREAD, &dgram_len) < 0) {
+		perror("ioctl");
+		return;
+	}
+	if(dgram_len <= 0) {
+		return;
+	}
+
+	/* We need to use a static buffer as libfxlink will use it in it's main loop,
+	 * outside of this stack frame
+	 */
+	static uint8_t* dgram_buf = NULL;
+	static ssize_t dgram_buf_len = 0;
+	if (dgram_buf_len < dgram_len) {
+		dgram_buf = realloc(dgram_buf, dgram_len);
+		dgram_buf_len = dgram_len;
+	}
+
+	ssize_t recv_ret = recvfrom(socket_fd, dgram_buf, dgram_buf_len, 0, NULL, NULL);
+	if(recv_ret < 0) {
+		perror("recvfrom");
+	} else if(recv_ret > 0) {
+		fxlink_device_start_bulk_OUT(fdev, "fxlink", "text", dgram_buf, recv_ret, false);
+	}
+}
+
 int main_interactive(struct fxlink_filter *filter, delay_t *delay,
-	libusb_context *ctx)
+	libusb_context *ctx,
+	const struct sockaddr_un *sockin_addr,
+	const struct sockaddr_un *sockout_addr)
 {
 	/* Wait for a device to be connected */
 	fxlink_filter_clean_libusb(filter);
@@ -113,6 +193,14 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 		return 1;
 	}
 
+	/* socket used by sockin and sockout options */
+	int socket_fd = setup_socket(sockin_addr, sockout_addr);
+	if(socket_fd <= -2) {
+		fxlink_device_cleanup(fdev);
+		free(fdev);
+		return 1;
+	}
+
 	hlog("interactive");
 	log_("connected to %s\n", fxlink_device_id(fdev));
 
@@ -123,6 +211,8 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 
 	while(1) {
 		fxlink_sdl2_handle_events();
+
+		handle_input_socket(fdev, socket_fd);
 
 		int transferred = -1;
 		int rc = libusb_bulk_transfer(fdev->dh, fdev->comm->ep_bulk_IN, buffer,
@@ -150,7 +240,7 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 		if(tr && fxlink_transfer_complete(tr)) {
 			struct fxlink_message *msg = fxlink_transfer_finish_IN(tr);
 			if(msg) {
-				handle_new_message(fdev, msg);
+				handle_new_message(fdev, msg, socket_fd, sockout_addr);
 				fxlink_message_free(msg, true);
 			}
 			tr = NULL;
@@ -161,6 +251,10 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 	if(tr) {
 		wlog("unfinished transfer interrupted by disconnection\n");
 		fxlink_transfer_free(tr);
+	}
+
+	if(socket_fd >= 0) {
+		close(socket_fd);
 	}
 
 	fxlink_device_cleanup(fdev);

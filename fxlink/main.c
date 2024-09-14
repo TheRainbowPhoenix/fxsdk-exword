@@ -13,6 +13,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <errno.h>
 #include <locale.h>
 
@@ -47,6 +49,10 @@ static const char *help_string =
 "  --fxlink-log[=FILE] -i: Append fxlink text messages to FILE. Without\n"
 "                          argument, a unique name is generated.\n"
 "  -r, --repeat        -i: Reconnect if the calc disconnects (implies -w)\n"
+"  --sockin=SOCKET     -i: Send messages read from the datagram Unix socket\n"
+"                          SOCKET to the calculator as fxlink text messages.\n"
+"  --sockout=SOCKET    -i: Send fxlink text messages read from the calculator\n"
+"                          to the datagram Unix socket SOCKET.\n"
 "  --folder=FOLDER     -s: Select destination folder for files\n"
 "\n"
 "Device filters:\n"
@@ -69,6 +75,8 @@ int main(int argc, char **argv)
 	struct fxlink_filter *filter = NULL;
 	bool repeat = false;
 	char *outfolder = NULL;
+	struct sockaddr_un sockin_addr = { AF_UNSPEC };
+	struct sockaddr_un sockout_addr = { AF_UNSPEC };
 
 	options.log_file = NULL;
 	options.verbose = false;
@@ -79,7 +87,7 @@ int main(int argc, char **argv)
 	// Command-line argument parsing
 	//---
 
-	enum { LIBUSB_LOG=1, LOG_TO_FILE=2, OUT_FOLDER=3 };
+	enum { LIBUSB_LOG=1, LOG_TO_FILE=2, OUT_FOLDER=3, SOCKIN=4, SOCKOUT=5 };
 	const struct option longs[] = {
 		{ "help",        no_argument,       NULL, 'h' },
 		{ "list",        no_argument,       NULL, 'l' },
@@ -93,6 +101,8 @@ int main(int argc, char **argv)
 		{ "repeat",      no_argument,       NULL, 'r' },
 		{ "verbose",     no_argument,       NULL, 'v' },
 		{ "folder",      required_argument, NULL, OUT_FOLDER },
+		{ "sockin",      required_argument, NULL, SOCKIN },
+		{ "sockout",     required_argument, NULL, SOCKOUT },
 		/* Deprecated options ignored for compatibility: */
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "unmount",     no_argument,       NULL, 'u' },
@@ -171,6 +181,14 @@ int main(int argc, char **argv)
 	case OUT_FOLDER:
 		outfolder = strdup(optarg);
 		break;
+	case SOCKIN:
+		sockin_addr.sun_family = AF_UNIX;
+		strncpy(sockin_addr.sun_path, optarg, sizeof(sockin_addr.sun_path) - 1);
+		break;
+	case SOCKOUT:
+		sockout_addr.sun_family = AF_UNIX;
+		strncpy(sockout_addr.sun_path, optarg, sizeof(sockout_addr.sun_path) - 1);
+		break;
 	case '?':
 		error = 1;
 	}
@@ -232,7 +250,9 @@ int main(int argc, char **argv)
 	}
 	else if(mode == 'i') {
 		do {
-			rc = main_interactive(filter, &delay, context);
+			rc = main_interactive(filter, &delay, context,
+					      sockin_addr.sun_family == AF_UNSPEC ? NULL : &sockin_addr,
+					      sockout_addr.sun_family == AF_UNSPEC ? NULL : &sockout_addr);
 		}
 		while(repeat);
 	}

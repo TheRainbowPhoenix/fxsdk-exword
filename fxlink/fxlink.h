@@ -8,6 +8,7 @@
 #pragma once
 #include <fxlink/filter.h>
 #include <libusb.h>
+#include <sys/un.h>
 
 /* Global and command-line options. */
 struct fxlink_options {
@@ -33,7 +34,9 @@ int main_send(struct fxlink_filter *filter, delay_t *delay, char **files,
 
 /* Main function for -i */
 int main_interactive(struct fxlink_filter *filter, delay_t *delay,
-	libusb_context *context);
+	libusb_context *context,
+	const struct sockaddr_un *sockin_addr,
+	const struct sockaddr_un *sockout_addr);
 
 /* Main function for -t */
 int main_tui_interactive(libusb_context *context);
