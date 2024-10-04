@@ -23,8 +23,8 @@ struct fxlink_options {
 extern struct fxlink_options options;
 
 /* Input/output socket filename in case of -s option */
-extern char* file_in;
-extern char* file_out;
+extern char *file_in;
+extern char *file_out;
 
 /* Main function for -l */
 int main_list(struct fxlink_filter *filter, delay_t *delay,

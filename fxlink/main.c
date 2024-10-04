@@ -41,8 +41,8 @@ static const char *help_string =
 "  -w <SECONDS>        Wait this many seconds for a calculator to connect\n"
 "  -w                  Wait indefinitely for a calculator to connect\n"
 "  -f <FILTER>         Filter which calculators we connect to (see below)\n"
-"  --filein <FILE>     Send received data to <FILE>"
-"  --fileout <FILE>    Send data in <FILE> to calculator\n"
+"  --filein <FILE>     Send data in <FILE> to calculator\n"
+"  --fileout <FILE>    Send received data to <FILE>\n"
 "  --libusb-log=LEVEL  libusb log level (NONE, ERROR, WARNING, INFO, DEBUG)\n"
 "\n"
 "Mode-specific options:\n"
@@ -65,12 +65,8 @@ static const char *help_string =
 struct fxlink_options options;
 
 /* In and out files */
-char* file_in;
-char* file_out;
-
-/* Input/output socket filenames for -s option */
-char *socket_in;
-char *socket_out;
+char *file_in;
+char *file_out;
 
 int main(int argc, char **argv)
 {
@@ -104,8 +100,8 @@ int main(int argc, char **argv)
 		{ "repeat",      no_argument,       NULL, 'r' },
 		{ "verbose",     no_argument,       NULL, 'v' },
 		{ "folder",      required_argument, NULL, OUT_FOLDER },
-		{ "filein",     required_argument,       NULL, FILE_IN },
-		{ "fileout",     required_argument,       NULL, FILE_OUT },
+		{ "filein",      required_argument, NULL, FILE_IN },
+		{ "fileout",     required_argument, NULL, FILE_OUT },
 		/* Deprecated options ignored for compatibility: */
 		{ "quiet",       no_argument,       NULL, 'q' },
 		{ "unmount",     no_argument,       NULL, 'u' },
@@ -121,19 +117,14 @@ int main(int argc, char **argv)
 	case 'l':
 	case 'b':
 	case FILE_IN:
-		if(optarg)
-		{
-			options.file_in = true;
-			file_in = optarg;
-		}
+		options.file_in = true;
+		file_in = optarg;
 		break;
 	case FILE_OUT:
-		if(optarg)
-		{
-			options.file_out = true;
-			file_out = optarg;
-		}
+		options.file_out = true;
+		file_out = optarg,"w";
 		break;
+  case 's':
 	case 'i':
 	case 't':
 	case 'p':

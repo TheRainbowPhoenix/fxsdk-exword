@@ -39,17 +39,14 @@ static void handle_new_message(struct fxlink_device *fdev,
 	}
 
 	if(fxlink_message_is_fxlink_text(msg)) {
-		char *str = msg->data;
-		str[msg->size] = '\0';
+		char const *str = msg->data;
 		if(options.verbose)
 			printf("------------------\n");
-		if(options.file_in)
+		if(options.file_out)
 		{
-			FILE *fPtr;
-			fPtr = fopen(file_in, "a");
-			fputs(str, fPtr);
-			fputs("\n\0",fPtr);
-			fclose(fPtr);
+      FILE *out = fopen(file_out,"w");
+			fwrite(str,1,msg->size, out);
+      fclose(out);
 		}
 		fwrite(str, 1, msg->size, stdout);
 #if 0
@@ -132,13 +129,13 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 	char c[100];
 	while(1) {
 		
-		if(options.file_out)
+		if(options.file_in)
 		{
-			if ((fptr = fopen(file_out, "r"))) {
+			if ((fptr = fopen(file_in, "r"))) {
 					fscanf(fptr, "%[^\n]", c);
 					printf("%i",strlen(c));
 			    	fxlink_device_start_bulk_OUT(fdev,"fxlink", "text", &c, strlen(c), false);
-					remove(file_out);
+					remove(file_in);
 			}
 		}
 
@@ -161,8 +158,6 @@ int main_interactive(struct fxlink_filter *filter, delay_t *delay,
 		if(transferred <= 0)
 			continue;
     	
-
-
 		/* Either start a new message or continue an unfinished one */
 		if(tr == NULL)
 			tr = fxlink_transfer_make_IN(buffer, transferred);
