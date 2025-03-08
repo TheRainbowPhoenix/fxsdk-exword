@@ -632,6 +632,29 @@ bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     return true;
 }
 
+bool fxlink_device_has_bulk_OUT(struct fxlink_device *fdev)
+{
+    struct fxlink_comm *comm = fdev->comm;
+    return comm && comm->claimed && comm->ftransfer_OUT;
+}
+
+void fxlink_device_wait_bulk_OUT(
+    libusb_context *ctx, struct fxlink_device *fdev)
+{
+    while(fxlink_device_has_bulk_OUT(fdev))
+        libusb_handle_events(ctx);
+}
+
+bool fxlink_device_send_bulk_OUT(
+    libusb_context *ctx, struct fxlink_device *fdev,
+    char const *app, char const *type, void const *data, int size)
+{
+    if(!fxlink_device_start_bulk_OUT(fdev, app, type, data, size, false))
+        return false;
+    fxlink_device_wait_bulk_OUT(ctx, fdev);
+    return true;
+}
+
 //---
 // Polled file descriptor tracking
 //---

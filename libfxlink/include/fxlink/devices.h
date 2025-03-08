@@ -235,6 +235,21 @@ bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     char const *app, char const *type, void const *data, int size,
     bool own_data);
 
+/* Check whether a device currently has an ongoing OUT transfer. */
+bool fxlink_device_has_bulk_OUT(struct fxlink_device *fdev);
+
+/* Wait for an ongoing OUT transfer to finish. If there is no such transfer
+   ongoing, this function is a no-op. */
+void fxlink_device_wait_bulk_OUT(
+   libusb_context *ctx, struct fxlink_device *fdev);
+
+/* Run an OUT transfer on the device and wait for its completion. Note that if
+   the calculator does not properly receive the data for whatever reason, this
+   function will never return. */
+bool fxlink_device_send_bulk_OUT(
+   libusb_context *ctx, struct fxlink_device *fdev,
+   char const *app, char const *type, void const *data, int size);
+
 /* Interrupt any active transfers on the device. */
 void fxlink_device_interrupt_transfers(struct fxlink_device *fdev);
 
