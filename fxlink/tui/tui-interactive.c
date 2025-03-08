@@ -113,6 +113,9 @@ static void TUI_render_status(void)
         struct fxlink_device *fdev = &TUI.devices.devices[i];
         struct fxlink_calc *calc = fdev->calc;
 
+        if(fdev->idVendor != 0x07cf)
+            continue;
+
         if(fdev->status == FXLINK_FDEV_STATUS_CONNECTED) {
             wattron(win, fmt_to_ncurses_attr(FMT_BGSELECTED));
             mvwhline(win, y, 0, ' ', w);
