@@ -823,7 +823,8 @@ def convert_topti(input, params):
 			l += [f", ", data_index, f", ", data_width]
 		else:
 			l += [f", {grid.w}, {(grid.w * grid.h + 31) >> 5}"]
-			l += [f", ", None, f", ", None]
+			#l += [f", ", None, f", ", None]
+			l += [f", {None}, {None}"]
 		return l + [")\n"]
 
 	# Base data: always put the raw data and blocks first since they are
