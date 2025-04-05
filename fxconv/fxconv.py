@@ -814,14 +814,16 @@ def convert_topti(input, params):
 		l = [ "import gint\n",
 			f"{params['name']} = gint.font({flags}, ",
 			f"{line_height}, {grid.h}, {len(blocks)}, {glyph_count}, ",
-			f"{char_spacing}, ",
+			f"{char_spacing}, {line_distance}, ",
 			data_blocks,
 			", ",
 			data_glyphs ]
 		if proportional:
-			l += [data_index, data_width]
+			l += [f", {0}, {0}"]
+			l += [f", ", data_index, f", ", data_width]
 		else:
 			l += [f", {grid.w}, {(grid.w * grid.h + 31) >> 5}"]
+			l += [f", ", None, f", ", None]
 		return l + [")\n"]
 
 	# Base data: always put the raw data and blocks first since they are
