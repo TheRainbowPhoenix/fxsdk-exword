@@ -790,7 +790,8 @@ def convert_topti(input, params):
 				glyph = _trim(glyph)
 				data_width.append(glyph.width)
 
-			length = 4 * ((glyph.width * glyph.height + 31) >> 5)
+			storage_size = ((glyph.width * glyph.height + 31) >> 5)
+			length = 4 * storage_size
 			bits = bytearray(length)
 			offset = 0
 			px = glyph.load()
@@ -822,10 +823,28 @@ def convert_topti(input, params):
 			l += [f", {0}, {0}"]
 			l += [f", ", data_index, f", ", data_width]
 		else:
-			l += [f", {grid.w}, {(grid.w * grid.h + 31) >> 5}"]
+			l += [f", {grid.w}, {storage_size}"]
 			#l += [f", ", None, f", ", None]
 			l += [f", {None}, {None}"]
-		return l + [")\n"]
+		l += [")\n"]
+
+		print(f"\n")
+		print(f"Output to PythonExtra file : variable {params['name']}")
+		print(f"   -", ["Monospaced","Proportional"][proportional], "font")
+		print(f"   - Number of Blocks   : {len(blocks)}")
+		print(f"   - Number of Glyphs   : {glyph_count}")
+		print(f"   - Size of Block Data : {len(data_blocks)}")
+		print(f"   - Size of Glyph Data : {len(data_glyphs)}")
+		if not proportional:
+			print(f"   - Width   x   Height : {grid.w}  x  {grid.h}")
+			print(f"   - Storage size (u32) : {storage_size}")
+		else:
+			print(f"   - Size of Index Data : {len(data_index)}")
+			print(f"   - Size of Width Data : {len(data_width)}")
+		print("\n\n")
+
+		return l
+	
 
 	# Base data: always put the raw data and blocks first since they are
 	# 4-aligned, to preserve alignment on the rest of the references.
