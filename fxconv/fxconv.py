@@ -824,7 +824,6 @@ def convert_topti(input, params):
 			l += [f", ", data_index, f", ", data_width]
 		else:
 			l += [f", {grid.w}, {storage_size}"]
-			#l += [f", ", None, f", ", None]
 			l += [f", {None}, {None}"]
 		l += [")\n"]
 
