@@ -812,6 +812,7 @@ def convert_topti(input, params):
 	#---
 
 	if "py" in params and params["py"]["enabled"]:
+		title = params.get("title", "")
 		l = [ "import gint\n",
 			f"{params['name']} = gint.font({flags}, ",
 			f"{line_height}, {grid.h}, {len(blocks)}, {glyph_count}, ",
@@ -826,10 +827,9 @@ def convert_topti(input, params):
 			l += [f", {grid.w}, {storage_size}"]
 			#l += [f", ", None, f", ", None]
 			l += [f", {None}, {None}"]
-		l += [")\n"]
+		l += [", ", repr(title), ")\n"]
 
-		print(f"\n")
-		print(f"Output to PythonExtra file : variable {params['name']}")
+		print(f"Output to Python variable {params['name']} ({title!r})")
 		print(f"   -", ["Monospaced","Proportional"][proportional], "font")
 		print(f"   - Number of Blocks   : {len(blocks)}")
 		print(f"   - Number of Glyphs   : {glyph_count}")
@@ -841,8 +841,6 @@ def convert_topti(input, params):
 		else:
 			print(f"   - Size of Index Data : {len(data_index)}")
 			print(f"   - Size of Width Data : {len(data_width)}")
-		print("\n\n")
-
 		return l
 	
 
