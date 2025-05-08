@@ -194,5 +194,7 @@ void icon_print_1(uint8_t const *mono, int width, int height);
 
 /* icon_print_16(): Show a 16-bit image on stdout (RGB ANSI escape codes) */
 void icon_print_16(uint16_t const *rgb16be, int width, int height);
+/* icon_print_16_half(): Like icon_print_16() with half-block characters */
+void icon_print_16_half(uint16_t const *rgb16be, int width, int height);
 
 #endif /* FX_FXGXA */

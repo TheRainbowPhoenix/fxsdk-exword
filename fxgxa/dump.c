@@ -258,10 +258,10 @@ void dump_g3a(struct g3a const *g3a, size_t size)
 	field(header->filename, 324);
 
 	printf("\nUnselected program icon:\n\n");
-	icon_print_16(header->icon_uns, 92, 64);
+	icon_print_16_half(header->icon_uns, 92, 64);
 
 	printf("\nSelected program icon:\n\n");
-	icon_print_16(header->icon_sel, 92, 64);
+	icon_print_16_half(header->icon_sel, 92, 64);
 
 	printf("\n");
 }
