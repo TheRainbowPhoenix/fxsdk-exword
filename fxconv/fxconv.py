@@ -926,6 +926,7 @@ def convert_libimg_cg(input, params):
 	# Crop image to key "area"
 	area = Area(params.get("area", {}), img)
 	img = img.crop(area.tuple())
+	img = img.convert("RGBA")
 
 	# Encode the image into 16-bit format and force the alpha to 0x0001
 	format = CgProfile.find("rgb565a")
