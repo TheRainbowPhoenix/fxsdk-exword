@@ -63,7 +63,8 @@ def main():
 	mode = ""
 	output = None
 	model = None
-	target = { 'toolchain': None, 'arch': None, 'section': None }
+	target = { 'toolchain': None, 'arch': None, 'section': None,
+	           'outputtarget': None }
 	use_custom = False
 	converter_paths = []
 	py = { 'enabled': False, 'compact': False }
@@ -75,8 +76,9 @@ def main():
 		sys.exit(1)
 
 	try:
-		longs = ["help", "output=", "toolchain=", "arch=", "section=", "fx",
-			     "cg", "cp", "converters=", "py", "py-compact"] + types.split()
+		longs = ["help", "output=", "toolchain=", "arch=", "section=",
+					 "outputtarget=", "fx", "cg", "cp", "converters=", "py",
+					 "py-compact"] + types.split()
 		opts, args = getopt.gnu_getopt(sys.argv[1:], "hsbifo:", longs)
 	except getopt.GetoptError as error:
 		return err(error)
@@ -98,6 +100,8 @@ def main():
 			target['arch'] = value
 		elif name == "--section":
 			target['section'] = value
+		elif name == "--outputtarget":
+			target['outputtarget'] = value
 		elif name == "--custom":
 			use_custom = True
 			mode = "custom"

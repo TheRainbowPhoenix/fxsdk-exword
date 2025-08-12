@@ -1225,7 +1225,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		elf(o, output, "_" + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
-	assembly=None):
+	assembly=None, outputtarget=None):
 	"""
 	Call objcopy to create an object file from the specified data. The object
 	file will export three symbols:
@@ -1283,20 +1283,21 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	if section is None:
 		section = ".rodata,contents,alloc,load,readonly,data"
 
-	if toolchain != "":
-		if arch in ["fx", "cg", None] and toolchain in ["sh3eb-elf", "sh4eb-elf",
-			"sh4eb-nofpu-elf"]:
-			arch = toolchain.replace("eb-", "-")[:-4]
+	if arch in ["fx", "cg", None] and toolchain in ["sh3eb-elf", "sh4eb-elf",
+		"sh4eb-nofpu-elf"]:
+		arch = toolchain.replace("eb-", "-")[:-4]
 
-		elif arch == "fx" and toolchain in ["sh-elf"]:
-			arch = "sh3"
-		elif arch == "cg" and toolchain in ["sh-elf"]:
-			arch = "sh4-nofpu"
+	elif arch == "fx" and toolchain in ["sh-elf"]:
+		arch = "sh3"
+	elif arch == "cg" and toolchain in ["sh-elf"]:
+		arch = "sh4-nofpu"
 
-		elif arch in ["fx", "cg", None]:
-			raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
-				"specified")
+	elif arch in ["fx", "cg", None]:
+		raise FxconvError(
+			f"non-trivial architecture for '{toolchain}' must be specified")
 
+	# Fix old toolchain name convention where a dash was implicit
+	if toolchain != "" and not toolchain.endswith("-"):
 		toolchain += "-"
 
 	if assembly:
@@ -1305,6 +1306,12 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	if data is None and assembly is None:
 		raise FxconvError("elf() but no data and no assembly")
+
+	if outputtarget is None and arch in ["sh3", "sh4", "sh4-nofpu"]:
+		outputtarget = "elf32-sh"
+	elif outputtarget is None:
+		raise FxconvError(
+			f"non-trivial output target for '{toolchain}' must be specified")
 
 	# Generate data - in <output> directly if there is no assembly
 
@@ -1315,7 +1322,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 		sybl = "_binary_" + fp_obj.name.replace("/", "_")
 		objcopy_args = [
-			f"{toolchain}objcopy", "-I", "binary", "-O", "elf32-sh",
+			f"{toolchain}objcopy", "-I", "binary", "-O", outputtarget,
 			"--binary-architecture", arch, "--file-alignment", "4",
 			"--rename-section", f".data={section}",
 			"--redefine-sym", f"{sybl}_start={symbol}",
