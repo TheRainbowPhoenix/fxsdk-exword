@@ -1287,14 +1287,17 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		"sh4eb-nofpu-elf"]:
 		arch = toolchain.replace("eb-", "-")[:-4]
 
-	elif arch == "fx" and toolchain == "sh-elf":
+	elif arch == "fx" and toolchain in ["sh-elf"]:
 		arch = "sh3"
-	elif arch == "cg" and toolchain == "sh-elf":
+	elif arch == "cg" and toolchain in ["sh-elf"]:
 		arch = "sh4-nofpu"
 
 	elif arch in ["fx", "cg", None]:
 		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
 			"specified")
+
+	if toolchain != "" and not toolchain.endswith("-"):
+		toolchain += "-"
 
 	if assembly:
 		sec = ".section " + section.split(",",1)[0]
@@ -1312,7 +1315,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 		sybl = "_binary_" + fp_obj.name.replace("/", "_")
 		objcopy_args = [
-			f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
+			f"{toolchain}objcopy", "-I", "binary", "-O", "elf32-sh",
 			"--binary-architecture", arch, "--file-alignment", "4",
 			"--rename-section", f".data={section}",
 			"--redefine-sym", f"{sybl}_start={symbol}",
@@ -1332,7 +1335,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		fp_asm.flush()
 
 		as_args = [
-			f"{toolchain}-as", "-c", fp_asm.name, "-o",
+			f"{toolchain}as", "-c", fp_asm.name, "-o",
 			output if not data else fp_asm.name + ".o" ]
 
 		proc = subprocess.run(as_args)
@@ -1343,7 +1346,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	if data and assembly:
 		ld_args = [
-			f"{toolchain}-ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
+			f"{toolchain}ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
 			"-o", output ]
 
 		proc = subprocess.run(ld_args)
