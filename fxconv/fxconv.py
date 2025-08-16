@@ -1222,7 +1222,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		pyout(o, output, params)
 	# Standard conversions: save to ELF in the natural way
 	else:
-		elf(o, output, "_" + params["name"], **target)
+		elf(o, output, "_" if target["arch"] in ["fx", "cg", None] else "" + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None, outputtarget=None):
