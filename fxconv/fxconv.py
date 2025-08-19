@@ -39,6 +39,14 @@ FX_LIGHT  = (170, 170, 170, 255)
 FX_WHITE  = (255, 255, 255, 255)
 FX_ALPHA  = (  0,   0,   0,   0)
 
+# Endianness
+endianness = "big"
+
+def set_endianness(arch):
+    global endianness
+    if arch in ['x86-64', 'i386']:
+        endianness = 'little'
+
 # fx-9860G profiles
 class FxProfile:
 	def __init__(self, id, name, colors, layers):
@@ -168,30 +176,40 @@ FX_CHARSETS = {
 #
 
 def u8(x, check=False):
-	if check and not (0 <= x < 2**8):
-		raise FxconvError(f"integer {x} out of range for u8")
-	return bytes([ x & 255 ])
+    global endianness
+    if check and not (0 <= x < 2**8):
+        raise FxconvError(f"integer {x} out of range for u8")
+    return (x & 0xFF).to_bytes(1, endianness)
+
 def u16(x, check=False):
-	if check and not (0 <= x < 2**16):
-		raise FxconvError(f"integer {x} out of range for u16")
-	return bytes([ (x >> 8) & 255, x & 255 ])
+    global endianness
+    if check and not (0 <= x < 2**16):
+        raise FxconvError(f"integer {x} out of range for u16")
+    return (x & 0xFFFF).to_bytes(2, endianness)
+
 def u32(x, check=False):
-	if check and not (0 <= x < 2**32):
-		raise FxconvError(f"integer {x} out of range for u32")
-	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+    global endianness
+    if check and not (0 <= x < 2**32):
+        raise FxconvError(f"integer {x} out of range for u32")
+    return (x & 0xFFFFFFFF).to_bytes(4, endianness)
 
 def i8(x, check=True):
-	if check and not (-2**7 <= x < 2**7):
-		raise FxconvError(f"integer {x} out of range for i8")
-	return bytes([ x & 255 ])
+    global endianness
+    if check and not (-2**7 <= x < 2**7):
+        raise FxconvError(f"integer {x} out of range for i8")
+    return x.to_bytes(1, endianness, signed=True)
+
 def i16(x, check=True):
-	if check and not (-2**15 <= x < 2**15):
-		raise FxconvError(f"integer {x} out of range for i16")
-	return bytes([ (x >> 8) & 255, x & 255 ])
+    global endianness
+    if check and not (-2**15 <= x < 2**15):
+        raise FxconvError(f"integer {x} out of range for i16")
+    return x.to_bytes(2, endianness, signed=True)
+
 def i32(x, check=True):
-	if check and not (-2**31 <= x < 2**31):
-		raise FxconvError(f"integer {x} out of range for i32")
-	return bytes([ (x >> 24) & 255, (x >> 16) & 255, (x >> 8) & 255, x & 255 ])
+    global endianness
+    if check and not (-2**31 <= x < 2**31):
+        raise FxconvError(f"integer {x} out of range for i32")
+    return x.to_bytes(4, endianness, signed=True)
 
 def ref(base, offset=None, padding=None, prefix_underscore=True, align=None):
 	if isinstance(base, bytes) or isinstance(base, bytearray):
@@ -1170,6 +1188,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 
 	Produces an output file and returns nothing.
 	"""
+	set_endianness(target['arch'])
 
 	if output is None:
 		output = os.path.splitext(input)[0] + ".o"
@@ -1222,7 +1241,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		pyout(o, output, params)
 	# Standard conversions: save to ELF in the natural way
 	else:
-		elf(o, output, "_" if target["arch"] in ["fx", "cg", None] else "" + params["name"], **target)
+		elf(o, output, ("" if target["arch"] in ["x86-64", "i386"] else "_") + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None, outputtarget=None):
@@ -1268,6 +1287,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	Produces an output file and returns nothing.
 	"""
 
+	set_endianness(arch)
 	# Unfold ObjectData into data and assembly
 	if isinstance(data, ObjectData):
 		assembly = f".global {symbol}\n" + \
