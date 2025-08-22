@@ -40,12 +40,15 @@ FX_WHITE  = (255, 255, 255, 255)
 FX_ALPHA  = (  0,   0,   0,   0)
 
 # Endianness
-endianness = "big"
+endianness = None
 
 def set_endianness(arch):
-    global endianness
-    if arch in ['x86-64', 'i386']:
-        endianness = 'little'
+	global endianness
+	if endianness == None:
+		if arch in ["x86-64", "i386"]:
+			endianness = "little"
+		else:
+			endianness = "big"
 
 # fx-9860G profiles
 class FxProfile:
@@ -1188,7 +1191,6 @@ def convert(input, params, target, output=None, model=None, custom=None):
 
 	Produces an output file and returns nothing.
 	"""
-	set_endianness(target['arch'])
 
 	if output is None:
 		output = os.path.splitext(input)[0] + ".o"
@@ -1287,7 +1289,6 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	Produces an output file and returns nothing.
 	"""
 
-	set_endianness(arch)
 	# Unfold ObjectData into data and assembly
 	if isinstance(data, ObjectData):
 		assembly = f".global {symbol}\n" + \

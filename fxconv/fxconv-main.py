@@ -102,6 +102,8 @@ def main():
 			target['section'] = value
 		elif name == "--outputtarget":
 			target['outputtarget'] = value
+		elif name == "--endianness":
+			fxconv.endianness = value
 		elif name == "--custom":
 			use_custom = True
 			mode = "custom"
@@ -153,6 +155,9 @@ def main():
 		if params.get("type") == "image":
 			warn("type 'image' is deprecated, use 'bopti-image' instead")
 			params["type"] = "bopti-image"
+
+	# Set endianness
+	fxconv.set_endianness(target["arch"])
 
 	# Load custom converters:
 	for path in converter_paths:
