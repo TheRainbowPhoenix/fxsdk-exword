@@ -1243,7 +1243,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		pyout(o, output, params)
 	# Standard conversions: save to ELF in the natural way
 	else:
-		elf(o, output, ("" if target["arch"] in ["x86-64", "i386"] else "_") + params["name"], **target)
+		elf(o, output, params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	assembly=None, outputtarget=None):
@@ -1289,6 +1289,10 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	Produces an output file and returns nothing.
 	"""
 
+	# Set prefix underscore for symbol depending on arch
+	if not arch in ["x86-64", "i386"] and not symbol.startswith("_"):
+		symbol = "_" + symbol
+
 	# Unfold ObjectData into data and assembly
 	if isinstance(data, ObjectData):
 		assembly = f".global {symbol}\n" + \
@@ -1298,7 +1302,6 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		data = None
 
 	# Toolchain parameters
-
 	if toolchain is None:
 		toolchain = "sh3eb-elf"
 	if section is None:
@@ -1363,8 +1366,9 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		fp_asm.flush()
 
 		as_args = [
-			f"{toolchain}as", "-c", fp_asm.name, "-o",
-			output if not data else fp_asm.name + ".o" ]
+			f"{toolchain}as", "-c", fp_asm.name,
+			"--64" if arch in ["x86-64"] else ("--32" if arch in ["i386"] else ""),
+			"-o", output if not data else fp_asm.name + ".o" ]
 
 		proc = subprocess.run(as_args)
 		if proc.returncode != 0:
@@ -1375,6 +1379,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 	if data and assembly:
 		ld_args = [
 			f"{toolchain}ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
+			"-m64" if arch in ["x86-64"] else ("-m32" if arch in ["i386"] else ""),
 			"-o", output ]
 
 		proc = subprocess.run(ld_args)
