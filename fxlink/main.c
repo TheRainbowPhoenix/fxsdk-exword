@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 		if(!optarg) break;
 		char *end;
 		int scale = strtol(optarg, &end, 10);
-		if(scale < 1 || *end != 0) {
+		if(scale < 1 || scale >= 16 || *end != 0) {
 			error = elog("invalid scale '%s'\n", optarg);
 			break;
 		}
