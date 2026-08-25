@@ -16,6 +16,8 @@ struct fxlink_options {
 	FILE *log_file;
 	/* Extra details (mainly interactive messages) */
 	bool verbose;
+	/* Window scale */
+	int scale;
 };
 
 extern struct fxlink_options options;

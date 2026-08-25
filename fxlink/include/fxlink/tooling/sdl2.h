@@ -18,7 +18,7 @@
 
 /* Display a raw image on the window. If now window has been opened yet, one is
    created automatically. */
-void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw);
+void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw, int scale);
 
 /* Handle SDL events. This should be called regularly from the main thread. */
 void fxlink_sdl2_handle_events(void);

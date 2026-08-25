@@ -40,6 +40,7 @@ static const char *help_string =
 "  -v, --verbose       Increased verbosity (mostly in -i/-t)\n"
 "  -w <SECONDS>        Wait this many seconds for a calculator to connect\n"
 "  -w                  Wait indefinitely for a calculator to connect\n"
+"  -S <SCALE>          Scale the streaming window\n"
 "  -f <FILTER>         Filter which calculators we connect to (see below)\n"
 "  --libusb-log=LEVEL  libusb log level (NONE, ERROR, WARNING, INFO, DEBUG)\n"
 "\n"
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
 
 	options.log_file = NULL;
 	options.verbose = false;
+	options.scale = 1;
 
 	setlocale(LC_ALL, "");
 
@@ -100,7 +102,7 @@ int main(int argc, char **argv)
 	};
 
 	while(option >= 0 && option != '?')
-	switch((option = getopt_long(argc, argv, "hlbsitpquf:w::rv", longs, NULL)))
+	switch((option = getopt_long(argc, argv, "hlbsitpquf:w::rvS:", longs, NULL)))
 	{
 	case 'h':
 		fprintf(stderr, help_string, argv[0]);
@@ -152,12 +154,21 @@ int main(int argc, char **argv)
 			free(name);
 		}
 		break;
+	case 'S':
+		if(!optarg) break;
+		char *end;
+		int scale = strtol(optarg, &end, 10);
+		if(scale < 1 || *end != 0) {
+			error = elog("invalid scale '%s'\n", optarg);
+			break;
+		}
+		options.scale = scale;
+		break;
 	case 'w':
 		if(!optarg) {
 			delay = delay_infinite();
 			break;
 		}
-		char *end;
 		int seconds = strtol(optarg, &end, 10);
 		if(seconds < 0 || *end != 0) {
 			error = elog("invalid delay '%s'\n", optarg);
