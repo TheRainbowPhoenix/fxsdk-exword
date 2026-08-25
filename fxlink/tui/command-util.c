@@ -4,6 +4,9 @@
 //    \___/   License: MIT <https://opensource.org/licenses/MIT>             //
 //---------------------------------------------------------------------------//
 
+#include <fxlink/config.h>
+#ifndef FXLINK_DISABLE_POLL
+
 #include "tui.h"
 #include "command-util.h"
 #include <string.h>
@@ -377,3 +380,5 @@ FXLINK_COMMAND("?cmdtree")
     node_dump(cmdtree, 0);
     return 0;
 }
+
+#endif

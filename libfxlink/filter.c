@@ -29,7 +29,13 @@ static char *read_word(char const **input)
 {
 	char const *str = *input;
 	while(**input && isword(**input)) (*input)++;
-	return strndup(str, *input - str);
+
+	char *rc = malloc(*input - str + 1);
+	if(!rc)
+		return NULL;
+	memcpy(rc, str, *input - str);
+	rc[*input - str] = 0;
+	return rc;
 }
 
 /* Reads a property from the input source. Advances *input and sets *name and

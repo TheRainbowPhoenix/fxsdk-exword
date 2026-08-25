@@ -68,7 +68,6 @@ function(generate_g3a)
     COMMAND_EXPAND_LISTS
   )
   if(DEFINED G3A_ICONS)
-    set_target_properties("${G3A_TARGET}" PROPERTIES
-      LINK_DEPENDS "${G3A_ICON1};${G3A_ICON2}")
+    set_property(TARGET "${G3A_TARGET}" APPEND PROPERTY LINK_DEPENDS "${G3A_ICON1}" "${G3A_ICON2}")
   endif()
 endfunction()

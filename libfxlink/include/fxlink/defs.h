@@ -12,7 +12,18 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <poll.h>
+
+#ifndef FXLINK_DISABLE_POLL
+# include <poll.h>
+#endif
+
+#ifdef min
+# undef min
+#endif
+
+#ifdef max
+# undef max
+#endif
 
 static inline int min(int x, int y)
 {
@@ -84,8 +95,10 @@ char const *fmt_to_ANSI(int format);
 char *fxlink_gen_file_name(char const *path, char const *name,
     char const *suffix);
 
+#ifndef FXLINK_DISABLE_POLL
 /* Modified poll with a variable number of arrays. */
 int fxlink_multipoll(int timeout, struct pollfd *fds1, int count1, ...);
+#endif
 
 /* Write out the given size (in bytes) in a human-readable form. Returns a
    pointer to a statically-allocated string. */

@@ -755,6 +755,9 @@ def convert_topti(input, params):
 	# Default character spacing to 1
 	char_spacing = int(params.get("char-spacing", "1"))
 
+	# Default line distance to line height + 1
+	line_distance = int(params.get("line-distance", line_height + 1))
+
 	#--
 	# Encoding blocks
 	#---
@@ -787,7 +790,8 @@ def convert_topti(input, params):
 				glyph = _trim(glyph)
 				data_width.append(glyph.width)
 
-			length = 4 * ((glyph.width * glyph.height + 31) >> 5)
+			storage_size = ((glyph.width * glyph.height + 31) >> 5)
+			length = 4 * storage_size
 			bits = bytearray(length)
 			offset = 0
 			px = glyph.load()
@@ -808,17 +812,37 @@ def convert_topti(input, params):
 	#---
 
 	if "py" in params and params["py"]["enabled"]:
+		title = params.get("title", "")
 		l = [ "import gint\n",
-			f"{params['name']} = gint.font({title or None}, {flags}, ",
+			f"{params['name']} = gint.font({flags}, ",
 			f"{line_height}, {grid.h}, {len(blocks)}, {glyph_count}, ",
-			f"{char_spacing}, ",
+			f"{char_spacing}, {line_distance}, ",
 			data_blocks,
+			", ",
 			data_glyphs ]
 		if proportional:
-			l += [data_index, data_width]
+			l += [f", {0}, {0}"]
+			l += [f", ", data_index, f", ", data_width]
 		else:
-			l += [f"{grid.w}, {(grid.w * grid.h + 31) >> 5}"]
-		return l + [")\n"]
+			l += [f", {grid.w}, {storage_size}"]
+			#l += [f", ", None, f", ", None]
+			l += [f", {None}, {None}"]
+		l += [", ", repr(title), ")\n"]
+
+		print(f"Output to Python variable {params['name']} ({title!r})")
+		print(f"   -", ["Monospaced","Proportional"][proportional], "font")
+		print(f"   - Number of Blocks   : {len(blocks)}")
+		print(f"   - Number of Glyphs   : {glyph_count}")
+		print(f"   - Size of Block Data : {len(data_blocks)}")
+		print(f"   - Size of Glyph Data : {len(data_glyphs)}")
+		if not proportional:
+			print(f"   - Width   x   Height : {grid.w}  x  {grid.h}")
+			print(f"   - Storage size (u32) : {storage_size}")
+		else:
+			print(f"   - Size of Index Data : {len(data_index)}")
+			print(f"   - Size of Width Data : {len(data_width)}")
+		return l
+	
 
 	# Base data: always put the raw data and blocks first since they are
 	# 4-aligned, to preserve alignment on the rest of the references.
@@ -832,7 +856,7 @@ def convert_topti(input, params):
 
 	o += u8(flags) + u8(line_height) + u8(grid.h) + u8(len(blocks))
 	o += u32(glyph_count)
-	o += u8(char_spacing) + bytes(3)
+	o += u8(char_spacing) + u8(line_distance) + bytes(2)
 	o += ref(data_blocks)
 	o += ref(data_glyphs)
 
@@ -902,6 +926,7 @@ def convert_libimg_cg(input, params):
 	# Crop image to key "area"
 	area = Area(params.get("area", {}), img)
 	img = img.crop(area.tuple())
+	img = img.convert("RGBA")
 
 	# Encode the image into 16-bit format and force the alpha to 0x0001
 	format = CgProfile.find("rgb565a")
@@ -1200,7 +1225,7 @@ def convert(input, params, target, output=None, model=None, custom=None):
 		elf(o, output, "_" + params["name"], **target)
 
 def elf(data, output, symbol, toolchain=None, arch=None, section=None,
-	assembly=None):
+	assembly=None, outputtarget=None):
 	"""
 	Call objcopy to create an object file from the specified data. The object
 	file will export three symbols:
@@ -1262,14 +1287,18 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		"sh4eb-nofpu-elf"]:
 		arch = toolchain.replace("eb-", "-")[:-4]
 
-	elif arch == "fx" and toolchain == "sh-elf":
+	elif arch == "fx" and toolchain in ["sh-elf"]:
 		arch = "sh3"
-	elif arch == "cg" and toolchain == "sh-elf":
+	elif arch == "cg" and toolchain in ["sh-elf"]:
 		arch = "sh4-nofpu"
 
 	elif arch in ["fx", "cg", None]:
-		raise FxconvError(f"non-trivial architecture for {toolchain} must be "+
-			"specified")
+		raise FxconvError(
+			f"non-trivial architecture for '{toolchain}' must be specified")
+
+	# Fix old toolchain name convention where a dash was implicit
+	if toolchain != "" and not toolchain.endswith("-"):
+		toolchain += "-"
 
 	if assembly:
 		sec = ".section " + section.split(",",1)[0]
@@ -1277,6 +1306,12 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	if data is None and assembly is None:
 		raise FxconvError("elf() but no data and no assembly")
+
+	if outputtarget is None and arch in ["sh3", "sh4", "sh4-nofpu"]:
+		outputtarget = "elf32-sh"
+	elif outputtarget is None:
+		raise FxconvError(
+			f"non-trivial output target for '{toolchain}' must be specified")
 
 	# Generate data - in <output> directly if there is no assembly
 
@@ -1287,7 +1322,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 		sybl = "_binary_" + fp_obj.name.replace("/", "_")
 		objcopy_args = [
-			f"{toolchain}-objcopy", "-I", "binary", "-O", "elf32-sh",
+			f"{toolchain}objcopy", "-I", "binary", "-O", outputtarget,
 			"--binary-architecture", arch, "--file-alignment", "4",
 			"--rename-section", f".data={section}",
 			"--redefine-sym", f"{sybl}_start={symbol}",
@@ -1307,7 +1342,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 		fp_asm.flush()
 
 		as_args = [
-			f"{toolchain}-as", "-c", fp_asm.name, "-o",
+			f"{toolchain}as", "-c", fp_asm.name, "-o",
 			output if not data else fp_asm.name + ".o" ]
 
 		proc = subprocess.run(as_args)
@@ -1318,7 +1353,7 @@ def elf(data, output, symbol, toolchain=None, arch=None, section=None,
 
 	if data and assembly:
 		ld_args = [
-			f"{toolchain}-ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
+			f"{toolchain}ld", "-r", fp_obj.name + ".o", fp_asm.name + ".o",
 			"-o", output ]
 
 		proc = subprocess.run(ld_args)

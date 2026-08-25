@@ -13,9 +13,16 @@ if(NOT FXLINK_DISABLE_UDISKS2)
   pkg_check_modules(udisks2 REQUIRED udisks2 IMPORTED_TARGET)
 endif()
 if(NOT FXLINK_DISABLE_SDL2)
-  pkg_check_modules(sdl2 REQUIRED sdl2 IMPORTED_TARGET)
+  if(WIN32)
+    set(SDL2_NO_MWINDOWS 1)
+    find_package(SDL2 REQUIRED)
+  else()
+    pkg_check_modules(sdl2 REQUIRED sdl2 IMPORTED_TARGET)
+    set(SDL2_LIBRARIES PkgConfig::sdl2)
+    set(SDL2_INCLUDE_DIRS)
+  endif()
 endif()
-pkg_check_modules(ncurses REQUIRED ncurses IMPORTED_TARGET)
+pkg_check_modules(ncurses REQUIRED ncursesw IMPORTED_TARGET)
 
 set(CMAKE_INSTALL_MESSAGE LAZY)
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -30,8 +37,13 @@ target_include_directories(fxgxa PUBLIC fxgxa/)
 target_link_libraries(fxgxa PkgConfig::libpng)
 
 # fxg1a as a symlink (for compatibility)
-add_custom_target(fxg1a ALL
-  COMMAND ${CMAKE_COMMAND} -E create_symlink "fxgxa" "fxg1a")
+if(WIN32)
+  add_custom_target(fxg1a ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink "fxgxa.exe" "fxg1a.exe")
+else()
+  add_custom_target(fxg1a ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink "fxgxa" "fxg1a")
+endif()
 
 # fxsdk
 add_custom_command(OUTPUT "${BIN}/fxsdk.sh"
@@ -82,34 +94,49 @@ if(NOT FXLINK_DISABLE_UDISKS2)
   target_link_libraries(fxlink PkgConfig::udisks2)
 endif()
 if(NOT FXLINK_DISABLE_SDL2)
-  target_link_libraries(fxlink PkgConfig::sdl2)
+  target_link_libraries(fxlink ${SDL2_LIBRARIES})
+  target_include_directories(fxlink PRIVATE ${SDL2_INCLUDE_DIRS})
 endif()
 
 # fxsdk-gdb-bridge
-add_executable(fxsdk-gdb-bridge fxsdk/gdb-bridge.c)
-target_link_libraries(fxsdk-gdb-bridge libfxlink)
-target_include_directories(fxsdk-gdb-bridge PRIVATE
-  "${SRC}/fxlink/include")
+if(NOT WIN32)
+  add_executable(fxsdk-gdb-bridge fxsdk/gdb-bridge.c)
+  target_link_libraries(fxsdk-gdb-bridge libfxlink)
+  target_include_directories(fxsdk-gdb-bridge PRIVATE
+    "${SRC}/fxlink/include")
+endif()
 
 # Install rules
 
-# fxsdk
-install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
-install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
-install(DIRECTORY fxsdk/scripts DESTINATION share/fxsdk USE_SOURCE_PERMISSIONS)
-install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
-install(TARGETS fxsdk-gdb-bridge)
-# fxgxa, fxg1a
-install(TARGETS fxgxa)
-install(FILES "${BIN}/fxg1a" TYPE BIN)
-# fxconv
-install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
-install(FILES fxconv/fxconv.py TYPE BIN)
+set(SYSROOT "")
+if(WIN32)
+  set(SYSROOT "x86_64-w64-mingw32/")
+endif()
+
+if(NOT WIN32)
+  # fxsdk
+  install(PROGRAMS "${BIN}/fxsdk.sh" TYPE BIN RENAME fxsdk)
+  install(DIRECTORY fxsdk/assets DESTINATION share/fxsdk)
+  install(DIRECTORY fxsdk/scripts DESTINATION share/fxsdk USE_SOURCE_PERMISSIONS)
+  install(DIRECTORY fxsdk/cmake/ DESTINATION lib/cmake/fxsdk)
+  install(TARGETS fxsdk-gdb-bridge)
+  # fxgxa, fxg1a
+  install(TARGETS fxgxa)
+  install(FILES "${BIN}/fxg1a" TYPE BIN)
+  # fxconv
+  install(PROGRAMS fxconv/fxconv-main.py TYPE BIN RENAME fxconv)
+  install(FILES fxconv/fxconv.py TYPE BIN)
+  # fxlink
+  install(TARGETS fxlink)
+else()
+  # fxlink
+  install(TARGETS fxlink DESTINATION "${SYSROOT}bin")
+endif()
+
 # libfxlink
-install(FILES "${BIN}/include/fxlink/config.h" DESTINATION include/fxlink/)
-install(DIRECTORY libfxlink/include/ DESTINATION include
+install(FILES "${BIN}/include/fxlink/config.h"
+  DESTINATION "${SYSROOT}include/fxlink/")
+install(DIRECTORY libfxlink/include/ DESTINATION "${SYSROOT}include"
   FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY libfxlink/cmake/ DESTINATION lib/cmake)
-install(TARGETS libfxlink DESTINATION lib)
-# fxlink
-install(TARGETS fxlink)
+install(DIRECTORY libfxlink/cmake/ DESTINATION "${SYSROOT}lib/cmake")
+install(TARGETS libfxlink DESTINATION "${SYSROOT}lib")

@@ -48,8 +48,8 @@
 #pragma once
 #include <fxlink/protocol.h>
 #include <fxlink/filter.h>
+#include <fxlink/defs.h>
 #include <libusb.h>
-#include <poll.h>
 
 /* Device information tracked for every USB device. */
 struct fxlink_device {
@@ -235,6 +235,21 @@ bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     char const *app, char const *type, void const *data, int size,
     bool own_data);
 
+/* Check whether a device currently has an ongoing OUT transfer. */
+bool fxlink_device_has_bulk_OUT(struct fxlink_device *fdev);
+
+/* Wait for an ongoing OUT transfer to finish. If there is no such transfer
+   ongoing, this function is a no-op. */
+void fxlink_device_wait_bulk_OUT(
+   libusb_context *ctx, struct fxlink_device *fdev);
+
+/* Run an OUT transfer on the device and wait for its completion. Note that if
+   the calculator does not properly receive the data for whatever reason, this
+   function will never return. */
+bool fxlink_device_send_bulk_OUT(
+   libusb_context *ctx, struct fxlink_device *fdev,
+   char const *app, char const *type, void const *data, int size);
+
 /* Interrupt any active transfers on the device. */
 void fxlink_device_interrupt_transfers(struct fxlink_device *fdev);
 
@@ -255,6 +270,8 @@ void fxlink_device_cleanup(struct fxlink_device *fdev);
 // notification API.
 //---
 
+#ifndef FXLINK_DISABLE_POLL
+
 /* Tracker for libusb file descriptors to be polled in a main loop. */
 struct fxlink_pollfds {
     /* libusb context to be tracked (must remain constant) */
@@ -273,6 +290,8 @@ void fxlink_pollfds_track(struct fxlink_pollfds *tracker, libusb_context *ctx);
 /* Stop tracking file descriptors and free tracker's resources. This must be
    called before the tracker structure gets destroyed. */
 void fxlink_pollfds_stop(struct fxlink_pollfds *tracker);
+
+#endif /* FXLINK_DISABLE_POLL */
 
 //---
 // Device tracking
@@ -295,6 +314,9 @@ struct fxlink_device_list {
     libusb_context *ctx;
     /* Callback handle */
     libusb_hotplug_callback_handle hotplug_handle;
+    /* Whether the hotplug callback could be installed. If not, refreshes
+       will be made manually. */
+    bool hotplug_supported;
     /* Array of connected devices */
     struct fxlink_device *devices;
     /* Number of elements in `devices` */

@@ -6,7 +6,7 @@ project(MyAddin)
 
 include(GenerateG1A)
 include(GenerateG3A)
-include(GenerateHH2Bin)
+include(GenerateHH3)
 include(Fxconv)
 find_package(Gint 2.9 REQUIRED)
 
@@ -30,7 +30,7 @@ set(ASSETS_cg
 fxconv_declare_assets(${ASSETS} ${ASSETS_fx} ${ASSETS_cg} WITH_METADATA)
 
 add_executable(myaddin ${SOURCES} ${ASSETS} ${ASSETS_${FXSDK_PLATFORM}})
-target_compile_options(myaddin PRIVATE -Wall -Wextra -Os -g -flto)
+target_compile_options(myaddin PRIVATE -Wall -Wextra -Os -g -flto=auto)
 target_link_libraries(myaddin Gint::Gint)
 
 if("${FXSDK_PLATFORM_LONG}" STREQUAL fx9860G)
@@ -43,5 +43,5 @@ elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fx9860G_G3A)
   generate_g3a(TARGET myaddin OUTPUT "MyAddin-fx.g3a"
     NAME "MyAddin-fx" ICONS assets-cg/icon-uns.png assets-cg/icon-sel.png)
 elseif("${FXSDK_PLATFORM_LONG}" STREQUAL fxCP)
-  generate_hh2_bin(TARGET myaddin OUTPUT "MyAddin-hh2.bin")
+  generate_hh3(TARGET myaddin OUTPUT "MyAddin.hh3")
 endif()

@@ -227,7 +227,8 @@ void fxlink_device_analysis_1(struct fxlink_device *fdev, bool quiet)
 
     if(!quiet) {
         hlog("calculators %s", fxlink_device_id(fdev));
-        log_("%1$d interface%2$s, class code%2$s", calc->interface_count,
+        log_("%d interface%s, class code%s", calc->interface_count,
+            calc->interface_count != 1 ? "s" : "",
             calc->interface_count != 1 ? "s" : "");
 
         for(int i = 0; i < calc->interface_count; i++) {
@@ -631,9 +632,34 @@ bool fxlink_device_start_bulk_OUT(struct fxlink_device *fdev,
     return true;
 }
 
+bool fxlink_device_has_bulk_OUT(struct fxlink_device *fdev)
+{
+    struct fxlink_comm *comm = fdev->comm;
+    return comm && comm->claimed && comm->ftransfer_OUT;
+}
+
+void fxlink_device_wait_bulk_OUT(
+    libusb_context *ctx, struct fxlink_device *fdev)
+{
+    while(fxlink_device_has_bulk_OUT(fdev))
+        libusb_handle_events(ctx);
+}
+
+bool fxlink_device_send_bulk_OUT(
+    libusb_context *ctx, struct fxlink_device *fdev,
+    char const *app, char const *type, void const *data, int size)
+{
+    if(!fxlink_device_start_bulk_OUT(fdev, app, type, data, size, false))
+        return false;
+    fxlink_device_wait_bulk_OUT(ctx, fdev);
+    return true;
+}
+
 //---
 // Polled file descriptor tracking
 //---
+
+#ifndef FXLINK_DISABLE_POLL
 
 static void generate_poll_fds(struct fxlink_pollfds *tracker)
 {
@@ -704,6 +730,8 @@ void fxlink_pollfds_stop(struct fxlink_pollfds *tracker)
     free(tracker->fds);
     memset(tracker, 0, sizeof *tracker);
 }
+
+#endif /* FXLINK_DISABLE_POLL */
 
 //---
 // Device tracking
@@ -813,13 +841,16 @@ bool fxlink_device_list_track(struct fxlink_device_list *list,
     libusb_context *ctx)
 {
     memset(list, 0, sizeof *list);
+    list->ctx = ctx;
 
     if(!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
         elog("libusb doesn't handle hotplug; devices may not be detected\n");
+        list->hotplug_supported = false;
+        enumerate_devices(ctx, list);
         return false;
     }
 
-    list->ctx = ctx;
+    list->hotplug_supported = true;
     libusb_hotplug_register_callback(ctx,
         /* Both arriving and departing devices */
         LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT,

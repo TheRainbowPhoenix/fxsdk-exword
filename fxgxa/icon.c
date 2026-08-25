@@ -172,3 +172,30 @@ void icon_print_16(uint16_t const *rgb16be, int width, int height)
 
     free(rgb24);
 }
+
+void icon_print_16_half(uint16_t const *rgb16be, int width, int height)
+{
+    uint8_t *rgb24 = icon_conv_16to24(rgb16be, width, height);
+    if(!rgb24) {
+        fprintf(stderr, "error: %m\n");
+        return;
+    };
+
+    for(int y2 = 0; y2 < height; y2 += 2) {
+        for(int x = 0; x < width; x++) {
+            int inT = 3 * (y2 * width + x);
+            int rT = rgb24[inT], gT = rgb24[inT+1], bT = rgb24[inT+2];
+
+            int inB = 3 * ((y2 + 1) * width + x);
+            int rB = 0, gB = 0, bB = 0;
+            if(y2 + 1 < height)
+                rB = rgb24[inB], gB = rgb24[inB+1], bB = rgb24[inB+2];
+
+            printf("\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm▀",
+                rT, gT, bT, rB, gB, bB);
+        }
+        printf("\e[0m\n");
+    }
+
+    free(rgb24);
+}

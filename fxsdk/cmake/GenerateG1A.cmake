@@ -56,6 +56,6 @@ function(generate_g1a)
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
   if(DEFINED G1A_ICON)
-    set_target_properties("${G1A_TARGET}" PROPERTIES LINK_DEPENDS "${G1A_ICON}")
+    set_property(TARGET "${G1A_TARGET}" APPEND PROPERTY LINK_DEPENDS "${G1A_ICON}")
   endif()
 endfunction()

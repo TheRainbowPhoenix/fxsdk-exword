@@ -53,7 +53,7 @@ static int check_g1a(int test, struct g1a const *g1a, size_t size,char *status)
 		m("Sequence 2   0x01          0x%02x", h->seq2);
 		return (h->seq2 != 0x01) ? 1:0;
 	case 5:
-		m("File size 1  %-8zu      %u", size,
+		m("File size 1  %-8lu      %u", (unsigned long)size,
 			be32toh(h->filesize_be1));
 		return (be32toh(h->filesize_be1) != size) ? 2:0;
 	case 6:
@@ -66,7 +66,7 @@ static int check_g1a(int test, struct g1a const *g1a, size_t size,char *status)
 			be16toh(h->checksum));
 		return (be16toh(h->checksum) != sum) ? 2:0;
 	case 8:
-		m("File size 2  %-8zu      %u", size,
+		m("File size 2  %-8lu      %u", (unsigned long)size,
 			be32toh(h->filesize_be2));
 		return (be32toh(h->filesize_be2) != size) ? 2:0;
 	default:
@@ -170,7 +170,7 @@ static int check_g3a(int test, struct g3a const *g3a, size_t size,char *status)
 		m("Sequence 2   0x01          0x%02x", h->seq2);
 		return (h->seq2 != 0x01) ? 1:0;
 	case 5:
-		m("File size 1  %-8zu      %u", size,
+		m("File size 1  %-8lu      %u", (unsigned long)size,
 			be32toh(h->filesize_be1));
 		return (be32toh(h->filesize_be1) != size) ? 2:0;
 	case 6:
@@ -183,7 +183,7 @@ static int check_g3a(int test, struct g3a const *g3a, size_t size,char *status)
 			be16toh(h->checksum));
 		return (be16toh(h->checksum) != sum) ? 2:0;
 	case 8:
-		m("File size 2  %-8zu      %u", size - 0x7004,
+		m("File size 2  %-8lu      %u", (unsigned long)size - 0x7004,
 			be32toh(h->filesize_be2));
 		return (be32toh(h->filesize_be2) != size - 0x7004) ? 2:0;
 	case 9:
@@ -192,7 +192,7 @@ static int check_g3a(int test, struct g3a const *g3a, size_t size,char *status)
 			be32toh(h->checksum_2));
 		return (be32toh(h->checksum_2) != sum2) ? 2:0;
 	case 10:
-		m("File size 1  %-8zu      %u", size,
+		m("File size 1  %-8lu      %u", (unsigned long)size,
 			be32toh(h->filesize_be3));
 		return (be32toh(h->filesize_be3) != size) ? 2:0;
 	case 11:
@@ -258,10 +258,10 @@ void dump_g3a(struct g3a const *g3a, size_t size)
 	field(header->filename, 324);
 
 	printf("\nUnselected program icon:\n\n");
-	icon_print_16(header->icon_uns, 92, 64);
+	icon_print_16_half(header->icon_uns, 92, 64);
 
 	printf("\nSelected program icon:\n\n");
-	icon_print_16(header->icon_sel, 92, 64);
+	icon_print_16_half(header->icon_sel, 92, 64);
 
 	printf("\n");
 }
