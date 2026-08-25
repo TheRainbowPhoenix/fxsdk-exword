@@ -699,6 +699,8 @@ static void generate_poll_fds(struct fxlink_pollfds *tracker)
         tracker->fds[i].fd = usb_fds[i]->fd;
         tracker->fds[i].events = usb_fds[i]->events;
     }
+
+    libusb_free_pollfds(usb_fds);
 }
 
 static void handle_add_poll_fd(int fd, short events, void *data)
