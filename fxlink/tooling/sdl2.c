@@ -9,7 +9,7 @@
 
 #ifdef FXLINK_DISABLE_SDL2
 
-void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw)
+void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw, int scale)
 {
     log_("SDL2 disabled at compiled-time, skipping frame");
 }
@@ -75,13 +75,12 @@ static SDL_Surface *surface_for_image(uint8_t **RGB888_rows, int width,
     return s;
 }
 
-void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw)
+void fxlink_sdl2_display_raw(struct fxlink_message_image_raw const *raw, int scale)
 {
     if(!window && init(raw->width, raw->height))
         return;
 
     int current_w, current_h;
-    int scale = 1;
 
     SDL_GetWindowSize(window, &current_w, &current_h);
     if(current_w != raw->width * scale || current_h != raw->height * scale)

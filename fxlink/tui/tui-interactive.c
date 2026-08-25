@@ -365,7 +365,7 @@ static void handle_video(struct fxlink_message *msg)
     if(!raw)
         return;
 
-    fxlink_sdl2_display_raw(raw);
+    fxlink_sdl2_display_raw(raw, options.scale);
     fxlink_message_image_raw_free(raw);
 }
 

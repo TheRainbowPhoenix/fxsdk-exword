@@ -71,7 +71,7 @@ static void handle_new_message(struct fxlink_device *fdev,
 		struct fxlink_message_image_raw *raw =
 			fxlink_message_image_decode(msg);
 		if(raw) {
-			fxlink_sdl2_display_raw(raw);
+			fxlink_sdl2_display_raw(raw, options.scale);
 			fxlink_message_image_raw_free(raw);
 		}
 		return;
