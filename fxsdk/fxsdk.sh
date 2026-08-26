@@ -23,25 +23,18 @@ ${R}fxsdk new${n} ${g}<FOLDER>${n} [${R}--makefile${n}|${R}--cmake${n}] \
   CMake. Project name can be specified now or in the project files later.
 
 ${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}|${R}build-cp${n}) [${R}-c${n}] \
-[${R}-s${n}] [${R}--${n}] [${g}<ARGS>${n}...]
+[${R}-s${n}] [${R}-p${n}] [${R}--${n}] [${g}<ARGS>${n}...]
   Build the current project for fx-9860G (usually for .g1a add-ins) or fx-CG 50
   (usually for .g3a add-ins). The first form compiles in every existing build
   folder, and configures for both if none exists.
 
   With -c, reconfigure but do not build (CMake only).
   With -s, also sends the resulting program to the calculator.
+  With -p, sends the binary file to Add-In Push in the calculator.
   Other arguments are passed to CMake (if using -c) or make (otherwise). You
   can pass -c or -s to CMake/make by specifying --.
 
-${R}fxsdk${n} ${R}build-cg-push${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
-[${g}<ARGS>${n}...]
-  Builds the current project for fx-CG 50 for a "fast load" to the calculator.
-  This uses Add-In Push by circuit10, which immediately launches the add-in
-  without saving it to storage memory, and is much faster than LINK. Options
-  are identical to other build commands. Typical workflows will always set -s
-  (which requires libusb support in fxlink).
-
-${R}fxsdk${n} ${R}build-fxg3a${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
+${R}fxsdk${n} ${R}build-fxg3a${n} [${R}-c${n}] [${R}-s${n}] [${R}-p${n}] [${R}--${n}] \
 [${g}<ARGS>${n}...]
   Builds the current project for fx-CG 50 (.g3a file) from a code source
   initially targeting the fx-9860G(II).
@@ -50,6 +43,11 @@ ${R}fxsdk${n} (${R}send${n}|${R}send-fx${n}|${R}send-cg${n}|${R}send-cp${n})
   Sends the target file to the calculator. Uses p7 (which must be installed
   externally) for the fx-9860G, and fxlink for the fx-CG. For the G-III series,
   call fxlink directly instead of this command.
+
+${R}fxsdk${n} (${R}push${n}|${R}push-fx${n}|${R}push-cg${n}|${R}push-fxg3a${n}|${R}push-cp${n})
+  Sends the target binary file to Add-In Push in the calculator, which
+  immediately launches the add-in without saving it to storage memory, and
+  is much faster than LINK. Requires libusb support in fxlink.
 
 ${R}fxsdk${n} ${R}gdb${n} [${g}<OPTIONS>${n}...] [${R}--${n} ${g}<GDB OPTIONS>${n}...]
   Starts the GDB bridge and GDB itself. In general, you'll want at least one
@@ -180,9 +178,6 @@ fxsdk_build_fx() {
 fxsdk_build_cg() {
   fxsdk_build_in "cg" "FXCG50" "$@"
 }
-fxsdk_build_cg_push() {
-  fxsdk_build_in "cg-push" "FXCG50" "$@"
-}
 fxsdk_build_fxg3a() {
   fxsdk_build_in "fxg3a" "FX9860G_G3A" "$@"
 }
@@ -195,11 +190,12 @@ fxsdk_build_in() {
   toolchain="$2"
   shift 2
 
-  # Read -s, -c and -- to isolate arguments to CMake and make
+  # Read -s, -c, -p and -- to isolate arguments to CMake and make
   while true; do
     case "$1" in
       "-s") send=1;;
       "-c") configure=1;;
+      "-p") push=1;;
       "--") shift; break;;
       *) break;;
     esac
@@ -218,8 +214,8 @@ fxsdk_build_in() {
 
     if [[ ! -e "build-$platform/Makefile" || ! -z "$configure" ]]; then
       platform_args=()
-      if [[ "$platform" == *"-push" ]]; then
-        platform_args=( "-DCMAKE_BUILD_TYPE=FastLoad" )
+      if [[ ! -z "$push" ]]; then
+        platform_args=( "-DFASTLOAD=1" )
       fi
       cmake -B "build-$platform" \
         -DCMAKE_MODULE_PATH="$PREFIX/lib/cmake/fxsdk" \
@@ -247,6 +243,10 @@ fxsdk_build_in() {
   if [[ ! -z "$send" ]]; then
     fxsdk_send_$platform
   fi
+
+  if [[ ! -z "$push" ]]; then
+    fxsdk_push_$platform
+  fi
 }
 
 fxsdk_send() {
@@ -258,12 +258,30 @@ fxsdk_send() {
 
   [[ $e = 1000 ]] && fxsdk_send_fx
   [[ $e = 0100 ]] && fxsdk_send_cg
-  [[ $e = 0010 ]] && fxsdk_send_cg
+  [[ $e = 0010 ]] && fxsdk_send_fxg3a
   [[ $e = 0001 ]] && fxsdk_send_cp
 
   if [[ $(($fx + $cg + $f3 + $cp)) != 1 ]]; then
     echo "either no or several platforms are targeted, use 'fxsdk send-*' to"
     echo "specify which calculator to send to."
+  fi
+}
+
+fxsdk_push() {
+  fx=$([[ ! -e "build-fx"    ]]; echo $?)
+  cg=$([[ ! -e "build-cg"    ]]; echo $?)
+  f3=$([[ ! -e "build-fxg3a" ]]; echo $?)
+  cp=$([[ ! -e "build-cp"    ]]; echo $?)
+  e=${fx}${cg}${f3}${cp}
+
+  [[ $e = 1000 ]] && fxsdk_push_fx
+  [[ $e = 0100 ]] && fxsdk_push_cg
+  [[ $e = 0010 ]] && fxsdk_push_fxg3a
+  [[ $e = 0001 ]] && fxsdk_push_cp
+
+  if [[ $(($fx + $cg + $f3 + $cp)) != 1 ]]; then
+    echo "either no or several platforms are targeted, use 'fxsdk push-*' to"
+    echo "specify which calculator to push to."
   fi
 }
 
@@ -278,6 +296,17 @@ fxsdk_send_fx() {
   p7 send -f ${g1a_files}
 }
 
+fxsdk_push_fx() {
+  echo "$TAG Fast loading to fx-9860G using fxlink; open Add-In Push on the calc"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  bin_files=$(find "build-fx" -maxdepth 1 -name '*.bin')
+  echo "$TAG Running: fxlink -pw ${bin_files}"
+  fxlink -pw ${bin_files}
+}
+
 fxsdk_send_cg() {
   echo "$TAG Installing for fx-CG using fxlink"
   if ! command -v fxlink >/dev/null 2>&1; then
@@ -289,19 +318,30 @@ fxsdk_send_cg() {
   fxlink -sw ${g3a_files}
 }
 
-fxsdk_send_cg-push() {
+fxsdk_push_cg() {
   echo "$TAG Fast loading to fx-CG using fxlink; open Add-In Push on the calc"
   if ! command -v fxlink >/dev/null 2>&1; then
     echo "error: fxlink is not installed or not available"
     return 1
   fi
-  bin_files=$(find "build-cg-push" -maxdepth 1 -name '*.bin')
+  bin_files=$(find "build-cg" -maxdepth 1 -name '*.bin')
   echo "$TAG Running: fxlink -pw ${bin_files}"
   fxlink -pw ${bin_files}
 }
 
 fxsdk_send_fxg3a() {
   fxsdk_send_cg "$@"
+}
+
+fxsdk_push_fxg3a() {
+  echo "$TAG Fast loading to fx-CG using fxlink; open Add-In Push on the calc"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  bin_files=$(find "build-fxg3a" -maxdepth 1 -name '*.bin')
+  echo "$TAG Running: fxlink -pw ${bin_files}"
+  fxlink -pw ${bin_files}
 }
 
 fxsdk_send_cp() {
@@ -321,6 +361,17 @@ fxsdk_send_cp() {
 
   echo "$TAG Running: fxlink -sw ${hh3_files}"
   fxlink -sw ${hh3_files}
+}
+
+fxsdk_push_cp() {
+  echo "$TAG Fast loading to fx-CP using fxlink; open Add-In Push on the calc"
+  if ! command -v fxlink >/dev/null 2>&1; then
+    echo "error: fxlink is not installed or not available"
+    return 1
+  fi
+  bin_files=$(find "build-cp" -maxdepth 1 -name '*.bin')
+  echo "$TAG Running: fxlink -pw ${bin_files}"
+  fxlink -pw ${bin_files}
 }
 
 fxsdk_path() {
@@ -358,8 +409,6 @@ case "$1" in
     fxsdk_build_fx "${@:2}";;
   "build-cg"|"bc"|"bcg")
     fxsdk_build_cg "${@:2}";;
-  "build-cg-push"|"bcgp")
-    fxsdk_build_cg_push "${@:2}";;
   "build-fxg3a"|"bf3"|"bfx3")
     fxsdk_build_fxg3a "${@:2}";;
   "build-cp"|"bcp")
@@ -374,6 +423,18 @@ case "$1" in
     fxsdk_send_cg;;
   "send-cp"|"scp")
     fxsdk_send_cp;;
+
+  # Fast load
+  "push"|"p")
+    fxsdk_push;;
+  "push-fx"|"pf"|"pfx")
+    fxsdk_push_fx;;
+  "push-cg"|"pc"|"pcg")
+    fxsdk_push_cg;;
+  "push-fxg3a"|"pf3"|"pfx3")
+    fxsdk_push_fxg3a;;
+  "push-cp"|"pcp")
+    fxsdk_push_cp;;
 
   # Utilities
   "gdb")

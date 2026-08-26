@@ -21,10 +21,6 @@ add_link_options(-nostdlib -Wl,--no-warn-rwx-segments)
 link_libraries(-lgcc)
 add_compile_definitions(TARGET_FXCG50)
 
-if(CMAKE_BUILD_TYPE STREQUAL FastLoad)
-  add_compile_definitions(TARGET_FXCG50_FASTLOAD)
-endif()
-
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
