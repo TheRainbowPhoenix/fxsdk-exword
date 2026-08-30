@@ -13,6 +13,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+static bool is_g3a(const uint8_t *buf, long len)
+{
+	if (len < 0x7000)
+		return false;
+
+	uint8_t inv[0x20];
+	for (size_t i = 0; i < sizeof(inv); i++)
+		inv[i] = (uint8_t)~buf[i];
+	if (memcmp(inv, "USBPower", 8) != 0)
+		return false;
+	return inv[8] == 0x2c;
+}
+
 int main_push(struct fxlink_filter *filter, delay_t *delay,
 	libusb_context *ctx, char **files)
 {
@@ -37,6 +50,13 @@ int main_push(struct fxlink_filter *filter, delay_t *delay,
 	uint8_t *filebuf = malloc(fsize);
 	fread(filebuf, fsize, 1, fp);
 	fclose(fp);
+
+	uint8_t *payload = filebuf;
+	if (is_g3a(filebuf, fsize)) {
+		printf("Detected G3A add-in header; stripping 0x7000-byte prefix before sending.\n");
+		payload = filebuf + 0x7000;
+		fsize -= 0x7000;
+	}
 
 	/* Wait for a device to be connected */
 	fxlink_filter_clean_libusb(filter);
@@ -106,7 +126,7 @@ int main_push(struct fxlink_filter *filter, delay_t *delay,
 	int sent = 0;
 	while (sent < fsize) {
 		int actual_length;
-		rc = libusb_bulk_transfer(fdev->dh, 0x01, filebuf + sent, fsize - sent,
+		rc = libusb_bulk_transfer(fdev->dh, 0x01, payload + sent, fsize - sent,
 			&actual_length, 0);
 		if (rc) {
 			rc = elog_libusb(rc, "cannot send data");
@@ -117,6 +137,7 @@ int main_push(struct fxlink_filter *filter, delay_t *delay,
 	printf("Sent %d bytes\n", sent);
 
 end:
+	free(filebuf);
 	if(fdev) {
 		libusb_release_interface(fdev->dh, 0);
 		fxlink_device_cleanup(fdev);
