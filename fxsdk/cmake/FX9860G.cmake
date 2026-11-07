@@ -17,7 +17,9 @@ set(CMAKE_C_FLAGS_INIT "")
 set(CMAKE_CXX_FLAGS_INIT "")
 
 add_compile_options(-mb -fno-builtin -nostdlib -Wa,--dsp)
-add_link_options(-nostdlib -Wl,--no-warn-rwx-segments)
+add_link_options(-nostdlib)
+include(FxsdkUtils)
+fxsdk_add_rwx_warning_suppression()
 link_libraries(-lgcc)
 add_compile_definitions(TARGET_FX9860G)
 

@@ -20,7 +20,9 @@ set(CMAKE_CXX_FLAGS_INIT "")
 
 # set -DFXCG50 and -DTARGET_FXCG50 to get the CG drivers
 add_compile_options(-m4-nofpu -mb -fno-builtin -nostdlib -Wa,--dsp -DFXCG50)
-add_link_options(-nostdlib -Wl,--no-warn-rwx-segments)
+add_link_options(-nostdlib)
+include(FxsdkUtils)
+fxsdk_add_rwx_warning_suppression()
 link_libraries(-lgcc)
 add_compile_definitions(TARGET_FXCG50)
 
