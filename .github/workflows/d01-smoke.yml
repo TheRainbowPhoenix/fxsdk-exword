@@ -1,4 +1,4 @@
-name: D01 smoke test
+name: EX-word D01 and UPDADN2 smoke test
 
 on:
   push:
@@ -8,10 +8,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  d01:
+  triangle:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/therainbowphoenix/gint-docker:main
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,48 +23,51 @@ jobs:
             -DFXLINK_DISABLE_UDISKS2=ON
           cmake --build /tmp/fxsdk-build --target fxsdk -j2
 
-      - name: Build the small upstream D01 converter
+      - name: Build reference elf2d01 converter
         run: |
           git clone --depth=1 https://github.com/brijohn/elf2d01.git /tmp/elf2d01
           cc -O2 /tmp/elf2d01/elf2d01.c -o /tmp/elf2d01/elf2d01
 
-      - name: Create minimal SuperH ELF smoke fixture
+      - name: Build standalone triangle as D01 and UPDADN2
         run: |
-          mkdir -p /tmp/d01-smoke
-          cat > /tmp/d01-smoke/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.15)
-          project(D01Smoke C)
-          include(GenerateD01)
-          add_executable(smoke smoke.c)
-          target_compile_options(smoke PRIVATE -mb -m3)
-          target_link_options(smoke PRIVATE -mb -m3 -nostdlib
-            -Wl,-Ttext=0x70000080 -Wl,-e,_start)
-          generate_d01(TARGET smoke OUTPUT "${CMAKE_BINARY_DIR}/smoke.d01" MODULE "smoke")
-          EOF
-          cat > /tmp/d01-smoke/smoke.c <<'EOF'
-          volatile int initialized_data = 123;
-          void _start(void) { initialized_data++; for (;;) {} }
-          EOF
-
-      - name: Generate D01 using fork's CMake module
-        run: |
-          cmake -S /tmp/d01-smoke -B /tmp/d01-smoke-build \
+          cmake -S .github/tests_files -B /tmp/exword-triangle \
             -DCMAKE_SYSTEM_NAME=Generic \
             -DCMAKE_C_COMPILER=sh-elf-gcc \
+            -DCMAKE_ASM_COMPILER=sh-elf-gcc \
             -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/fxsdk/cmake" \
             -DELF2D01_EXECUTABLE=/tmp/elf2d01/elf2d01
-          cmake --build /tmp/d01-smoke-build -j2
+          cmake --build /tmp/exword-triangle --parallel 2
 
-      - name: Verify D01 header
+      - name: Check headers and ELF entry addresses
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('/tmp/d01-smoke-build/smoke.d01')
-          data = p.read_bytes()
-          assert len(data) > 128, 'D01 payload missing'
-          assert data[:16] == b'CASIODICPLUGIN10', 'Invalid D01 signature'
-          assert data[16:22] == b'smoke\0', 'Invalid module name'
-          assert data[32:36] == bytes((1, 0, 0, 0)), 'Unexpected header version'
-          print(f'D01 smoke passed: {p} ({len(data)} bytes)')
+          import struct
+          import subprocess
+          base = Path('/tmp/exword-triangle')
+          d01 = (base / 'triangle.d01').read_bytes()
+          upd = (base / 'UPDADN2.BIN').read_bytes()
+          assert len(d01) > 128
+          assert d01[:16] == b'CASIODICPLUGIN10'
+          assert d01[16:22] == b'triang'
+          assert d01[32:36] == b'\x01\x00\x00\x00'
+          assert upd.startswith(b'CASIO CY10x ADDIN MODULE FOR RELEASE ROM\0')
+          assert struct.unpack('>I', upd[48:52])[0] == 0x8c18ff80
+          assert struct.unpack('>I', upd[52:56])[0] == 0x8c190000
+          assert len(upd) > 128
+          for name, entry in [('triangle_d01', 0x70000080),
+                              ('triangle_upd', 0x8c190000)]:
+              output = subprocess.check_output(
+                  ['sh-elf-readelf', '-h', str(base / name)], text=True)
+              assert f'0x{entry:x}' in output, (name, output)
+          print('D01 and UPDADN2 images validated', len(d01), len(upd))
           PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exword-triangle-smoke
+          path: |
+            /tmp/exword-triangle/triangle.d01
+            /tmp/exword-triangle/UPDADN2.BIN
+          retention-days: 7
