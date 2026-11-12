@@ -1,0 +1,69 @@
+name: D01 smoke test
+
+on:
+  push:
+    branches: [dev, feature/exword-d01-cmake-ci]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  d01:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/therainbowphoenix/gint-docker:main
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build modified fxSDK helper only
+        run: |
+          cmake -S . -B /tmp/fxsdk-build \
+            -DFXLINK_DISABLE_SDL2=ON \
+            -DFXLINK_DISABLE_UDISKS2=ON
+          cmake --build /tmp/fxsdk-build --target fxsdk -j2
+
+      - name: Build the small upstream D01 converter
+        run: |
+          git clone --depth=1 https://github.com/brijohn/elf2d01.git /tmp/elf2d01
+          cc -O2 /tmp/elf2d01/elf2d01.c -o /tmp/elf2d01/elf2d01
+
+      - name: Create minimal SuperH ELF smoke fixture
+        run: |
+          mkdir -p /tmp/d01-smoke
+          cat > /tmp/d01-smoke/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.15)
+          project(D01Smoke C)
+          include(GenerateD01)
+          add_executable(smoke smoke.c)
+          target_compile_options(smoke PRIVATE -mb -m3)
+          target_link_options(smoke PRIVATE -mb -m3 -nostdlib
+            -Wl,-Ttext=0x70000080 -Wl,-e,_start)
+          generate_d01(TARGET smoke OUTPUT "${CMAKE_BINARY_DIR}/smoke.d01" MODULE "smoke")
+          EOF
+          cat > /tmp/d01-smoke/smoke.c <<'EOF'
+          volatile int initialized_data = 123;
+          void _start(void) { initialized_data++; for (;;) {} }
+          EOF
+
+      - name: Generate D01 using fork's CMake module
+        run: |
+          cmake -S /tmp/d01-smoke -B /tmp/d01-smoke-build \
+            -DCMAKE_SYSTEM_NAME=Generic \
+            -DCMAKE_C_COMPILER=sh-elf-gcc \
+            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+            -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/fxsdk/cmake" \
+            -DELF2D01_EXECUTABLE=/tmp/elf2d01/elf2d01
+          cmake --build /tmp/d01-smoke-build -j2
+
+      - name: Verify D01 header
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/d01-smoke-build/smoke.d01')
+          data = p.read_bytes()
+          assert len(data) > 128, 'D01 payload missing'
+          assert data[:16] == b'CASIODICPLUGIN10', 'Invalid D01 signature'
+          assert data[16:22] == b'smoke\0', 'Invalid module name'
+          assert data[32:36] == bytes((1, 0, 0, 0)), 'Unexpected header version'
+          print(f'D01 smoke passed: {p} ({len(data)} bytes)')
+          PY
