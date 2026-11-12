@@ -31,10 +31,8 @@ jobs:
       - name: Build standalone triangle as D01 and UPDADN2
         run: |
           cmake -S .github/tests_files -B /tmp/exword-triangle \
-            -DCMAKE_SYSTEM_NAME=Generic \
-            -DCMAKE_C_COMPILER=sh-elf-gcc \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/fxsdk/cmake/EXWORD.cmake" \
             -DCMAKE_ASM_COMPILER=sh-elf-gcc \
-            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/fxsdk/cmake" \
             -DELF2D01_EXECUTABLE=/tmp/elf2d01/elf2d01
           cmake --build /tmp/exword-triangle --parallel 2
