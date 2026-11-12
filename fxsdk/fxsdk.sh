@@ -33,6 +33,9 @@ ${R}fxsdk${n} (${R}build${n}|${R}build-fx${n}|${R}build-cg${n}|${R}build-cp${n})
   Other arguments are passed to CMake (if using -c) or make (otherwise). You
   can pass -c or -s to CMake/make by specifying --.
 
+${R}fxsdk${n} ${R}build-exword${n} [${R}-c${n}] [${R}--${n}] [${g}<ARGS>${n}...]
+  Build an EX-word .d01 add-in (requires a devkitSH4 EX-word compiler).
+
 ${R}fxsdk${n} ${R}build-cg-push${n} [${R}-c${n}] [${R}-s${n}] [${R}--${n}] \
 [${g}<ARGS>${n}...]
   Builds the current project for fx-CG 50 for a "fast load" to the calculator.
@@ -188,6 +191,9 @@ fxsdk_build_fxg3a() {
 }
 fxsdk_build_cp() {
   fxsdk_build_in "cp" "FXCP" "$@"
+}
+fxsdk_build_exword() {
+  fxsdk_build_in "exword" "EXWORD" "$@"
 }
 
 fxsdk_build_in() {
@@ -364,6 +370,8 @@ case "$1" in
     fxsdk_build_fxg3a "${@:2}";;
   "build-cp"|"bcp")
     fxsdk_build_cp "${@:2}";;
+  "build-exword"|"bex")
+    fxsdk_build_exword "${@:2}";;
 
   # Install
   "send"|"s")
