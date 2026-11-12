@@ -9,7 +9,7 @@ if(NOT DEFINED EXWORD_TEST_SOURCE OR NOT DEFINED LIBDATAPLUS_EX_SOURCE)
 endif()
 
 set(EXWORD_FLAGS
-  -mb -m4-nofpu -Os -ffreestanding -fno-builtin
+  -mb -m4a-nofpu -Os -ffreestanding -fno-builtin
   -fno-pic -fno-pie -fno-stack-protector
   -fno-unwind-tables -fno-asynchronous-unwind-tables)
 
@@ -32,7 +32,7 @@ add_executable(xdtest
   "${CMAKE_CURRENT_SOURCE_DIR}/crt0.S")
 target_compile_options(xdtest PRIVATE ${EXWORD_FLAGS})
 target_link_options(xdtest PRIVATE
-  -mb -m4-nofpu -nostdlib -no-pie
+  -mb -m4a-nofpu -nostdlib -no-pie
   "-Wl,-T,${CMAKE_CURRENT_SOURCE_DIR}/exword.ld"
   -Wl,--build-id=none
   -Wl,--no-warn-rwx-segments)
