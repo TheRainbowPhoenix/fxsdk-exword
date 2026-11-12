@@ -16,11 +16,12 @@ set(CMAKE_CXX_COMPILER sh-elf-g++)
 set(CMAKE_C_FLAGS_INIT "")
 set(CMAKE_CXX_FLAGS_INIT "")
 
-# Requires the devkitSH4 EX-word-patched GCC (supports -mexword).
-add_compile_options(-mb -m3 -mexword -mrenesas -fno-builtin)
-add_link_options(-mb -m3 -mexword -mrenesas -nostdlib)
+# No -mexword: use the regular SH4 ABI and a dedicated EX-word linker script.
+add_compile_options(-mb -m4-nofpu -ffreestanding -fno-builtin)
+add_link_options(-mb -m4-nofpu -nostdlib -Wl,--build-id=none)
 add_compile_definitions(TARGET_EXWORD)
 
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -28,7 +29,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(FXSDK_CMAKE_MODULE_PATH "${FXSDK_CMAKE_MODULE_PATH}")
 
-# Optional additional EX-word headers and libraries.
 set(FXSDK_PREFIX "$ENV{FXSDK_PREFIX}")
 foreach(DIR IN LISTS FXSDK_PREFIX)
   include_directories("${DIR}/include")
