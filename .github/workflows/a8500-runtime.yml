@@ -1,0 +1,130 @@
+name: A8500 EX-word runtime add-in (gint SH4)
+
+on:
+  push:
+    branches: [dev, feature/exword-d01-cmake-ci]
+    tags: ['v*']
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a8500:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/therainbowphoenix/gint-docker:main
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and install this fxSDK fork over the prebuilt toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B /tmp/fxsdk-build \
+            -DCMAKE_INSTALL_PREFIX=/tmp/fxsdk-exword \
+            -DFXLINK_DISABLE_SDL2=ON \
+            -DFXLINK_DISABLE_UDISKS2=ON
+          cmake --build /tmp/fxsdk-build -j2
+          cmake --install /tmp/fxsdk-build
+          test -f /tmp/fxsdk-exword/lib/cmake/fxsdk/EXWORD.cmake
+          test -f /tmp/fxsdk-exword/lib/cmake/fxsdk/GenerateEXWORDPackage.cmake
+
+      - name: Build host-side D01 converter (not devkitSH4)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/brijohn/elf2d01.git /tmp/elf2d01
+          cc -O2 /tmp/elf2d01/elf2d01.c -o /tmp/fxsdk-exword/bin/elf2d01
+
+      - name: Check out real application and temporary libdataplus-ex
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 --branch main https://github.com/TheRainbowPhoenix/exword-xd-a8500-TEST.git /tmp/a8500-test
+          git clone --depth=1 --branch master https://github.com/TheRainbowPhoenix/libdataplus-ex.git /tmp/libdataplus-ex
+
+      - name: Compile real add-in using fxsdk build-exword
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/tmp/fxsdk-exword/bin:$PATH"
+          mkdir -p /tmp/a8500-project
+          cp .github/tests_files/a8500/CMakeLists.txt /tmp/a8500-project/CMakeLists.txt
+          cp .github/tests_files/a8500/crt0.S /tmp/a8500-project/crt0.S
+          cp .github/tests_files/a8500/exword.ld /tmp/a8500-project/exword.ld
+          cd /tmp/a8500-project
+          fxsdk build-exword -c -- \
+            -DEXWORD_TEST_SOURCE=/tmp/a8500-test \
+            -DLIBDATAPLUS_EX_SOURCE=/tmp/libdataplus-ex
+          fxsdk build-exword
+          test -s build-exword/xdtest.d01
+
+      - name: Validate D01 and installable JA/CN packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh-elf-readelf -h /tmp/a8500-project/build-exword/xdtest
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/a8500-project/build-exword')
+          d01 = (root / 'xdtest.d01').read_bytes()
+          assert len(d01) > 128
+          assert d01[:16] == b'CASIODICPLUGIN10'
+          assert d01[16:22] == b'xdtest'
+          for locale in ('ja', 'cn'):
+              package = root / 'packages' / locale / 'XDTST'
+              assert (package / 'xdtest.d01').read_bytes() == d01
+              assert (package / 'fileinfo.cji').is_file()
+              html = list(package.glob('*.htm'))
+              assert html, f'No HTML for {locale}'
+              for path in html:
+                  raw = path.read_bytes()
+                  assert b'@APP' not in raw, path
+                  assert b'\r\n' in raw, path
+                  assert b'\n' not in raw.replace(b'\r\n', b''), path
+              print(f'{locale}: {len(html)} HTML templates, {len(d01)}-byte D01')
+          PY
+
+      - name: Prepare release ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          root = Path('/tmp/a8500-project/build-exword/packages')
+          out = Path('/tmp/a8500-release')
+          out.mkdir(exist_ok=True)
+          for locale in ('ja', 'cn'):
+              with ZipFile(out / f'exword-xd-a8500-{locale}.zip', 'w', ZIP_DEFLATED) as zipf:
+                  for file in (root / locale / 'XDTST').rglob('*'):
+                      if file.is_file():
+                          zipf.write(file, file.relative_to(root / locale))
+          PY
+
+      - name: Upload Japanese install package
+        uses: actions/upload-artifact@v4
+        with:
+          name: exword-xd-a8500-fxsdk-ja
+          path: /tmp/a8500-project/build-exword/packages/ja/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Chinese install package
+        uses: actions/upload-artifact@v4
+        with:
+          name: exword-xd-a8500-fxsdk-cn
+          path: /tmp/a8500-project/build-exword/packages/cn/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish ZIPs on version tags only
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/a8500-release/*.zip
+          generate_release_notes: true
