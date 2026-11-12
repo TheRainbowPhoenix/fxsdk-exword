@@ -12,13 +12,14 @@ set(FXSDK_PLATFORM_LONG exword)
 set(FXSDK_TOOLCHAIN sh-elf-)
 set(CMAKE_C_COMPILER sh-elf-gcc)
 set(CMAKE_CXX_COMPILER sh-elf-g++)
+set(CMAKE_ASM_COMPILER sh-elf-gcc)
 
 set(CMAKE_C_FLAGS_INIT "")
 set(CMAKE_CXX_FLAGS_INIT "")
 
 # No -mexword: use the regular SH4 ABI and a dedicated EX-word linker script.
-add_compile_options(-mb -m4-nofpu -ffreestanding -fno-builtin)
-add_link_options(-mb -m4-nofpu -nostdlib -Wl,--build-id=none)
+add_compile_options(-mb -m4a-nofpu -ffreestanding -fno-builtin)
+add_link_options(-mb -m4a-nofpu -nostdlib -Wl,--build-id=none)
 add_compile_definitions(TARGET_EXWORD)
 
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
