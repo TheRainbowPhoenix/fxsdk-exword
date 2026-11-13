@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth=1 --branch main https://github.com/TheRainbowPhoenix/exword-fxtst-TEST.git /tmp/a8500-test
+          git clone --depth=1 --branch main https://github.com/TheRainbowPhoenix/exword-xd-a8500-TEST.git /tmp/a8500-test
           git clone --depth=1 --branch master https://github.com/TheRainbowPhoenix/libdataplus-ex.git /tmp/libdataplus-ex
 
       - name: Compile real add-in using fxsdk build-exword
