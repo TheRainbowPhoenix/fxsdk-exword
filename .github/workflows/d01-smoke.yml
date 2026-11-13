@@ -1,0 +1,71 @@
+name: EX-word D01 and UPDADN2 smoke test
+
+on:
+  push:
+    branches: [dev, feature/exword-d01-cmake-ci]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  triangle:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/therainbowphoenix/gint-docker:main
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build modified fxSDK helper only
+        run: |
+          cmake -S . -B /tmp/fxsdk-build \
+            -DFXLINK_DISABLE_SDL2=ON \
+            -DFXLINK_DISABLE_UDISKS2=ON
+          cmake --build /tmp/fxsdk-build --target fxsdk -j2
+
+      - name: Build reference elf2d01 converter
+        run: |
+          git clone --depth=1 https://github.com/brijohn/elf2d01.git /tmp/elf2d01
+          cc -O2 /tmp/elf2d01/elf2d01.c -o /tmp/elf2d01/elf2d01
+
+      - name: Build standalone triangle as D01 and UPDADN2
+        run: |
+          cmake -S .github/tests_files -B /tmp/exword-triangle \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/fxsdk/cmake/EXWORD.cmake" \
+            -DCMAKE_ASM_COMPILER=sh-elf-gcc \
+            -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/fxsdk/cmake" \
+            -DELF2D01_EXECUTABLE=/tmp/elf2d01/elf2d01
+          cmake --build /tmp/exword-triangle --parallel 2
+
+      - name: Check headers and ELF entry addresses
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          import subprocess
+          base = Path('/tmp/exword-triangle')
+          d01 = (base / 'triangle.d01').read_bytes()
+          upd = (base / 'UPDADN2.BIN').read_bytes()
+          assert len(d01) > 128
+          assert d01[:16] == b'CASIODICPLUGIN10'
+          assert d01[16:22] == b'triang'
+          assert d01[32:36] == b'\x01\x00\x00\x00'
+          assert upd.startswith(b'CASIO CY10x ADDIN MODULE FOR RELEASE ROM\0')
+          assert struct.unpack('>I', upd[48:52])[0] == 0x8c18ff80
+          assert struct.unpack('>I', upd[52:56])[0] == 0x8c190000
+          assert len(upd) > 128
+          for name, entry in [('triangle_d01', 0x70000080),
+                              ('triangle_upd', 0x8c190000)]:
+              output = subprocess.check_output(
+                  ['sh-elf-readelf', '-h', str(base / name)], text=True)
+              assert f'0x{entry:x}' in output, (name, output)
+          print('D01 and UPDADN2 images validated', len(d01), len(upd))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exword-triangle-smoke
+          path: |
+            /tmp/exword-triangle/triangle.d01
+            /tmp/exword-triangle/UPDADN2.BIN
+          retention-days: 7
