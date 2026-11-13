@@ -18,6 +18,7 @@ SECTIONS
     KEEP(*(.text.start))
     *(.text) *(.text.*)
     *(.rodata) *(.rodata.*)
+    . = ALIGN(4);
     _etext = .;
   } >rom :text
   .bss (NOLOAD) : {

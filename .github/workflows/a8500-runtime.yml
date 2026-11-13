@@ -70,6 +70,21 @@ jobs:
           set -euo pipefail
           sh-elf-readelf -h /tmp/a8500-project/build-exword/fxtest
           python3 - <<'PY'
+          import subprocess
+          elf = '/tmp/a8500-project/build-exword/fxtest'
+          symbols = subprocess.check_output(['sh-elf-nm', elf], text=True)
+          addresses = {}
+          for line in symbols.splitlines():
+              fields = line.split()
+              if len(fields) == 3 and fields[2] in ('_etext', '_sdata', '_edata'):
+                  addresses[fields[2]] = int(fields[0], 16)
+          assert len(addresses) == 3, addresses
+          assert addresses['_etext'] % 4 == 0, addresses
+          assert addresses['_sdata'] % 4 == 0, addresses
+          assert addresses['_edata'] % 4 == 0, addresses
+          print('Aligned DATA loader:', addresses)
+          PY
+          python3 - <<'PY'
           from pathlib import Path
           root = Path('/tmp/a8500-project/build-exword')
           d01 = (root / 'fxtest.d01').read_bytes()
