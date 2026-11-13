@@ -10,10 +10,11 @@
 int main(void)
 {
     struct font *fnt = get_font();
-    set_pen(create_rgb16(0, 0, 0));
-    draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    set_pen(create_rgb16(255, 255, 255));
 
+    set_pen(create_rgb16(255, 255, 255));
+    draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    set_pen(create_rgb16(0, 0, 0));
     render_text(
         (SCREEN_WIDTH - (sizeof "FXTST" - 1) * fnt->width) / 2,
         SCREEN_HEIGHT / 2 - fnt->height,
@@ -24,9 +25,10 @@ int main(void)
         "FxSDK bundle test!");
 
     lcdc_copy_vram();
-    for(;;) {
+
+    for (;;) {
         keypad_read();
-        if(get_key_state(KEY_POWER) || get_key_state(KEY_BACK))
+        if (get_key_state(KEY_POWER) || get_key_state(KEY_BACK))
             return -2;
     }
 }
