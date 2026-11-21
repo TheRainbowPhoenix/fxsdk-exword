@@ -2,7 +2,7 @@ name: A8500 EX-word runtime add-in (gint SH4)
 
 on:
   push:
-    branches: [dev, feature/exword-d01-cmake-ci]
+    branches: [dev, exword, feature/exword-d01-cmake-ci]
     tags: ['v*']
   pull_request:
     branches: [dev]

@@ -2,7 +2,7 @@ name: EX-word D01 and UPDADN2 smoke test
 
 on:
   push:
-    branches: [dev, feature/exword-d01-cmake-ci]
+    branches: [dev, exword, feature/exword-d01-cmake-ci]
   pull_request:
     branches: [dev]
   workflow_dispatch:
